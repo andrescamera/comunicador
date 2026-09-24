@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react'
+import type { CSSProperties, DragEvent } from 'react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { ZONE_LABELS, ZONE_ORDER } from '../lib/layout'
 import type { Board, Category, Cell, Zone } from '../lib/types'
@@ -49,7 +49,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
   }
 
   return (
-    <div className="grid-wrap">
+    <div className="grid-wrap" style={{ '--rows': board.rows, '--cols': board.cols } as CSSProperties}>
       {editing && (
         <div className="zone-header" style={{ gridTemplateColumns: gridStyle.gridTemplateColumns }}>
           {ZONE_ORDER.filter((z) => board.zones[z][1] >= board.zones[z][0]).map((z) => (

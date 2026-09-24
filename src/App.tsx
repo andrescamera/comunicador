@@ -218,7 +218,9 @@ export default function App() {
           )}
           <div className="topbar-tools">
             {editing && (
-              <button type="button" onClick={() => setShowCreator(true)}>✨ Crear desde texto</button>
+              <button type="button" onClick={() => setShowCreator(true)}>
+                ✨<span className="btn-text"> Crear desde texto</span>
+              </button>
             )}
             <button
               type="button"
@@ -228,7 +230,8 @@ export default function App() {
                 setMovingId(null)
               }}
             >
-              {editing ? '✓ Terminar' : '✎ Editar'}
+              {editing ? '✓' : '✎'}
+              <span className="btn-text">{editing ? ' Terminar' : ' Editar'}</span>
             </button>
             {!editing && (
               <button type="button" onClick={() => setShowSettings(true)} aria-label="Ajustes">⚙︎</button>

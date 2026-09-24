@@ -1,0 +1,11 @@
+{
+  "name": "Comunicador",
+  "short_name": "Comunicador",
+  "lang": "es",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef1f5",
+  "theme_color": "#2f5d8a",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

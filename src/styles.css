@@ -123,9 +123,10 @@ button.danger {
   min-width: 180px;
 }
 
-/* Elementos pulsables del comunicador (gestionados por TapManager) */
+/* Elementos pulsables del comunicador (gestionados por TapManager).
+   Se permite desplazar el tablero con el dedo: el navegador cancela la pulsación y no se activa nada. */
 [data-tap] {
-  touch-action: none;
+  touch-action: pan-x pan-y;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -242,12 +243,20 @@ button.danger {
 .board-area {
   flex: 1;
   min-height: 0;
+  /* En pantallas pequeñas el tablero se desplaza en lugar de encoger las celdas por debajo de un tamaño usable */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .grid-wrap {
+  --min-cell-w: 64px;
+  --min-cell-h: 72px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   height: 100%;
+  min-width: calc(var(--cols) * var(--min-cell-w));
+  min-height: calc(var(--rows) * var(--min-cell-h));
 }
 .grid {
   display: grid;
@@ -678,7 +687,7 @@ label.check {
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 800px), (max-height: 500px) {
   .app.with-log {
     grid-template-columns: 1fr;
   }
@@ -687,5 +696,85 @@ label.check {
   }
   .nav-btn span {
     display: none;
+  }
+}
+
+/* Móvil (vertical u horizontal): barras compactas para dejar sitio al tablero */
+@media (max-width: 600px), (max-height: 500px) {
+  .main {
+    padding: 6px;
+    gap: 6px;
+  }
+  .topbar {
+    min-height: 40px;
+    gap: 6px;
+  }
+  .nav-btn {
+    padding: 6px 10px;
+    font-size: 1rem;
+  }
+  .board-title {
+    font-size: 1.05rem;
+    margin: 0 4px;
+  }
+  .topbar-tools button {
+    padding: 6px 10px;
+  }
+  .btn-text {
+    display: none;
+  }
+  .sentence-bar {
+    height: 64px;
+    gap: 6px;
+  }
+  .sentence {
+    padding: 4px 6px;
+  }
+  .sentence-hint {
+    font-size: 0.85rem;
+  }
+  .sentence-token {
+    min-width: 44px;
+    font-size: 0.8rem;
+  }
+  .action {
+    width: 52px;
+    font-size: 0.7rem;
+  }
+  .action-icon {
+    font-size: 1.3rem;
+  }
+  .grid,
+  .zone-header {
+    gap: 4px;
+  }
+  .grid-wrap {
+    --min-cell-w: 60px;
+    --min-cell-h: 66px;
+  }
+  .cell {
+    padding: 3px;
+    border-width: 2px;
+    border-radius: 10px;
+  }
+  .edit-toolbar {
+    gap: 4px;
+  }
+  .board-name-input {
+    min-width: 100px;
+    width: 120px;
+  }
+  .modal-backdrop {
+    padding: 6px;
+  }
+  .modal-body {
+    padding: 12px;
+  }
+  .editor {
+    flex-direction: column;
+  }
+  .editor-preview {
+    width: 100%;
+    height: 110px;
   }
 }
