@@ -31,6 +31,9 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [movingId, setMovingId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
+  const [clearing, setClearing] = useState(false)
+  const clearTimer = useRef<number | undefined>(undefined)
+  const clearGen = useRef(0)
 
   useEffect(() => {
     if (!notice) return
@@ -101,13 +104,34 @@ export default function App() {
   const currentId = history[history.length - 1] ?? lib.rootId
   const board: Board = lib.boards[currentId] ?? lib.boards[lib.rootId]
 
-  const say = (text: string) => speak(text, settingsRef.current)
+  const say = (text: string, onEnd?: () => void) => speak(text, settingsRef.current, onEnd)
+
+  const cancelAutoClear = () => {
+    window.clearTimeout(clearTimer.current)
+    clearGen.current += 1
+    setClearing(false)
+  }
+  const speakSentence = () => {
+    cancelAutoClear()
+    if (!sentence.length) return
+    const gen = clearGen.current
+    say(sentenceText(sentence), () => {
+      // Se cancela si mientras hablaba se tocó otra celda, se borró, etc.
+      if (gen !== clearGen.current || !settingsRef.current.autoClear) return
+      setClearing(true)
+      clearTimer.current = window.setTimeout(() => {
+        setSentence([])
+        setClearing(false)
+      }, settingsRef.current.autoClearSeconds * 1000)
+    })
+  }
 
   const onCellTap = (cell: Cell) => {
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       return
     }
+    cancelAutoClear() // sigue construyendo la frase: no se borra
     const next = [...sentence, cell]
     setSentence(next)
     if (settings.speakOnTap) say(realize(next)[next.length - 1] || cell.label)
@@ -258,9 +282,16 @@ export default function App() {
         {!editing && (
           <SentenceBar
             tokens={sentence}
-            onSpeak={() => say(sentenceText(sentence))}
-            onBackspace={() => setSentence((s) => s.slice(0, -1))}
-            onClear={() => setSentence([])}
+            onSpeak={speakSentence}
+            onBackspace={() => {
+              cancelAutoClear()
+              setSentence((s) => s.slice(0, -1))
+            }}
+            onClear={() => {
+              cancelAutoClear()
+              setSentence([])
+            }}
+            clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
           />
         )}
 

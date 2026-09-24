@@ -51,6 +51,26 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose }: Pr
           <small>Si el dedo se desliza más que esto, la pulsación se cancela.</small>
         </label>
 
+        <h3>Frase</h3>
+        <label className="check">
+          <input type="checkbox" checked={settings.autoClear} onChange={(e) => set('autoClear', e.target.checked)} />
+          Borrar la frase automáticamente después de decirla
+        </label>
+        {settings.autoClear && (
+          <label>
+            Esperar: <strong>{settings.autoClearSeconds} s</strong>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={settings.autoClearSeconds}
+              onChange={(e) => set('autoClearSeconds', +e.target.value)}
+            />
+            <small>Cuenta desde que termina de hablar. Si se toca otra celda antes, no se borra.</small>
+          </label>
+        )}
+
         <h3>Voz</h3>
         <label className="check">
           <input type="checkbox" checked={settings.speakOnTap} onChange={(e) => set('speakOnTap', e.target.checked)} />

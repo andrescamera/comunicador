@@ -195,6 +195,29 @@ button.danger {
   overflow-x: auto;
   min-width: 0;
 }
+.sentence {
+  position: relative;
+}
+/* Cuenta atrás visible antes del borrado automático */
+.autoclear-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--accent);
+  border-radius: 0 0 0 var(--radius);
+  transform-origin: left;
+  animation: autoclear linear forwards;
+}
+@keyframes autoclear {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
 .sentence-hint {
   color: var(--muted);
   font-size: 1.05rem;
@@ -755,7 +778,30 @@ label.check {
   .sentence {
     padding: 4px 6px;
   }
-  .sentence-hint {
+  .sentence {
+  position: relative;
+}
+/* Cuenta atrás visible antes del borrado automático */
+.autoclear-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--accent);
+  border-radius: 0 0 0 var(--radius);
+  transform-origin: left;
+  animation: autoclear linear forwards;
+}
+@keyframes autoclear {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.sentence-hint {
     font-size: 0.85rem;
   }
   .sentence-token {

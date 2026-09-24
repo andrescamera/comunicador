@@ -55,6 +55,8 @@ export interface Settings {
   rate: number
   voiceURI: string
   showTapLog: boolean
+  autoClear: boolean // borrar la frase automáticamente después de decirla
+  autoClearSeconds: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -66,6 +68,8 @@ export const DEFAULT_SETTINGS: Settings = {
   rate: 1,
   voiceURI: '',
   showTapLog: true,
+  autoClear: true,
+  autoClearSeconds: 3,
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {
