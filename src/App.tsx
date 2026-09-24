@@ -111,7 +111,7 @@ export default function App() {
     clearGen.current += 1
     setClearing(0)
   }
-  /** Sin pulsar Hablar: la frase se borra tras N segundos sin tocar nada. Cada toque reinicia la cuenta. */
+  /** Sin decir la frase: se borra tras N segundos sin tocar nada. Cada toque reinicia la cuenta. */
   const scheduleIdleClear = (length: number) => {
     cancelAutoClear()
     if (!length || !settingsRef.current.autoClear) return
@@ -121,7 +121,7 @@ export default function App() {
       setClearing(0)
     }, settingsRef.current.autoClearSeconds * 1000)
   }
-  /** Al pulsar Hablar: se dice la frase y se borra en cuanto termina. */
+  /** Al tocar la barra de la frase: se dice entera y se borra en cuanto termina. */
   const speakSentence = () => {
     cancelAutoClear()
     if (!sentence.length) return
