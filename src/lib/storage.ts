@@ -1,7 +1,7 @@
 import type { Library, Settings } from './types'
 import { DEFAULT_SETTINGS } from './types'
 
-const LIB_KEY = 'comunicador:library:v1'
+const LIB_KEY = 'comunicador:library:v2'
 const SETTINGS_KEY = 'comunicador:settings:v1'
 
 function read<T>(key: string): T | null {

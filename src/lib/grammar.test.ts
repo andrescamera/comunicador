@@ -92,4 +92,13 @@ describe('parseText', async () => {
     const [b] = parseText('Parque: jugamos en el columpio con mis amigos')
     expect(b.items.map((i) => i.label)).toEqual(['jugar', 'columpio', 'amigos'])
   })
+  it('puts every line on the main board unless marked as carpeta', () => {
+    const boards = parseText('Merienda: yo, comer\nParque: columpio, comer\ncarpeta Animales: perro, gato\nCarpeta animales: perro, pájaro')
+    expect(boards.map((b) => b.name)).toEqual(['Merienda', 'Animales'])
+    expect(boards[0].items.map((i) => i.label)).toEqual(['yo', 'comer', 'columpio'])
+    expect(boards[1].items.map((i) => i.label)).toEqual(['perro', 'gato', 'pájaro'])
+  })
+  it('names the main board Inicio without a label', () => {
+    expect(parseText('yo, querer, agua')[0].name).toBe('Inicio')
+  })
 })

@@ -20,26 +20,40 @@ const STOPWORDS = new Set([
 
 /**
  * Formato:
- *   desayuno: yo, querer, más, leche, "quiero ir al baño"
- *   parque: quiero jugar en el columpio con mis amigos
- * - Cada línea es un tablero. La primera es el principal; las demás se enlazan como carpetas.
+ *   yo, querer, más, leche, "quiero ir al baño"
+ *   Parque: quiero jugar en el columpio con mis amigos
+ *   carpeta Animales: perro, gato, pájaro
+ * - Por defecto TODO va al tablero principal. "Nombre:" es solo una etiqueta para organizar el texto
+ *   (la primera da nombre al tablero principal).
+ * - Solo "carpeta Nombre: ..." crea un tablero aparte, enlazado desde el principal.
  * - Con comas: cada elemento es una celda. Entre comillas: frase completa en una celda.
  * - Sin comas: texto libre; se quitan palabras vacías y se pasan los verbos a infinitivo.
+ * Devuelve el tablero principal en la posición 0 y después las carpetas.
  */
 export function parseText(text: string): ParsedBoard[] {
-  const boards: ParsedBoard[] = []
+  const main: ParsedBoard = { name: '', items: [] }
+  const folders: ParsedBoard[] = []
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim()
     if (!line) continue
-    const m = line.match(/^([^:"]{1,40}):\s*(.*)$/)
-    const name = m ? m[1].trim() : boards.length === 0 ? 'Inicio' : `Tablero ${boards.length + 1}`
-    const body = m ? m[2] : line
+    const folder = line.match(/^carpeta\s+([^:"]{1,40}):\s*(.*)$/i)
+    const labeled = folder ? null : line.match(/^([^:",]{1,40}):\s*(.*)$/)
+    const body = folder ? folder[2] : labeled ? labeled[2] : line
     const items = body.includes(',') ? parseList(body) : parseFreeText(body)
-    // Dos líneas con el mismo nombre se juntan en un tablero
-    const existing = boards.find((b) => b.name.toLowerCase() === name.toLowerCase())
-    if (existing) existing.items.push(...items)
-    else boards.push({ name, items })
+
+    if (folder) {
+      const name = folder[1].trim()
+      // Dos líneas con la misma carpeta se juntan
+      const existing = folders.find((b) => b.name.toLowerCase() === name.toLowerCase())
+      if (existing) existing.items.push(...items)
+      else folders.push({ name, items })
+    } else {
+      if (labeled && !main.name) main.name = labeled[1].trim()
+      main.items.push(...items)
+    }
   }
+  main.name ||= 'Inicio'
+  const boards = [main, ...folders]
   for (const b of boards) {
     const seen = new Set<string>()
     b.items = b.items.filter((it) => {
@@ -83,7 +97,7 @@ function parseFreeText(body: string): ParsedItem[] {
 
 export function autoCols(n: number): number {
   if (n <= 3) return Math.max(n, 1)
-  return Math.min(8, Math.max(3, Math.ceil(Math.sqrt(n * 1.6))))
+  return Math.min(10, Math.max(3, Math.ceil(Math.sqrt(n * 1.6))))
 }
 
 export function sortCells(cells: Cell[]): Cell[] {
@@ -159,8 +173,8 @@ export async function generateLibrary(parsed: ParsedBoard[], onProgress?: (done:
   return { rootId: root.id, boards: Object.fromEntries(boards.map((b) => [b.id, b])) }
 }
 
-export const SAMPLE_TEXT = `Inicio: yo, tú, él, ella, nosotros, mamá, papá, querer, ir, tener, gustar, estar, poder, no, sí, más, ayuda, hola, adiós, gracias
-Comida: comer, beber, agua, leche, zumo, galletas, pan, fruta, manzana, plátano, pizza, rico, caliente, frío, terminado
-Sentimientos: estar, contento, triste, enfadado, cansado, asustado, doler, cabeza, tripa, bien, mal
-Lugares: ir, casa, colegio, parque, baño, playa, médico, tienda, "quiero ir al baño"
-Jugar: jugar, pelota, columpio, tobogán, puzle, dibujar, música, otra vez, mi turno`
+export const SAMPLE_TEXT = `Inicio: yo, tú, él, ella, nosotros, mamá, papá, querer, ir, tener, gustar, estar, poder, comer, beber, jugar, no, sí, más, ayuda, hola, adiós, gracias
+Comida: agua, leche, zumo, galletas, pan, fruta, pizza, rico, terminado
+Sentimientos: contento, triste, enfadado, cansado, doler, cabeza, tripa
+Lugares: casa, colegio, parque, baño, "quiero ir al baño"
+Juegos: pelota, columpio, tobogán, dibujar, música, otra vez`

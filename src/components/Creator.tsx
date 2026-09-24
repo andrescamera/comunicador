@@ -8,17 +8,19 @@ import { Modal } from './Modal'
 const EXAMPLES: { name: string; text: string }[] = [
   { name: 'Lista de palabras', text: 'Desayuno: yo, querer, más, leche, galletas, zumo, cereales, tostada, terminado, no, "no me gusta"' },
   { name: 'Texto libre', text: 'Recreo: quiero jugar con mis amigos a la pelota en el tobogán y comer el bocadillo' },
-  { name: 'Varios tableros', text: SAMPLE_TEXT },
+  { name: 'Con carpeta', text: 'Merienda: yo, querer, comer, beber, galletas, leche, más, terminado\ncarpeta Parque: columpio, tobogán, arena, "otra vez"' },
+  { name: 'Tablero completo', text: SAMPLE_TEXT },
 ]
 
 interface Props {
   onReplace: (lib: Library) => void
+  onAddToCurrent: (lib: Library) => void
   onAddAsFolder: (lib: Library) => void
   currentBoardName: string
   onClose: () => void
 }
 
-export function Creator({ onReplace, onAddAsFolder, currentBoardName, onClose }: Props) {
+export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoardName, onClose }: Props) {
   const [text, setText] = useState('')
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [preview, setPreview] = useState<Library | null>(null)
@@ -60,9 +62,9 @@ export function Creator({ onReplace, onAddAsFolder, currentBoardName, onClose }:
       {!preview ? (
         <div className="creator">
           <p className="muted">
-            Una línea por tablero: <code>nombre: palabras</code>. Separa con comas para decidir tú cada celda, o escribe texto libre y se extraen
-            las palabras clave. Usa <code>"comillas"</code> para una frase completa en una celda. La primera línea es el tablero principal; las
-            demás aparecen como carpetas.
+            Escribe las palabras separadas por comas, o texto libre y se extraen las palabras clave. Usa <code>"comillas"</code> para una
+            frase completa en una celda. Todo va al tablero principal; <code>Nombre:</code> al inicio de una línea es solo una etiqueta.
+            Para crear una carpeta aparte, empieza la línea con <code>carpeta Nombre:</code>
           </p>
           <div className="examples">
             {EXAMPLES.map((ex) => (
@@ -75,7 +77,7 @@ export function Creator({ onReplace, onAddAsFolder, currentBoardName, onClose }:
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={9}
-            placeholder={'Desayuno: yo, querer, leche, galletas, más, terminado\nParque: columpio, tobogán, arena, "otra vez"'}
+            placeholder={'Desayuno: yo, querer, leche, galletas, más, terminado\ncarpeta Parque: columpio, tobogán, arena, "otra vez"'}
             autoFocus
           />
           {parsed.length > 0 && (
@@ -83,14 +85,14 @@ export function Creator({ onReplace, onAddAsFolder, currentBoardName, onClose }:
               {parsed.map((b, i) => (
                 <div key={i}>
                   <strong>{b.name}</strong>
-                  {i > 0 && <span className="muted"> (carpeta)</span>}: {b.items.map((it) => (it.kind === 'phrase' ? `“${it.label}”` : it.label)).join(' · ')}
+                  <span className="muted">{i === 0 ? ' (principal)' : ' (carpeta)'}</span>: {b.items.map((it) => (it.kind === 'phrase' ? `“${it.label}”` : it.label)).join(' · ')}
                 </div>
               ))}
             </div>
           )}
           <footer className="modal-footer">
             <span className="muted">
-              {parsed.length} tablero{parsed.length === 1 ? '' : 's'}, {wordCount} celdas
+              {wordCount} celdas{parsed.length > 1 ? `, ${parsed.length - 1} carpeta${parsed.length === 2 ? '' : 's'}` : ''}
             </span>
             <span className="spacer" />
             <button type="button" className="primary" disabled={!wordCount || !!progress} onClick={generate}>
@@ -119,7 +121,8 @@ export function Creator({ onReplace, onAddAsFolder, currentBoardName, onClose }:
           <footer className="modal-footer">
             <button type="button" onClick={() => setPreview(null)}>◀ Volver al texto</button>
             <span className="spacer" />
-            <button type="button" onClick={() => onAddAsFolder(preview)}>Añadir como carpeta en «{currentBoardName}»</button>
+            <button type="button" onClick={() => onAddAsFolder(preview)}>Como carpeta en «{currentBoardName}»</button>
+            <button type="button" onClick={() => onAddToCurrent(preview)}>Añadir a «{currentBoardName}»</button>
             <button type="button" className="primary" onClick={() => onReplace(preview)}>Usar como tablero principal</button>
           </footer>
         </div>

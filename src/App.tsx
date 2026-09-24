@@ -5,7 +5,7 @@ import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
-import { autoCols, folderCell, generateLibrary, parseText, SAMPLE_TEXT } from './lib/generator'
+import { autoCols, folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from './lib/generator'
 import { realize, sentenceText } from './lib/grammar'
 import { speak } from './lib/speech'
 import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './lib/storage'
@@ -98,6 +98,18 @@ export default function App() {
     setLib(next)
     setHistory([])
     setSentence([])
+    setShowCreator(false)
+  }
+  const addToCurrent = (sub: Library) => {
+    setLib((l) => {
+      if (!l) return l
+      const host = l.boards[board.id]
+      const known = new Set(host.cells.map((c) => `${c.kind}:${c.label.toLowerCase()}`))
+      const incoming = sub.boards[sub.rootId].cells.filter((c) => !known.has(`${c.kind}:${c.label.toLowerCase()}`))
+      const cells = sortCells([...host.cells, ...incoming])
+      const { [sub.rootId]: _root, ...folders } = sub.boards
+      return { ...l, boards: { ...l.boards, ...folders, [host.id]: { ...host, cells, cols: Math.max(host.cols, autoCols(cells.length)) } } }
+    })
     setShowCreator(false)
   }
   const addAsFolder = async (sub: Library) => {
@@ -197,6 +209,7 @@ export default function App() {
         <Creator
           currentBoardName={board.name}
           onReplace={replaceLibrary}
+          onAddToCurrent={addToCurrent}
           onAddAsFolder={addAsFolder}
           onClose={() => setShowCreator(false)}
         />

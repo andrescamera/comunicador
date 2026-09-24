@@ -24,9 +24,9 @@ npm test         # tests de gramática y del generador
 - **Crear tableros desde texto** (✎ Editar → ✨ Crear desde texto):
   ```
   Merienda: yo, quiero comer galletas y beber leche, "no me gusta", más, terminado
-  Parque: jugamos en el columpio y el tobogán con mis amigos
+  carpeta Parque: jugamos en el columpio y el tobogán con mis amigos
   ```
-  Una línea por tablero; la primera es el principal y las demás, carpetas. Comas = una celda cada una;
+  Todo va al tablero principal (`Nombre:` es solo una etiqueta); `carpeta Nombre: ...` crea una carpeta. Comas = una celda cada una;
   texto libre = se extraen las palabras clave y los verbos pasan a infinitivo; `"comillas"` = frase hecha.
 - **Editor de celdas**: texto, tipo, categoría/color, buscador de pictogramas ARASAAC, mover y eliminar.
 - Todo se guarda en el dispositivo (localStorage).
