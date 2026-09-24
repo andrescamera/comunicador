@@ -10,11 +10,11 @@ interface Props {
   isNew?: boolean
   onSave: (cell: Cell) => void
   onDelete?: () => void
-  onMove?: (delta: -1 | 1) => void
+  onStartMove?: () => void
   onClose: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onMove, onClose }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [query, setQuery] = useState(cell.label)
   const [results, setResults] = useState<PictoResult[]>([])
@@ -68,6 +68,12 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onMove, onClose }: P
               </label>
             </div>
           )}
+          {!isNew && (
+            <label className="check">
+              <input type="checkbox" checked={!!draft.hidden} onChange={(e) => setDraft({ ...draft, hidden: e.target.checked })} />
+              Ocultar (conserva su sitio; para introducir vocabulario poco a poco)
+            </label>
+          )}
           <label>
             Buscar pictograma
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="p. ej. galletas" />
@@ -91,12 +97,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onMove, onClose }: P
       </div>
       <footer className="modal-footer">
         {onDelete && <button type="button" className="danger" onClick={onDelete}>Eliminar</button>}
-        {onMove && (
-          <>
-            <button type="button" onClick={() => onMove(-1)}>◀ Mover</button>
-            <button type="button" onClick={() => onMove(1)}>Mover ▶</button>
-          </>
-        )}
+        {onStartMove && <button type="button" onClick={onStartMove}>✥ Mover a otra casilla</button>}
         <span className="spacer" />
         <button type="button" onClick={onClose}>Cancelar</button>
         <button type="button" className="primary" disabled={!draft.label.trim()} onClick={() => onSave({ ...draft, label: draft.label.trim() })}>

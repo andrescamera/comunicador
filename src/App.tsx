@@ -5,8 +5,10 @@ import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
-import { autoCols, folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from './lib/generator'
+import { folderCell, generateLibrary, parseText, SAMPLE_TEXT } from './lib/generator'
+import { moveCellTo, type NewCell, placeCell, resizeBoard, zoneOf } from './lib/layout'
 import { realize, sentenceText } from './lib/grammar'
+import { bestPicto } from './lib/arasaac'
 import { speak } from './lib/speech'
 import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './lib/storage'
 import { tapManager, tapRef } from './lib/tap'
@@ -14,6 +16,9 @@ import type { Board, Cell, Library, Settings } from './lib/types'
 import { uid } from './lib/types'
 
 type EditTarget = { cell: Cell; isNew: boolean } | null
+
+// Evita generar el ejemplo dos veces en paralelo (StrictMode monta los efectos dos veces)
+let sampleRequest: Promise<Library> | null = null
 
 export default function App() {
   const [lib, setLib] = useState<Library | null>(() => loadLibrary())
@@ -24,6 +29,14 @@ export default function App() {
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [movingId, setMovingId] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    if (!notice) return
+    const t = window.setTimeout(() => setNotice(''), 8000)
+    return () => window.clearTimeout(t)
+  }, [notice])
 
   tapManager.settings = settings
   const settingsRef = useRef(settings)
@@ -36,7 +49,8 @@ export default function App() {
 
   const loadSample = useCallback(async () => {
     setLib(null)
-    const sample = await generateLibrary(parseText(SAMPLE_TEXT))
+    sampleRequest ??= generateLibrary(parseText(SAMPLE_TEXT)).finally(() => (sampleRequest = null))
+    const sample = await sampleRequest
     setLib(sample)
     setHistory([])
     setSentence([])
@@ -45,6 +59,34 @@ export default function App() {
   useEffect(() => {
     if (!lib) void loadSample() // primer arranque
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Celdas que se quedaron sin pictograma (sin conexión, error de red...): se reintenta una vez por sesión
+  const repaired = useRef(false)
+  useEffect(() => {
+    if (!lib || repaired.current) return
+    repaired.current = true
+    const missing = Object.values(lib.boards).flatMap((b) => b.cells.filter((c) => !c.picto).map((c) => ({ board: b.id, cell: c })))
+    if (!missing.length) return
+    void (async () => {
+      const found = new Map<string, number>()
+      for (const { cell } of missing) {
+        const p = await bestPicto(cell.kind === 'folder' ? cell.label.toLowerCase() : cell.label)
+        if (p) found.set(cell.id, p.id)
+      }
+      if (!found.size) return
+      setLib((l) =>
+        l && {
+          ...l,
+          boards: Object.fromEntries(
+            Object.entries(l.boards).map(([id, b]) => [
+              id,
+              { ...b, cells: b.cells.map((c) => (!c.picto && found.has(c.id) ? { ...c, picto: found.get(c.id) } : c)) },
+            ]),
+          ),
+        },
+      )
+    })()
+  }, [lib])
 
   if (!lib) {
     return (
@@ -84,15 +126,16 @@ export default function App() {
     updateBoard(board.id, (b) => ({ ...b, cells: b.cells.filter((c) => c.id !== id) }))
     setEditTarget(null)
   }
-  const moveCell = (id: string, delta: -1 | 1) =>
-    updateBoard(board.id, (b) => {
-      const i = b.cells.findIndex((c) => c.id === id)
-      const j = i + delta
-      if (i < 0 || j < 0 || j >= b.cells.length) return b
-      const cells = [...b.cells]
-      ;[cells[i], cells[j]] = [cells[j], cells[i]]
-      return { ...b, cells }
-    })
+  const moveTo = (id: string, row: number, col: number) => {
+    updateBoard(board.id, (b) => moveCellTo(b, id, row, col))
+    setMovingId(null)
+  }
+  const resize = (rows: number, cols: number) => {
+    const next = resizeBoard(board, rows, cols)
+    if (next) updateBoard(board.id, () => next)
+    else setNotice('No se puede reducir: hay celdas en la fila o columna que quitarías. Muévelas o elimínalas antes.')
+  }
+  const strip = ({ row: _r, col: _c, ...cell }: Cell): NewCell => cell
 
   const replaceLibrary = (next: Library) => {
     setLib(next)
@@ -106,9 +149,21 @@ export default function App() {
       const host = l.boards[board.id]
       const known = new Set(host.cells.map((c) => `${c.kind}:${c.label.toLowerCase()}`))
       const incoming = sub.boards[sub.rootId].cells.filter((c) => !known.has(`${c.kind}:${c.label.toLowerCase()}`))
-      const cells = sortCells([...host.cells, ...incoming])
+      // Las celdas existentes no se mueven: las nuevas ocupan huecos libres de su zona
+      const updated = incoming.reduce((b, c) => placeCell(b, strip(c)), host)
+      const outside = updated.cells
+        .filter((c) => !host.cells.includes(c))
+        .filter((c) => {
+          const [s, e] = updated.zones[zoneOf(c)]
+          return c.col < s || c.col > e
+        })
+        .map((c) => `«${c.label}»`)
+      const msgs = []
+      if (updated.rows > host.rows) msgs.push(`No había huecos suficientes: se añadieron ${updated.rows - host.rows} fila(s).`)
+      if (outside.length) msgs.push(`Su zona estaba llena y se colocaron en la casilla libre más cercana: ${outside.join(', ')}. Puedes moverlas o ampliar la cuadrícula.`)
+      if (msgs.length) setNotice(msgs.join(' '))
       const { [sub.rootId]: _root, ...folders } = sub.boards
-      return { ...l, boards: { ...l.boards, ...folders, [host.id]: { ...host, cells, cols: Math.max(host.cols, autoCols(cells.length)) } } }
+      return { ...l, boards: { ...l.boards, ...folders, [host.id]: updated } }
     })
     setShowCreator(false)
   }
@@ -117,7 +172,7 @@ export default function App() {
     setLib((l) => {
       if (!l) return l
       const host = l.boards[board.id]
-      return { ...l, boards: { ...l.boards, ...sub.boards, [host.id]: { ...host, cells: [...host.cells, folder] } } }
+      return { ...l, boards: { ...l.boards, ...sub.boards, [host.id]: placeCell(host, folder) } }
     })
     setShowCreator(false)
   }
@@ -151,18 +206,28 @@ export default function App() {
                 onChange={(e) => updateBoard(board.id, (b) => ({ ...b, name: e.target.value }))}
                 aria-label="Nombre del tablero"
               />
+              <span className="muted">Filas</span>
+              <button type="button" onClick={() => resize(board.rows - 1, board.cols)} aria-label="Quitar fila">−</button>
+              <strong>{board.rows}</strong>
+              <button type="button" onClick={() => resize(board.rows + 1, board.cols)} aria-label="Añadir fila">+</button>
               <span className="muted">Columnas</span>
-              <button type="button" onClick={() => updateBoard(board.id, (b) => ({ ...b, cols: Math.max(1, b.cols - 1) }))}>−</button>
+              <button type="button" onClick={() => resize(board.rows, board.cols - 1)} aria-label="Quitar columna">−</button>
               <strong>{board.cols}</strong>
-              <button type="button" onClick={() => updateBoard(board.id, (b) => ({ ...b, cols: Math.min(12, b.cols + 1) }))}>+</button>
-              <button type="button" onClick={() => updateBoard(board.id, (b) => ({ ...b, cols: autoCols(b.cells.length + 1) }))}>Auto</button>
+              <button type="button" onClick={() => resize(board.rows, Math.min(16, board.cols + 1))} aria-label="Añadir columna">+</button>
             </div>
           )}
           <div className="topbar-tools">
             {editing && (
               <button type="button" onClick={() => setShowCreator(true)}>✨ Crear desde texto</button>
             )}
-            <button type="button" className={editing ? 'primary' : ''} onClick={() => setEditing((e) => !e)}>
+            <button
+              type="button"
+              className={editing ? 'primary' : ''}
+              onClick={() => {
+                setEditing((e) => !e)
+                setMovingId(null)
+              }}
+            >
               {editing ? '✓ Terminar' : '✎ Editar'}
             </button>
             {!editing && (
@@ -180,15 +245,31 @@ export default function App() {
           />
         )}
 
+        {editing && (
+          <div className={`edit-hint ${movingId ? 'moving' : ''}`}>
+            {movingId ? (
+              <>
+                Elige la casilla de destino (si está ocupada, se intercambian).
+                <button type="button" onClick={() => setMovingId(null)}>Cancelar</button>
+              </>
+            ) : (
+              'Pulsa una celda para editarla, una casilla vacía para añadir, o arrastra para cambiar de sitio. Las celdas nunca se mueven solas.'
+            )}
+          </div>
+        )}
+        {notice && <div className="notice">{notice}</div>}
+
         <main className="board-area">
           <BoardGrid
             board={board}
             editing={editing}
             onTap={onCellTap}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
-            onAdd={() =>
-              setEditTarget({ cell: { id: uid('c'), kind: 'word', label: '', category: 'noun' }, isNew: true })
+            onAddAt={(row, col) =>
+              setEditTarget({ cell: { id: uid('c'), kind: 'word', label: '', category: 'noun', row, col }, isNew: true })
             }
+            movingId={movingId}
+            onMoveTo={moveTo}
           />
         </main>
       </div>
@@ -201,7 +282,14 @@ export default function App() {
           isNew={editTarget.isNew}
           onSave={(c) => saveCell(c, editTarget.isNew)}
           onDelete={editTarget.isNew ? undefined : () => deleteCell(editTarget.cell.id)}
-          onMove={editTarget.isNew ? undefined : (d) => moveCell(editTarget.cell.id, d)}
+          onStartMove={
+            editTarget.isNew
+              ? undefined
+              : () => {
+                  setMovingId(editTarget.cell.id)
+                  setEditTarget(null)
+                }
+          }
           onClose={() => setEditTarget(null)}
         />
       )}

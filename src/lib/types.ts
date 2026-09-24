@@ -18,12 +18,25 @@ export interface Cell {
   category: Category
   picto?: number // id de pictograma ARASAAC
   target?: string // id del tablero destino (solo carpetas)
+  // Posición fija: una celda nunca cambia de sitio sola (planificación motora)
+  row: number
+  col: number
+  hidden?: boolean // oculta pero conservando su hueco
 }
+
+/**
+ * Zonas de columnas (clave de Fitzgerald, de izquierda a derecha, en orden sintáctico):
+ * A personas y preguntas · B verbos · C descriptivos y palabras pequeñas · D nombres · E social, frases y carpetas
+ */
+export type Zone = 'A' | 'B' | 'C' | 'D' | 'E'
+export type Zones = Record<Zone, [number, number]> // [primera, última] columna, ambas incluidas
 
 export interface Board {
   id: string
   name: string
+  rows: number
   cols: number
+  zones: Zones
   cells: Cell[]
 }
 

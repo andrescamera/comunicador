@@ -25,16 +25,35 @@ function toResults(raw: RawPicto[], query: string): PictoResult[] {
   })
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** 404 = sin resultados (se guarda). Error de red o del servidor: se reintenta y no se guarda. */
+async function fetchOnce(kind: 'bestsearch' | 'search', text: string): Promise<PictoResult[]> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await fetch(`${API}/${kind}/${encodeURIComponent(text)}`)
+      if (r.status === 404) return []
+      if (r.ok) return toResults((await r.json()) as RawPicto[], text)
+      throw new Error(`HTTP ${r.status}`)
+    } catch (err) {
+      if (attempt >= 2) throw err
+      await sleep(400 * 2 ** attempt)
+    }
+  }
+}
+
 async function fetchList(kind: 'bestsearch' | 'search', text: string): Promise<PictoResult[]> {
   const key = `${kind}:${text}`
   const hit = cache.get(key)
   if (hit) return hit
-  const p = fetch(`${API}/${kind}/${encodeURIComponent(text)}`)
-    .then(async (r) => (r.ok ? toResults((await r.json()) as RawPicto[], text) : []))
-    .catch(() => [])
+  const p = fetchOnce(kind, text)
   cache.set(key, p)
-  return p
+  p.catch(() => cache.delete(key))
+  return p.catch(() => [])
 }
+
+// Palabras frecuentes que ARASAAC no tiene con ese nombre
+const SYNONYMS: Record<string, string> = { vale: 'ok', 'de acuerdo': 'ok', tele: 'televisión' }
 
 // ARASAAC ignora las tildes al buscar ("papá" encuentra "papa"): preferimos la coincidencia exacta
 function exact(list: PictoResult[], text: string): PictoResult | undefined {
@@ -50,8 +69,9 @@ export async function bestPicto(text: string): Promise<PictoResult | undefined> 
   const any = await fetchList('search', text)
   const found = exact(any, text) ?? best[0] ?? any[0]
   if (found) return found
-  // Últimos recursos: "terminado" -> "terminar", "lugares" -> "lugar"
+  // Últimos recursos: sinónimos, "terminado" -> "terminar", "lugares" -> "lugar"
   const fallbacks = [
+    SYNONYMS[text.toLowerCase()] ?? text,
     text.replace(/ado$/, 'ar'),
     text.replace(/ido$/, 'er'),
     text.replace(/ido$/, 'ir'),

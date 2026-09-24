@@ -1,5 +1,6 @@
 import { bestPicto } from './arasaac'
 import { CATEGORY_ORDER, classify, lemmatize } from './grammar'
+import { layoutCells, type NewCell, ZONE_ORDER, zoneOf } from './layout'
 import type { Board, Cell, CellKind, Library } from './types'
 import { uid } from './types'
 
@@ -23,6 +24,7 @@ const STOPWORDS = new Set([
  *   yo, querer, más, leche, "quiero ir al baño"
  *   Parque: quiero jugar en el columpio con mis amigos
  *   carpeta Animales: perro, gato, pájaro
+ * - Las líneas que empiezan por "#" son comentarios.
  * - Por defecto TODO va al tablero principal. "Nombre:" es solo una etiqueta para organizar el texto
  *   (la primera da nombre al tablero principal).
  * - Solo "carpeta Nombre: ..." crea un tablero aparte, enlazado desde el principal.
@@ -35,7 +37,7 @@ export function parseText(text: string): ParsedBoard[] {
   const folders: ParsedBoard[] = []
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim()
-    if (!line) continue
+    if (!line || line.startsWith('#')) continue // "# ..." = comentario
     const folder = line.match(/^carpeta\s+([^:"]{1,40}):\s*(.*)$/i)
     const labeled = folder ? null : line.match(/^([^:",]{1,40}):\s*(.*)$/)
     const body = folder ? folder[2] : labeled ? labeled[2] : line
@@ -95,13 +97,10 @@ function parseFreeText(body: string): ParsedItem[] {
   return items
 }
 
-export function autoCols(n: number): number {
-  if (n <= 3) return Math.max(n, 1)
-  return Math.min(10, Math.max(3, Math.ceil(Math.sqrt(n * 1.6))))
-}
-
-export function sortCells(cells: Cell[]): Cell[] {
-  const rank = (c: Cell) => (c.kind === 'folder' ? 99 : c.kind === 'phrase' ? 50 : CATEGORY_ORDER.indexOf(c.category))
+/** Orden inicial: por zona de columnas y, dentro de ella, por categoría y orden de escritura. */
+export function sortCells<T extends Pick<Cell, 'kind' | 'category'>>(cells: T[]): T[] {
+  const rank = (c: T) =>
+    ZONE_ORDER.indexOf(zoneOf(c)) * 100 + (c.kind === 'folder' ? 90 : c.kind === 'phrase' ? 50 : CATEGORY_ORDER.indexOf(c.category))
   return cells
     .map((c, i) => ({ c, i }))
     .sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i)
@@ -122,7 +121,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
   return out
 }
 
-export async function buildCell(item: ParsedItem): Promise<Cell> {
+export async function buildCell(item: ParsedItem): Promise<NewCell> {
   let picto = await bestPicto(item.label)
   if (!picto && item.kind === 'phrase') {
     // Frase sin pictograma propio: probamos con la palabra más larga
@@ -140,41 +139,60 @@ export async function buildCell(item: ParsedItem): Promise<Cell> {
 }
 
 /** Celda-carpeta que enlaza a `board`. Sin pictograma propio, usa el de uno de sus nombres. */
-export async function folderCell(board: Board): Promise<Cell> {
+export async function folderCell(board: Pick<Board, 'id' | 'name'> & { cells: NewCell[] }): Promise<NewCell> {
   const own = await bestPicto(board.name.toLowerCase())
   const fallback = board.cells.find((c) => c.picto && c.category === 'noun') ?? board.cells.find((c) => c.picto)
   return { id: uid('c'), kind: 'folder', label: board.name, category: 'misc', picto: own?.id ?? fallback?.picto, target: board.id }
 }
 
-/** Genera los tableros (con pictogramas y colores) a partir del texto. */
-export async function generateLibrary(parsed: ParsedBoard[], onProgress?: (done: number, total: number) => void): Promise<Library> {
+export type GridSize = { rows: number; cols: number } | 'auto'
+
+/** Genera los tableros (pictogramas, colores y posiciones) a partir del texto. */
+export async function generateLibrary(
+  parsed: ParsedBoard[],
+  onProgress?: (done: number, total: number) => void,
+  size: GridSize = 'auto',
+): Promise<Library> {
   const total = parsed.reduce((n, b) => n + b.items.length + 1, 0)
   let done = 0
   const tick = () => onProgress?.(++done, total)
 
-  const boards: Board[] = await Promise.all(
-    parsed.map(async (pb) => {
-      const cells = await mapLimit(pb.items, 6, async (it) => {
+  const drafts = await Promise.all(
+    parsed.map(async (pb) => ({
+      id: uid('b'),
+      name: pb.name,
+      cells: await mapLimit(pb.items, 6, async (it) => {
         const c = await buildCell(it)
         tick()
         return c
-      })
-      const sorted = sortCells(cells)
-      return { id: uid('b'), name: pb.name, cols: autoCols(sorted.length + (pb === parsed[0] ? parsed.length - 1 : 0)), cells: sorted }
-    }),
+      }),
+    })),
   )
 
-  const [root, ...subs] = boards
+  const [root, ...subs] = drafts
   for (const sub of subs) {
     root.cells.push(await folderCell(sub))
     tick()
   }
   tick()
+
+  const boards: Board[] = drafts.map((d, i) => ({
+    id: d.id,
+    name: d.name,
+    ...layoutCells(sortCells(d.cells), i === 0 && size !== 'auto' ? size : undefined),
+  }))
   return { rootId: root.id, boards: Object.fromEntries(boards.map((b) => [b.id, b])) }
 }
 
-export const SAMPLE_TEXT = `Inicio: yo, tú, él, ella, nosotros, mamá, papá, querer, ir, tener, gustar, estar, poder, comer, beber, jugar, no, sí, más, ayuda, hola, adiós, gracias
-Comida: agua, leche, zumo, galletas, pan, fruta, pizza, rico, terminado
-Sentimientos: contento, triste, enfadado, cansado, doler, cabeza, tripa
-Lugares: casa, colegio, parque, baño, "quiero ir al baño"
-Juegos: pelota, columpio, tobogán, dibujar, música, otra vez`
+// Vocabulario núcleo: las palabras más frecuentes, que sirven en cualquier situación.
+// Las líneas con "#" son comentarios; todo va al tablero principal.
+export const SAMPLE_TEXT = `# Personas y preguntas
+yo, tú, él, ella, nosotros, ellos, mamá, papá, qué, quién, dónde, cuándo, por qué, cómo
+# Verbos
+querer, ir, tener, ser, estar, gustar, poder, hacer, ver, mirar, dar, poner, jugar, comer, beber, abrir, parar, ayudar, venir, necesitar
+# Descriptivos y palabras pequeñas
+no, más, eso, esto, aquí, otra vez, todo, ya, también, bien, mal, grande, pequeño, bonito, caliente, frío
+# Cosas y lugares
+agua, comida, baño, casa, colegio, parque, música, tele
+# Social
+hola, adiós, sí, gracias, por favor, vale`

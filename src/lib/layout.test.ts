@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest'
+import { classify } from './grammar'
+import { computeZones, layoutCells, moveCellTo, type NewCell, pickSize, placeCell, resizeBoard, zoneOf } from './layout'
+import type { Board } from './types'
+
+let n = 0
+const word = (label: string): NewCell => ({ id: `c${++n}`, kind: 'word', label, category: classify(label) })
+const board = (labels: string[], size?: { rows: number; cols: number }): Board => ({
+  id: 'b',
+  name: 'test',
+  ...layoutCells(labels.map(word), size),
+})
+const at = (b: Board, label: string) => {
+  const c = b.cells.find((x) => x.label === label)!
+  return [c.row, c.col]
+}
+
+describe('layout', () => {
+  it('puts each category in its own block of columns, left to right', () => {
+    const b = board(['yo', 'tú', 'querer', 'ir', 'no', 'grande', 'agua', 'pan', 'hola'], { rows: 2, cols: 10 })
+    const col = (label: string) => at(b, label)[1]
+    expect(col('yo')).toBeLessThan(col('querer'))
+    expect(col('querer')).toBeLessThan(col('no'))
+    expect(col('no')).toBeLessThan(col('agua'))
+    expect(col('agua')).toBeLessThan(col('hola'))
+    // Todas las celdas de una zona quedan dentro de su rango de columnas
+    for (const c of b.cells) {
+      const [s, e] = b.zones[zoneOf(c)]
+      expect(c.col).toBeGreaterThanOrEqual(s)
+      expect(c.col).toBeLessThanOrEqual(e)
+    }
+  })
+
+  it('never moves existing cells when adding new ones', () => {
+    const b = board(['yo', 'querer', 'agua', 'hola'], { rows: 4, cols: 8 })
+    const before = new Map(b.cells.map((c) => [c.id, [c.row, c.col]]))
+    const after = ['comer', 'pan', 'tú', 'no', 'leche', 'beber'].reduce((acc, l) => placeCell(acc, word(l)), b)
+    for (const c of after.cells.filter((x) => before.has(x.id))) expect([c.row, c.col]).toEqual(before.get(c.id))
+    // y las nuevas caen en la zona de su categoría
+    expect(zoneOf(after.cells.find((c) => c.label === 'comer')!)).toBe('B')
+    const [s, e] = after.zones.B
+    const comer = after.cells.find((c) => c.label === 'comer')!
+    expect(comer.col >= s && comer.col <= e).toBe(true)
+  })
+
+  it('never puts two cells in the same slot, and grows a row when full', () => {
+    const b = board(['yo', 'tú', 'él', 'ella'], { rows: 1, cols: 4 })
+    const full = placeCell(b, word('nosotros'))
+    expect(full.rows).toBe(2)
+    const slots = full.cells.map((c) => `${c.row},${c.col}`)
+    expect(new Set(slots).size).toBe(slots.length)
+  })
+
+  it('reserves free slots for growth', () => {
+    const labels = ['yo', 'tú', 'querer', 'ir', 'comer', 'no', 'más', 'agua', 'pan', 'hola', 'sí', 'gracias']
+    const size = pickSize(labels.map(word))
+    expect(size.rows * size.cols).toBeGreaterThanOrEqual(labels.length * 1.25)
+  })
+
+  it('swaps cells when moving onto an occupied slot', () => {
+    const b = board(['yo', 'querer'], { rows: 2, cols: 4 })
+    const [r1, c1] = at(b, 'yo')
+    const [r2, c2] = at(b, 'querer')
+    const moved = moveCellTo(b, b.cells.find((c) => c.label === 'yo')!.id, r2, c2)
+    expect(at(moved, 'yo')).toEqual([r2, c2])
+    expect(at(moved, 'querer')).toEqual([r1, c1])
+  })
+
+  it('refuses to shrink over occupied cells', () => {
+    const b = board(['yo', 'querer', 'agua', 'hola'], { rows: 2, cols: 5 })
+    expect(resizeBoard(b, 2, 1)).toBeNull()
+    expect(resizeBoard(b, 3, 6)?.cols).toBe(6)
+  })
+
+  it('zones cover all columns without overlapping', () => {
+    const z = computeZones({ A: 8, B: 20, C: 10, D: 5, E: 3 }, 6, 12)
+    const ranges = Object.values(z).filter(([s, e]) => e >= s).sort((a, b) => a[0] - b[0])
+    expect(ranges[0][0]).toBe(0)
+    expect(ranges[ranges.length - 1][1]).toBe(11)
+    for (let i = 1; i < ranges.length; i++) expect(ranges[i][0]).toBe(ranges[i - 1][1] + 1)
+  })
+})

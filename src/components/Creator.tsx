@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { generateLibrary, parseText, SAMPLE_TEXT } from '../lib/generator'
+import { generateLibrary, type GridSize, parseText, SAMPLE_TEXT } from '../lib/generator'
+import { GRID_SIZES } from '../lib/layout'
 import type { Cell, Library } from '../lib/types'
 import { BoardGrid } from './BoardGrid'
 import { CellEditor } from './CellEditor'
@@ -26,13 +27,14 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
   const [preview, setPreview] = useState<Library | null>(null)
   const [tab, setTab] = useState<string>('')
   const [editing, setEditing] = useState<Cell | null>(null)
+  const [size, setSize] = useState<GridSize>('auto')
 
   const parsed = useMemo(() => parseText(text), [text])
   const wordCount = parsed.reduce((n, b) => n + b.items.length, 0)
 
   const generate = async () => {
     setProgress({ done: 0, total: 1 })
-    const lib = await generateLibrary(parsed, (done, total) => setProgress({ done, total }))
+    const lib = await generateLibrary(parsed, (done, total) => setProgress({ done, total }), size)
     setProgress(null)
     setPreview(lib)
     setTab(lib.rootId)
@@ -95,6 +97,23 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
               {wordCount} celdas{parsed.length > 1 ? `, ${parsed.length - 1} carpeta${parsed.length === 2 ? '' : 's'}` : ''}
             </span>
             <span className="spacer" />
+            <label className="inline">
+              Cuadrícula
+              <select
+                value={size === 'auto' ? 'auto' : `${size.rows}x${size.cols}`}
+                onChange={(e) => {
+                  const [rows, cols] = e.target.value.split('x').map(Number)
+                  setSize(e.target.value === 'auto' ? 'auto' : { rows, cols })
+                }}
+              >
+                <option value="auto">Automática (con huecos para crecer)</option>
+                {GRID_SIZES.map((g) => (
+                  <option key={`${g.rows}x${g.cols}`} value={`${g.rows}x${g.cols}`}>
+                    {g.rows} filas × {g.cols} columnas ({g.rows * g.cols} casillas)
+                  </option>
+                ))}
+              </select>
+            </label>
             <button type="button" className="primary" disabled={!wordCount || !!progress} onClick={generate}>
               {progress ? `Buscando pictogramas… ${Math.round((progress.done / progress.total) * 100)}%` : 'Generar tableros'}
             </button>
@@ -110,7 +129,8 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
             ))}
           </div>
           <p className="muted">
-            Revisa el resultado. Pulsa una celda para cambiar su pictograma, texto o color.
+            Revisa el resultado. Cada categoría tiene su bloque de columnas y los huecos quedan reservados para palabras nuevas.
+            Pulsa una celda para cambiar su pictograma, texto o color.
             {missing > 0 && <strong> {missing} celda(s) sin pictograma.</strong>}
           </p>
           {board && (

@@ -270,6 +270,7 @@ const SOCIAL = new Set([
 ])
 const MISC = new Set([
   'más', 'otra vez', 'también', 'ya', 'ahora', 'después', 'antes', 'aquí', 'allí', 'y', 'con',
+  'eso', 'esto', 'todo', 'otro', 'otra', 'algo',
   'mucho', 'poco', 'muy', 'hoy', 'mañana', 'ayer', 'para', 'en', 'de', 'a', 'el', 'la', 'un', 'una',
 ])
 const PEOPLE = new Set([

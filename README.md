@@ -28,7 +28,15 @@ npm test         # tests de gramática y del generador
   ```
   Todo va al tablero principal (`Nombre:` es solo una etiqueta); `carpeta Nombre: ...` crea una carpeta. Comas = una celda cada una;
   texto libre = se extraen las palabras clave y los verbos pasan a infinitivo; `"comillas"` = frase hecha.
-- **Editor de celdas**: texto, tipo, categoría/color, buscador de pictogramas ARASAAC, mover y eliminar.
+- **Distribución como las aplicaciones SAAC de referencia** (TD Snap Core First, Proloquo2Go, LAMP, Grid 3):
+  - **Posiciones fijas** (planificación motora): una celda nunca se mueve sola; las nuevas ocupan huecos libres.
+  - **Bloques de columnas por categoría**, de izquierda a derecha en orden sintáctico:
+    personas y preguntas · verbos · descriptivos · nombres · social y carpetas.
+  - **Cuadrícula de tamaño fijo con huecos reservados** para que el vocabulario crezca (automática o elegida).
+  - **Ocultar celdas** sin perder su sitio, para introducir vocabulario poco a poco.
+  - **Tablero de ejemplo con vocabulario núcleo** (las ~64 palabras más frecuentes).
+- **Editor**: pulsar una celda para editarla, una casilla vacía para crear, arrastrar (o «Mover a otra casilla») para
+  cambiar de sitio; filas y columnas ajustables sin mover celdas.
 - Todo se guarda en el dispositivo (localStorage).
 
 ## Pendiente (siguientes fases)
