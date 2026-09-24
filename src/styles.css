@@ -273,6 +273,30 @@ button.danger {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+.zone-name {
+  border: none;
+  border-bottom: 3px solid;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 2px 2px;
+  font: inherit;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  min-width: 0;
+  width: 100%;
+  cursor: text;
+}
+.zone-name:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.zone-name:focus {
+  outline: none;
+  background: white;
+  color: var(--text);
+  text-transform: none;
+}
 .zone-header span {
   border-bottom: 3px solid;
   padding: 0 2px 2px;
@@ -526,7 +550,8 @@ label small {
   font-weight: 400;
   color: var(--muted);
 }
-input:not([type='radio']):not([type='checkbox']):not([type='range']),
+/* :where() para que las clases concretas (p. ej. .zone-name) puedan sobrescribirlo */
+input:where(:not([type='radio'], [type='checkbox'], [type='range'])),
 select,
 textarea {
   padding: 8px 10px;

@@ -1,6 +1,6 @@
 import type { CSSProperties, DragEvent } from 'react'
 import { CATEGORY_COLORS } from '../lib/colors'
-import { ZONE_LABELS, ZONE_ORDER } from '../lib/layout'
+import { ZONE_LABELS, ZONE_ORDER, zoneLabel } from '../lib/layout'
 import type { Board, Category, Cell, Zone } from '../lib/types'
 import { CellView } from './CellView'
 
@@ -16,13 +16,15 @@ interface Props {
   /** Edición: celda seleccionada para moverla con clic en el destino */
   movingId?: string | null
   onMoveTo?: (id: string, row: number, col: number) => void
+  /** Edición: cambiar el nombre de un grupo de columnas (null = volver al nombre por defecto) */
+  onRenameZone?: (zone: Zone, name: string | null) => void
 }
 
 function zoneAt(board: Board, col: number): Zone | undefined {
   return ZONE_ORDER.find((z) => board.zones[z][0] <= col && col <= board.zones[z][1])
 }
 
-export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo }: Props) {
+export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone }: Props) {
   const gridStyle = {
     gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
@@ -52,18 +54,30 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
     <div className="grid-wrap" style={{ '--rows': board.rows, '--cols': board.cols } as CSSProperties}>
       {editing && (
         <div className="zone-header" style={{ gridTemplateColumns: gridStyle.gridTemplateColumns }}>
-          {ZONE_ORDER.filter((z) => board.zones[z][1] >= board.zones[z][0]).map((z) => (
-            <span
-              key={z}
-              style={{
-                gridColumn: `${board.zones[z][0] + 1} / ${board.zones[z][1] + 2}`,
-                borderColor: CATEGORY_COLORS[ZONE_TINT[z]].border,
-              }}
-              title={ZONE_LABELS[z]}
-            >
-              {ZONE_LABELS[z]}
-            </span>
-          ))}
+          {ZONE_ORDER.filter((z) => board.zones[z][1] >= board.zones[z][0]).map((z) => {
+            const style = {
+              gridColumn: `${board.zones[z][0] + 1} / ${board.zones[z][1] + 2}`,
+              borderColor: CATEGORY_COLORS[ZONE_TINT[z]].border,
+            }
+            return onRenameZone ? (
+              <input
+                key={z}
+                className="zone-name"
+                style={style}
+                value={board.zoneLabels?.[z] ?? ZONE_LABELS[z]}
+                placeholder={ZONE_LABELS[z]}
+                onChange={(e) => onRenameZone(z, e.target.value)}
+                onBlur={(e) => !e.target.value.trim() && onRenameZone(z, null)}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                aria-label={`Nombre del grupo: ${zoneLabel(board, z)}`}
+                title="Pulsa para cambiar el nombre del grupo"
+              />
+            ) : (
+              <span key={z} style={style} title={zoneLabel(board, z)}>
+                {zoneLabel(board, z)}
+              </span>
+            )
+          })}
         </div>
       )}
       <div className="grid" style={gridStyle}>

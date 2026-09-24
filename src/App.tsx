@@ -289,6 +289,14 @@ export default function App() {
             }
             movingId={movingId}
             onMoveTo={moveTo}
+            onRenameZone={(zone, name) =>
+              updateBoard(board.id, (b) => {
+                const zoneLabels = { ...b.zoneLabels }
+                if (name === null) delete zoneLabels[zone] // vuelve al nombre por defecto
+                else zoneLabels[zone] = name
+                return { ...b, zoneLabels }
+              })
+            }
           />
         </main>
       </div>

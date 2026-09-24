@@ -37,6 +37,7 @@ export interface Board {
   rows: number
   cols: number
   zones: Zones
+  zoneLabels?: Partial<Record<Zone, string>> // nombres personalizados de los grupos de columnas
   cells: Cell[]
 }
 

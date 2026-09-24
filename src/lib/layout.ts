@@ -20,6 +20,10 @@ export const ZONE_LABELS: Record<Zone, string> = {
   E: 'Social, frases y carpetas',
 }
 
+export function zoneLabel(board: Pick<Board, 'zoneLabels'>, zone: Zone): string {
+  return board.zoneLabels?.[zone]?.trim() || ZONE_LABELS[zone]
+}
+
 const CATEGORY_ZONE: Record<Category, Zone> = {
   pronoun: 'A',
   person: 'A',
