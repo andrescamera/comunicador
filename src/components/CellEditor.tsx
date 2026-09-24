@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { searchPictos, type PictoResult } from '../lib/arasaac'
-import { classify } from '../lib/grammar'
+import { classify, normalizeText } from '../lib/grammar'
 import { CATEGORY_LABELS, type Category, type Cell } from '../lib/types'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
@@ -100,7 +100,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         {onStartMove && <button type="button" onClick={onStartMove}>✥ Mover a otra casilla</button>}
         <span className="spacer" />
         <button type="button" onClick={onClose}>Cancelar</button>
-        <button type="button" className="primary" disabled={!draft.label.trim()} onClick={() => onSave({ ...draft, label: draft.label.trim() })}>
+        <button type="button" className="primary" disabled={!draft.label.trim()} onClick={() => onSave({ ...draft, label: normalizeText(draft.label) })}>
           Guardar
         </button>
       </footer>

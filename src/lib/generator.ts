@@ -1,5 +1,5 @@
 import { bestPicto } from './arasaac'
-import { CATEGORY_ORDER, classify, lemmatize } from './grammar'
+import { CATEGORY_ORDER, classify, isKnownWord, lemmatize } from './grammar'
 import { layoutCells, type NewCell, ZONE_ORDER, zoneOf } from './layout'
 import type { Board, Cell, CellKind, Library } from './types'
 import { uid } from './types'
@@ -7,6 +7,7 @@ import { uid } from './types'
 export interface ParsedItem {
   label: string
   kind: CellKind
+  proper?: boolean // nombre propio (Mati, Lucía): persona, sin pictograma aproximado
 }
 export interface ParsedBoard {
   name: string
@@ -35,7 +36,7 @@ const STOPWORDS = new Set([
 export function parseText(text: string): ParsedBoard[] {
   const main: ParsedBoard = { name: '', items: [] }
   const folders: ParsedBoard[] = []
-  for (const rawLine of text.split('\n')) {
+  for (const rawLine of text.normalize('NFC').split('\n')) {
     const line = rawLine.trim()
     if (!line || line.startsWith('#')) continue // "# ..." = comentario
     const folder = line.match(/^carpeta\s+([^:"]{1,40}):\s*(.*)$/i)
@@ -78,6 +79,7 @@ function parseList(body: string): ParsedItem[] {
       if (quoted) return [{ label: quoted[1].trim(), kind: 'phrase' }]
       // "otra vez", "por favor" son una celda; un trozo más largo es texto libre
       if (s.split(/\s+/).length >= 3) return parseFreeText(s)
+      if (isProperName(s)) return [{ label: s, kind: 'word', proper: true }]
       return [{ label: s.toLowerCase(), kind: 'word' }]
     })
 }
@@ -89,12 +91,19 @@ function parseFreeText(body: string): ParsedItem[] {
     items.push({ label: phrase.trim(), kind: 'phrase' })
     return ' '
   })
-  for (const raw of rest.toLowerCase().split(/[\s.;¿?¡!]+/)) {
-    const word = raw.trim()
+  for (const raw of rest.split(/[\s.;¿?¡!]+/)) {
+    const original = raw.trim()
+    const word = original.toLowerCase()
     if (!word || STOPWORDS.has(word)) continue
-    items.push({ label: lemmatize(word) ?? word, kind: 'word' })
+    if (isProperName(original)) items.push({ label: original, kind: 'word', proper: true })
+    else items.push({ label: lemmatize(word) ?? word, kind: 'word' })
   }
   return items
+}
+
+/** "Mati", "Lucía": empieza por mayúscula y no es una palabra que conozcamos. */
+function isProperName(word: string): boolean {
+  return /^\p{Lu}\p{Ll}+$/u.test(word) && !isKnownWord(word) && !STOPWORDS.has(word.toLowerCase())
 }
 
 /** Orden inicial: por zona de columnas y, dentro de ella, por categoría y orden de escritura. */
@@ -122,6 +131,11 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 }
 
 export async function buildCell(item: ParsedItem): Promise<NewCell> {
+  if (item.proper) {
+    // Nombre propio: solo un pictograma si existe con ese nombre exacto (si no, mejor una foto)
+    const exact = await bestPicto(item.label, { exactOnly: true })
+    return { id: uid('c'), kind: 'word', label: item.label, category: 'person', picto: exact?.id }
+  }
   let picto = await bestPicto(item.label)
   if (!picto && item.kind === 'phrase') {
     // Frase sin pictograma propio: probamos con la palabra más larga

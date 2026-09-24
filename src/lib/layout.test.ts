@@ -31,6 +31,15 @@ describe('layout', () => {
     }
   })
 
+  it('fills each zone top to bottom, column by column', () => {
+    const b = board(['comer', 'beber', 'dormir', 'cocinar', 'jugar'], { rows: 3, cols: 4 })
+    const [s] = b.zones.B
+    expect(at(b, 'comer')).toEqual([0, s])
+    expect(at(b, 'beber')).toEqual([1, s])
+    expect(at(b, 'dormir')).toEqual([2, s])
+    expect(at(b, 'cocinar')).toEqual([0, s + 1])
+  })
+
   it('never moves existing cells when adding new ones', () => {
     const b = board(['yo', 'querer', 'agua', 'hola'], { rows: 4, cols: 8 })
     const before = new Map(b.cells.map((c) => [c.id, [c.row, c.col]]))

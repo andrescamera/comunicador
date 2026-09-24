@@ -98,6 +98,18 @@ describe('parseText', async () => {
     expect(boards[0].items.map((i) => i.label)).toEqual(['yo', 'comer', 'columpio'])
     expect(boards[1].items.map((i) => i.label)).toEqual(['perro', 'gato', 'pájaro'])
   })
+  it('recognises people regardless of accent encoding and proper names', () => {
+    expect(classify('papá'.normalize('NFD'))).toBe('person')
+    expect(classify('mama')).toBe('person')
+    const [b] = parseText('Mati come con papá'.normalize('NFD') + ', Lucía, galletas')
+    expect(b.items).toEqual([
+      { label: 'Mati', kind: 'word', proper: true },
+      { label: 'comer', kind: 'word' },
+      { label: 'papá', kind: 'word' },
+      { label: 'Lucía', kind: 'word', proper: true },
+      { label: 'galletas', kind: 'word' },
+    ])
+  })
   it('names the main board Inicio without a label', () => {
     expect(parseText('yo, querer, agua')[0].name).toBe('Inicio')
   })

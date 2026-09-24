@@ -5,9 +5,9 @@ import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
-import { folderCell, generateLibrary, parseText, SAMPLE_TEXT } from './lib/generator'
-import { moveCellTo, type NewCell, placeCell, resizeBoard, zoneOf } from './lib/layout'
-import { realize, sentenceText } from './lib/grammar'
+import { folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from './lib/generator'
+import { moveCellTo, type NewCell, placeCell, relayoutBoard, resizeBoard, zoneOf } from './lib/layout'
+import { classify, realize, sentenceText } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { speak } from './lib/speech'
 import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './lib/storage'
@@ -70,7 +70,8 @@ export default function App() {
     void (async () => {
       const found = new Map<string, number>()
       for (const { cell } of missing) {
-        const p = await bestPicto(cell.kind === 'folder' ? cell.label.toLowerCase() : cell.label)
+        const proper = cell.category === 'person' && /^\p{Lu}/u.test(cell.label) // nombres propios: solo coincidencia exacta
+        const p = await bestPicto(cell.kind === 'folder' ? cell.label.toLowerCase() : cell.label, { exactOnly: proper })
         if (p) found.set(cell.id, p.id)
       }
       if (!found.size) return
@@ -136,6 +137,18 @@ export default function App() {
     else setNotice('No se puede reducir: hay celdas en la fila o columna que quitarías. Muévelas o elimínalas antes.')
   }
   const strip = ({ row: _r, col: _c, ...cell }: Cell): NewCell => cell
+  const reorganize = () => {
+    if (!confirm('Esto vuelve a colocar todas las celdas de este tablero por categorías (cambiarán de sitio). ¿Continuar?')) return
+    updateBoard(board.id, (b) =>
+      relayoutBoard(b, (cells) =>
+        sortCells(
+          // Personas que se guardaron como nombres (p. ej. "papá" con tilde descompuesta)
+          cells.map((c) => (c.kind === 'word' && c.category === 'noun' && classify(c.label) === 'person' ? { ...c, category: 'person' } : c)),
+        ),
+      ),
+    )
+    setNotice('Tablero reordenado por categorías.')
+  }
 
   const replaceLibrary = (next: Library) => {
     setLib(next)
@@ -214,6 +227,9 @@ export default function App() {
               <button type="button" onClick={() => resize(board.rows, board.cols - 1)} aria-label="Quitar columna">−</button>
               <strong>{board.cols}</strong>
               <button type="button" onClick={() => resize(board.rows, Math.min(16, board.cols + 1))} aria-label="Añadir columna">+</button>
+              <button type="button" onClick={reorganize} title="Vuelve a colocar las celdas por columnas de categoría">
+                ⇅<span className="btn-text"> Reordenar por categorías</span>
+              </button>
             </div>
           )}
           <div className="topbar-tools">

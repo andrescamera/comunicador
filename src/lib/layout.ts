@@ -107,12 +107,15 @@ export function cellAt(board: Board, row: number, col: number): Cell | undefined
   return board.cells.find((c) => c.row === row && c.col === col)
 }
 
-/** Primer hueco libre de la zona (por filas, de arriba abajo); si está llena, el más cercano. */
+/**
+ * Primer hueco libre de la zona, por columnas: de arriba abajo y luego la columna siguiente,
+ * para que cada categoría se lea como una columna. Si la zona está llena, el hueco más cercano.
+ */
 export function findSlot(board: Pick<Board, 'rows' | 'cols' | 'zones' | 'cells'>, zone: Zone): { row: number; col: number } | null {
   const occupied = new Set(board.cells.map((c) => key(c.row, c.col)))
   const [s, e] = board.zones[zone]
-  for (let r = 0; r < board.rows; r++) {
-    for (let c = Math.max(0, s); c <= Math.min(e, board.cols - 1); c++) {
+  for (let c = Math.max(0, s); c <= Math.min(e, board.cols - 1); c++) {
+    for (let r = 0; r < board.rows; r++) {
       if (!occupied.has(key(r, c))) return { row: r, col: c }
     }
   }
@@ -152,6 +155,12 @@ export function layoutCells(
   }
   for (const cell of cells) board = placeCell(board, cell)
   return board
+}
+
+/** Reorganización explícita (la pide el terapeuta): vuelve a colocar todo por zonas, con el mismo tamaño. */
+export function relayoutBoard(board: Board, order: (cells: NewCell[]) => NewCell[]): Board {
+  const cells = order(board.cells.map(({ row: _r, col: _c, ...c }) => c))
+  return { ...board, ...layoutCells(cells, { rows: board.rows, cols: board.cols }) }
 }
 
 /** Mueve una celda a otra casilla; si está ocupada, las intercambia. */

@@ -57,21 +57,24 @@ const SYNONYMS: Record<string, string> = { vale: 'ok', 'de acuerdo': 'ok', tele:
 
 // ARASAAC ignora las tildes al buscar ("papá" encuentra "papa"): preferimos la coincidencia exacta
 function exact(list: PictoResult[], text: string): PictoResult | undefined {
-  const q = text.toLowerCase()
+  const q = text.normalize('NFC').toLowerCase()
   return list.find((p) => p.keyword.toLowerCase() === q)
 }
 
 /** Mejor pictograma para una palabra o frase, o undefined si no hay. */
-export async function bestPicto(text: string): Promise<PictoResult | undefined> {
+export async function bestPicto(text: string, opts: { exactOnly?: boolean } = {}): Promise<PictoResult | undefined> {
+  text = text.normalize('NFC').trim()
   const best = await fetchList('bestsearch', text)
   const hit = exact(best, text)
   if (hit) return hit
   const any = await fetchList('search', text)
+  if (opts.exactOnly) return exact(any, text)
   const found = exact(any, text) ?? best[0] ?? any[0]
   if (found) return found
   // Últimos recursos: sinónimos, "terminado" -> "terminar", "lugares" -> "lugar"
   const fallbacks = [
     SYNONYMS[text.toLowerCase()] ?? text,
+    text.replace(/(ar|er|ir|ír)se$/, '$1'), // bañarse -> bañar
     text.replace(/ado$/, 'ar'),
     text.replace(/ido$/, 'er'),
     text.replace(/ido$/, 'ir'),

@@ -247,6 +247,7 @@ let formIndex: Map<string, string> | null = null
 
 /** "quiero" -> "querer", "juegan" -> "jugar". Null si no se reconoce. */
 export function lemmatize(word: string): string | null {
+  word = word.normalize('NFC')
   if (!formIndex) {
     formIndex = new Map()
     const verbs = new Set([...Object.keys(FULL), ...Object.keys(STEM), ...Object.keys(YO), ...COMMON_REGULAR])
@@ -262,6 +263,23 @@ export function lemmatize(word: string): string | null {
 
 // ---------- Clasificación ----------
 
+/**
+ * Algunos teclados (macOS, iOS) escriben "á" como "a" + tilde combinada (NFD).
+ * Se normaliza a NFC para que "papá" siempre sea la misma palabra.
+ */
+export function normalizeText(s: string): string {
+  return s.normalize('NFC').replace(/\s+/g, ' ').trim()
+}
+
+/** ¿Es una palabra que conocemos (léxico propio o verbo)? */
+export function isKnownWord(label: string): boolean {
+  const w = normalizeText(label).toLowerCase()
+  return (
+    w in PRONOUNS || QUESTIONS.has(w) || NEGATIONS.has(w) || SOCIAL.has(w) || MISC.has(w) || PEOPLE.has(w) ||
+    isKnownVerb(w) || lemmatize(w) !== null
+  )
+}
+
 const QUESTIONS = new Set(['qué', 'quién', 'dónde', 'cuándo', 'cómo', 'cuál', 'por qué', 'cuánto', 'cuántos', 'para qué'])
 const NEGATIONS = new Set(['no', 'nada', 'nunca', 'nadie'])
 const SOCIAL = new Set([
@@ -276,7 +294,8 @@ const MISC = new Set([
 const PEOPLE = new Set([
   'mamá', 'papá', 'abuelo', 'abuela', 'hermano', 'hermana', 'profe', 'profesor', 'profesora',
   'amigo', 'amiga', 'amigos', 'bebé', 'niño', 'niña', 'médico', 'médica', 'tío', 'tía', 'primo', 'prima',
-  'terapeuta', 'logopeda',
+  'terapeuta', 'logopeda', 'mama', 'mami', 'papi', 'yaya', 'yayo', 'abu', 'tata', 'nene', 'nena',
+  'abuelos', 'hermanos', 'padres', 'familia', 'maestro', 'maestra', 'seño',
 ])
 
 const ARASAAC_TYPE: Record<number, Category> = {
@@ -290,7 +309,7 @@ const ARASAAC_TYPE: Record<number, Category> = {
 
 /** Categoría a partir del léxico propio; si no lo sabe, usa el tipo de ARASAAC. */
 export function classify(label: string, arasaacType?: number): Category {
-  const w = label.toLowerCase().trim()
+  const w = normalizeText(label).toLowerCase()
   if (w in PRONOUNS) return 'pronoun'
   if (QUESTIONS.has(w)) return 'question'
   if (NEGATIONS.has(w)) return 'negation'

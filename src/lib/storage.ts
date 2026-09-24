@@ -26,8 +26,9 @@ function write(key: string, value: unknown): void {
 function migrate(lib: Library): Library {
   const boards: Record<string, Board> = {}
   for (const [id, b] of Object.entries(lib.boards)) {
-    const ok = b.rows && b.zones && b.cells.every((c) => Number.isInteger(c.row) && Number.isInteger(c.col))
-    boards[id] = ok ? b : { id: b.id, name: b.name, ...layoutCells(b.cells) }
+    const cells = b.cells.map((c) => ({ ...c, label: c.label.normalize('NFC') }))
+    const ok = b.rows && b.zones && cells.every((c) => Number.isInteger(c.row) && Number.isInteger(c.col))
+    boards[id] = ok ? { ...b, cells } : { id: b.id, name: b.name, ...layoutCells(cells) }
   }
   return { ...lib, boards }
 }
