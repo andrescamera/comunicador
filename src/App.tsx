@@ -31,7 +31,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [movingId, setMovingId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
-  const [clearing, setClearing] = useState(false)
+  const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
   const clearTimer = useRef<number | undefined>(undefined)
   const clearGen = useRef(0)
 
@@ -109,30 +109,38 @@ export default function App() {
   const cancelAutoClear = () => {
     window.clearTimeout(clearTimer.current)
     clearGen.current += 1
-    setClearing(false)
+    setClearing(0)
   }
+  /** Sin pulsar Hablar: la frase se borra tras N segundos sin tocar nada. Cada toque reinicia la cuenta. */
+  const scheduleIdleClear = (length: number) => {
+    cancelAutoClear()
+    if (!length || !settingsRef.current.autoClear) return
+    setClearing(clearGen.current)
+    clearTimer.current = window.setTimeout(() => {
+      setSentence([])
+      setClearing(0)
+    }, settingsRef.current.autoClearSeconds * 1000)
+  }
+  /** Al pulsar Hablar: se dice la frase y se borra en cuanto termina. */
   const speakSentence = () => {
     cancelAutoClear()
     if (!sentence.length) return
     const gen = clearGen.current
     say(sentenceText(sentence), () => {
-      // Se cancela si mientras hablaba se tocó otra celda, se borró, etc.
-      if (gen !== clearGen.current || !settingsRef.current.autoClear) return
-      setClearing(true)
-      clearTimer.current = window.setTimeout(() => {
-        setSentence([])
-        setClearing(false)
-      }, settingsRef.current.autoClearSeconds * 1000)
+      if (gen !== clearGen.current) return // mientras hablaba se tocó otra celda, se borró, etc.
+      if (settingsRef.current.clearAfterSpeak) setSentence([])
+      else scheduleIdleClear(sentence.length)
     })
   }
 
   const onCellTap = (cell: Cell) => {
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
+      scheduleIdleClear(sentence.length) // navegar también cuenta como actividad
       return
     }
-    cancelAutoClear() // sigue construyendo la frase: no se borra
     const next = [...sentence, cell]
+    scheduleIdleClear(next.length)
     setSentence(next)
     if (settings.speakOnTap) say(realize(next)[next.length - 1] || cell.label)
   }
@@ -220,14 +228,20 @@ export default function App() {
         <nav className="topbar">
           {!editing ? (
             <>
-              <div className="nav-btn" data-tap data-label="Inicio" ref={tapRef(() => setHistory([]))} role="button" aria-label="Inicio">
+              <div className="nav-btn" data-tap data-label="Inicio" ref={tapRef(() => {
+                  setHistory([])
+                  scheduleIdleClear(sentence.length)
+                })} role="button" aria-label="Inicio">
                 🏠 <span>Inicio</span>
               </div>
               <div
                 className={`nav-btn ${history.length === 0 ? 'disabled' : ''}`}
                 data-tap
                 data-label="Atrás"
-                ref={tapRef(() => setHistory((h) => h.slice(0, -1)))}
+                ref={tapRef(() => {
+                  setHistory((h) => h.slice(0, -1))
+                  scheduleIdleClear(sentence.length)
+                })}
                 role="button"
                 aria-label="Atrás"
               >
@@ -268,6 +282,7 @@ export default function App() {
               onClick={() => {
                 setEditing((e) => !e)
                 setMovingId(null)
+                cancelAutoClear()
               }}
             >
               {editing ? '✓' : '✎'}
@@ -284,7 +299,7 @@ export default function App() {
             tokens={sentence}
             onSpeak={speakSentence}
             onBackspace={() => {
-              cancelAutoClear()
+              scheduleIdleClear(sentence.length - 1)
               setSentence((s) => s.slice(0, -1))
             }}
             onClear={() => {
@@ -292,6 +307,7 @@ export default function App() {
               setSentence([])
             }}
             clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
+            clearingKey={clearing}
           />
         )}
 

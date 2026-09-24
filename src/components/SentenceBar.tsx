@@ -10,16 +10,17 @@ interface Props {
   onClear: () => void
   /** > 0 mientras hay un borrado automático pendiente (duración de la cuenta atrás) */
   clearingMs?: number
+  clearingKey?: number // cambia en cada toque para reiniciar la barra de cuenta atrás
 }
 
-export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs = 0 }: Props) {
+export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs = 0, clearingKey }: Props) {
   const words = realize(tokens)
   return (
     <div className="sentence-bar">
       <div className="sentence" data-tap data-label="Frase (hablar)" ref={tapRef(onSpeak)} role="button" aria-label="Decir la frase">
         {tokens.length === 0 && <span className="sentence-hint">Toca los pictogramas para formar una frase</span>}
         {clearingMs > 0 && (
-          <span className="autoclear-bar" style={{ animationDuration: `${clearingMs}ms` }} aria-hidden />
+          <span key={clearingKey} className="autoclear-bar" style={{ animationDuration: `${clearingMs}ms` }} aria-hidden />
         )}
         {tokens.map((t, i) => (
           <div key={i} className="sentence-token">

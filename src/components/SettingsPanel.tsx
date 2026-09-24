@@ -53,12 +53,16 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose }: Pr
 
         <h3>Frase</h3>
         <label className="check">
+          <input type="checkbox" checked={settings.clearAfterSpeak} onChange={(e) => set('clearAfterSpeak', e.target.checked)} />
+          Borrar la frase después de pulsar Hablar (en cuanto termina de decirla)
+        </label>
+        <label className="check">
           <input type="checkbox" checked={settings.autoClear} onChange={(e) => set('autoClear', e.target.checked)} />
-          Borrar la frase automáticamente después de decirla
+          Borrar la frase si no se toca nada durante un tiempo
         </label>
         {settings.autoClear && (
           <label>
-            Esperar: <strong>{settings.autoClearSeconds} s</strong>
+            Tiempo sin tocar: <strong>{settings.autoClearSeconds} s</strong>
             <input
               type="range"
               min={1}
@@ -67,7 +71,7 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose }: Pr
               value={settings.autoClearSeconds}
               onChange={(e) => set('autoClearSeconds', +e.target.value)}
             />
-            <small>Cuenta desde que termina de hablar. Si se toca otra celda antes, no se borra.</small>
+            <small>Cada toque reinicia la cuenta. Una barra bajo la frase muestra el tiempo que queda.</small>
           </label>
         )}
 

@@ -55,7 +55,8 @@ export interface Settings {
   rate: number
   voiceURI: string
   showTapLog: boolean
-  autoClear: boolean // borrar la frase automáticamente después de decirla
+  clearAfterSpeak: boolean // al pulsar Hablar, borrar la frase en cuanto termina de decirla
+  autoClear: boolean // borrar la frase tras autoClearSeconds sin tocar nada
   autoClearSeconds: number
 }
 
@@ -68,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rate: 1,
   voiceURI: '',
   showTapLog: true,
+  clearAfterSpeak: true,
   autoClear: true,
   autoClearSeconds: 3,
 }
