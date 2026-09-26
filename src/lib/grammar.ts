@@ -272,6 +272,12 @@ export function normalizeText(s: string): string {
 }
 
 /** ¿Es una palabra que conocemos (léxico propio o verbo)? */
+/** ¿Está en el léxico propio como palabra que no es verbo? ("ayuda", "más", "mamá"...) */
+export function isLexiconWord(label: string): boolean {
+  const w = normalizeText(label).toLowerCase()
+  return w in PRONOUNS || QUESTIONS.has(w) || NEGATIONS.has(w) || SOCIAL.has(w) || MISC.has(w) || PEOPLE.has(w)
+}
+
 export function isKnownWord(label: string): boolean {
   const w = normalizeText(label).toLowerCase()
   return (

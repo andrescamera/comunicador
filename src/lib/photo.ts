@@ -1,4 +1,4 @@
-import { lemmatize, normalizeText } from './grammar'
+import { isKnownWord, isLexiconWord, lemmatize, normalizeText } from './grammar'
 
 /** Línea de texto reconocida en la foto, en píxeles de la imagen. */
 export interface TextBox {
@@ -72,8 +72,13 @@ function mergeStacked(boxes: Box[]): Box[] {
   return out
 }
 
-/** Agrupa valores cercanos (distancia < tol) y devuelve el centro de cada grupo. */
-function clusterCenters(values: number[], tol: number): number[] {
+
+/** Agrupa valores cercanos; devuelve cada grupo con su centro y nº de miembros. */
+function clusters(values: number[], tol: number): { center: number; count: number }[] {
+  return clusterGroups(values, tol).map((g) => ({ center: g.reduce((a, b) => a + b, 0) / g.length, count: g.length }))
+}
+
+function clusterGroups(values: number[], tol: number): number[][] {
   const s = [...values].sort((a, b) => a - b)
   const groups: number[][] = []
   for (const v of s) {
@@ -81,30 +86,93 @@ function clusterCenters(values: number[], tol: number): number[] {
     if (g && v - g[g.length - 1] < tol) g.push(v)
     else groups.push([v])
   }
-  return groups.map((g) => g.reduce((a, b) => a + b, 0) / g.length)
+  return groups
 }
 
 /**
- * Paso de la cuadrícula (distancia entre filas o columnas vecinas). Si hay filas o columnas
- * vacías, algunas distancias son múltiplos del paso: se toma la menor como referencia y cada
- * distancia se divide por el número de pasos que contiene.
+ * Líneas de la cuadrícula (filas o columnas) a partir de los centros de las etiquetas.
+ * - Una fila/columna real tiene varias etiquetas alineadas ("fuerte"); un texto suelto que no
+ *   cae sobre la cuadrícula (p. ej. "STOP" dentro de un dibujo) es ruido y se descarta.
+ * - El paso es la mediana de las distancias entre líneas fuertes; una distancia que es
+ *   múltiplo del paso significa que hay filas/columnas vacías en medio.
+ * Devuelve el origen, el paso y una función que da el índice (o null si es ruido).
  */
-function pitch(diffs: number[], minGap: number): number {
-  const ds = diffs.filter((d) => d > minGap)
-  if (!ds.length) return 0
-  const base = Math.min(...ds)
-  return median(ds.map((d) => d / Math.max(1, Math.round(d / base))))
+function gridAxis(values: number[], tol: number, fallbackPitch: number) {
+  const cs = clusters(values, tol)
+  const strongMin = cs.length > 2 ? 2 : 1
+  const strong = cs.filter((c) => c.count >= strongMin)
+  // Con menos de dos líneas fuertes no hay con qué medir: se usan todas
+  const base = strong.length >= 2 ? strong : cs
+  const diffs = base.slice(1).map((c, i) => c.center - base[i].center)
+  const axis = { step: bestStep(diffs, tol) ?? fallbackPitch, evidence: diffs.length, origin: base[0].center }
+  const indexOf = (v: number): number | null => {
+    const k = (v - axis.origin) / axis.step
+    const idx = Math.round(k)
+    // Fuera de la cuadrícula (más de un 30 % del paso lejos de una línea): ruido
+    return Math.abs(k - idx) > 0.3 ? null : idx
+  }
+  return Object.assign(axis, { indexOf })
 }
 
 /**
- * Las celdas de un tablero son casi cuadradas: si un paso es casi el doble (o más) que el
- * otro, es que todas las filas (o columnas) medidas estaban separadas por huecos vacíos.
+ * Mayor paso del que todas las distancias sean (casi) múltiplos exactos: con huecos vacíos
+ * en medio, 200 y 600 dan un paso de 200, no la media.
  */
-function correctWithOther(p: number, other: number): number {
-  if (!p || !other) return p
-  const ratio = p / other
-  return ratio >= 1.8 ? p / Math.round(ratio) : p
+function bestStep(diffs: number[], minStep: number): number | null {
+  if (!diffs.length) return null
+  const candidates = diffs.flatMap((d) => [1, 2, 3, 4, 5].map((k) => d / k)).filter((c) => c > minStep)
+  candidates.sort((a, b) => b - a)
+  for (const c of candidates) {
+    if (diffs.every((d) => Math.abs(d / c - Math.round(d / c)) < 0.2)) {
+      // Afinar con la media de las distancias divididas entre su nº de pasos
+      return median(diffs.map((d) => d / Math.round(d / c)))
+    }
+  }
+  return median(diffs)
 }
+
+/**
+ * Con muy poca información (una sola distancia) no se sabe si hay filas vacías en medio:
+ * las celdas son casi cuadradas, así que un paso casi doble que el otro eje se divide.
+ */
+function crossCheck(a: { step: number; evidence: number }, b: { step: number }) {
+  if (a.evidence > 1) return
+  const ratio = a.step / b.step
+  if (ratio >= 1.8) a.step /= Math.round(ratio)
+}
+
+// Botones de control de otros comunicadores (Verbo, etc.) que aparecen en la fila superior
+const CONTROL_WORDS = new Set([
+  'leer', 'limpiar', 'borrar', 'género', 'número', 'hablar', 'decir frase', 'borrar todo', 'todo', 'atrás', 'teclado',
+])
+
+/**
+ * Corrige confusiones típicas del reconocimiento de texto en palabras cortas del léxico:
+ * "vo" -> "yo", "nc" -> "no", "cquién" -> "quién" (el "¿" leído como letra), "donde" -> "dónde".
+ * Solo se acepta la corrección si da una palabra conocida.
+ */
+export function fixOcrWord(word: string): string {
+  if (isKnownWord(word)) return word
+  const candidates: string[] = []
+  const strip = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '')
+  // "¿" o "¡" leídos como letra al principio
+  if (/^[cilz¿¡]/.test(word)) candidates.push(word.slice(1))
+  // Tildes que faltan
+  const accented = LEXICON_ACCENTED.find((w) => strip(w) === word)
+  if (accented) candidates.push(accented)
+  // Letras que se confunden
+  const swaps: [string, string][] = [['v', 'y'], ['c', 'o'], ['c', 'e'], ['0', 'o'], ['1', 'l'], ['rn', 'm'], ['i', 'l'], ['l', 'i']]
+  for (const [from, to] of swaps) {
+    let i = word.indexOf(from)
+    while (i >= 0) {
+      candidates.push(word.slice(0, i) + to + word.slice(i + from.length))
+      i = word.indexOf(from, i + 1)
+    }
+  }
+  return candidates.find((c) => c.length > 0 && isKnownWord(c)) ?? word
+}
+
+const LEXICON_ACCENTED = ['qué', 'quién', 'dónde', 'cuándo', 'cómo', 'cuál', 'cuánto', 'tú', 'él', 'sí', 'más', 'adiós', 'mamá', 'papá', 'aquí', 'allí', 'también']
 
 /**
  * Etiqueta final: verbos conjugados en infinitivo ("Quiero" -> "querer") y minúsculas.
@@ -115,8 +183,11 @@ export function cleanLabel(text: string, keepCapitals: boolean): string {
   const t = normalizeText(text).replace(/[.,;:!¡?¿"“”]+$/g, '').replace(/^["“¿¡]+/, '')
   const lower = t.toLowerCase()
   if (lower.includes(' ')) return lower
-  const lemma = lemmatize(lower)
+  const fixed = fixOcrWord(lower)
+  // "ayuda" es una palabra en sí misma (no "ayudar"): solo se pasa a infinitivo si no lo es
+  const lemma = isLexiconWord(fixed) ? null : lemmatize(fixed)
   if (lemma) return lemma
+  if (fixed !== lower) return fixed
   return keepCapitals && /^\p{Lu}\p{Ll}+$/u.test(t) ? t : lower
 }
 
@@ -162,42 +233,31 @@ export function gridFromLines(lines: TextLine[]): PhotoGrid {
   boxes = mergeStacked(boxes)
 
   const h = median(boxes.map((b) => b.h))
-  const rowCenters = clusterCenters(
+  const w = median(boxes.map((b) => b.w))
+  const rowAxis = gridAxis(
     boxes.map((b) => b.cy),
     h * 1.2,
+    h * 5,
+  )
+  const colAxis = gridAxis(
+    boxes.map((b) => b.cx),
+    Math.max(h * 1.5, w * 0.4),
+    w * 2,
   )
 
-  // El paso de columna se estima dentro de cada fila (vecinos en la misma fila)
-  const rowOf = (b: Box) => rowCenters.reduce((best, c, i) => (Math.abs(c - b.cy) < Math.abs(rowCenters[best] - b.cy) ? i : best), 0)
-  const colDiffs: number[] = []
-  rowCenters.forEach((_, r) => {
-    const xs = boxes
-      .filter((b) => rowOf(b) === r)
-      .map((b) => b.cx)
-      .sort((a, b) => a - b)
-    for (let i = 1; i < xs.length; i++) colDiffs.push(xs[i] - xs[i - 1])
-  })
-  const minW = median(boxes.map((b) => b.w)) * 0.5
-  const rawCol = pitch(colDiffs, minW)
-  const rawRow = pitch(
-    rowCenters.slice(1).map((c, i) => c - rowCenters[i]),
-    h,
-  )
-  const colPitch = correctWithOther(rawCol, rawRow) || median(boxes.map((b) => b.w)) * 2
-  const rowPitch = correctWithOther(rawRow, rawCol) || h * 4
+  crossCheck(rowAxis, colAxis)
+  crossCheck(colAxis, rowAxis)
 
   // Si casi todas las etiquetas empiezan por mayúscula es el estilo del tablero, no nombres propios
   const capitalized = boxes.filter((b) => /^\p{Lu}/u.test(b.text)).length / boxes.length
   const keepCapitals = capitalized < 0.5
 
-  const minCx = Math.min(...boxes.map((b) => b.cx))
-  const firstRow = rowCenters[0]
-
-  const cells: PhotoCell[] = []
+  let cells: PhotoCell[] = []
   const taken = new Map<string, PhotoCell>()
   for (const b of boxes.sort((a, z) => a.cy - z.cy || a.cx - z.cx)) {
-    const row = Math.max(0, Math.round((rowCenters[rowOf(b)] - firstRow) / rowPitch))
-    const col = Math.max(0, Math.round((b.cx - minCx) / colPitch))
+    const row = rowAxis.indexOf(b.cy)
+    const col = colAxis.indexOf(b.cx)
+    if (row === null || col === null) continue // texto dentro de un dibujo, no una etiqueta
     const label = cleanLabel(b.text, keepCapitals)
     if (!label) continue
     const key = `${row},${col}`
@@ -211,15 +271,22 @@ export function gridFromLines(lines: TextLine[]): PhotoGrid {
     taken.set(key, cell)
     cells.push(cell)
   }
+  if (!cells.length) return { rows: 0, cols: 0, cells: [] }
 
-  // Sin duplicados: la misma palabra solo una vez
-  const seen = new Set<string>()
-  const unique = cells.filter((c) => (seen.has(c.label.toLowerCase()) ? false : (seen.add(c.label.toLowerCase()), true)))
+  // Fila superior de controles del comunicador original (leer, borrar, género...): se omite
+  const topRow = Math.min(...cells.map((c) => c.row))
+  const controls = cells.filter((c) => c.row === topRow && CONTROL_WORDS.has(c.label.toLowerCase())).length
+  if (controls >= 2) cells = cells.filter((c) => c.row !== topRow)
+
+  // Índices desde 0 (la primera fila y la primera columna con etiquetas)
+  const minRow = Math.min(...cells.map((c) => c.row))
+  const minCol = Math.min(...cells.map((c) => c.col))
+  cells = cells.map((c) => ({ ...c, row: c.row - minRow, col: c.col - minCol }))
 
   return {
-    rows: Math.max(...unique.map((c) => c.row)) + 1,
-    cols: Math.max(...unique.map((c) => c.col)) + 1,
-    cells: unique,
+    rows: Math.max(...cells.map((c) => c.row)) + 1,
+    cols: Math.max(...cells.map((c) => c.col)) + 1,
+    cells,
   }
 }
 

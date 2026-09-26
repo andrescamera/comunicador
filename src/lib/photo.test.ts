@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseText } from './generator'
-import { cleanLabel, gridFromLines, gridToText, splitLine, type TextLine } from './photo'
+import verboBoard from './__fixtures__/verbo-board.json'
+import { cleanLabel, fixOcrWord, gridFromLines, gridToText, splitLine, type TextLine } from './photo'
 
 // Tablero fotografiado: celdas de 200×220 px, etiqueta bajo cada pictograma, algo torcido
 const PITCH_X = 200
@@ -128,5 +129,41 @@ describe('grid text -> board (end to end)', () => {
     expect(pos).toEqual({ yo: [0, 0], querer: [0, 1], agua: [0, 3], Mati: [2, 0], no: [2, 2] })
     expect(b.cells.find((c) => c.label === 'Mati')?.category).toBe('person')
     vi.unstubAllGlobals()
+  })
+})
+
+describe('foto real de un tablero de Verbo (texto leído con Vision)', () => {
+  const grid = gridFromLines(verboBoard.lines)
+  const rows = gridToText(grid).split('\n').map((l) => l.split(',').map((c) => c.trim()))
+
+  it('recupera la cuadrícula de 7×10 sin la fila de controles (leer, borrar, género...)', () => {
+    expect([grid.rows, grid.cols]).toEqual([7, 10])
+    // El "leer" de los controles se omite: solo queda el del tablero (última fila)
+    expect(grid.cells.filter((c) => c.label === 'leer').map((c) => c.row)).toEqual([6])
+    expect(grid.cells.map((c) => c.label)).not.toContain('género')
+  })
+
+  it('coloca cada palabra en su fila y columna', () => {
+    expect(rows[0]).toEqual(['yo', 'estar', 'ser', 'poder', 'hola', 'más', 'qué', 'ayuda', 'el', 'volver'])
+    expect(rows[1]).toEqual(['tú', 'tener', 'querer', 'necesitar', 'adiós', 'menos', 'quién', 'no', 'este', 'inicio'])
+    expect(rows[6]).toEqual(['más personas', 'dormir', 'leer', 'más verbos', 'bebida', 'lugares', 'aseo', 'ropa', 'tiempo', 'deportes'])
+  })
+
+  it('descarta el texto dentro de los dibujos ("STOP") y conserva los huecos', () => {
+    expect(grid.cells.map((c) => c.label)).not.toContain('stop')
+    expect(rows[3].slice(0, 3)).toEqual(['nosotros', 'parar', 'ir'])
+    expect(rows[2][0]).toBe('_') // "él" no se leyó: queda el hueco, no se desplaza la fila
+  })
+})
+
+describe('errores típicos del reconocimiento de texto', () => {
+  it.each([
+    ['vo', 'yo'],
+    ['nc', 'no'],
+    ['cquién', 'quién'],
+    ['donde', 'dónde'],
+    ['galletas', 'galletas'], // palabra desconocida: no se toca
+  ])('%s -> %s', (read, expected) => {
+    expect(fixOcrWord(read)).toBe(expected)
   })
 })
