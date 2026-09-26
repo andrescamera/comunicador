@@ -252,6 +252,10 @@ button.danger {
   border-radius: var(--radius);
   font-weight: 600;
 }
+.action-speak {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
 .action-icon {
   font-size: 1.8rem;
   line-height: 1.2;

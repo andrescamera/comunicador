@@ -18,7 +18,7 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs 
   return (
     <div className="sentence-bar">
       <div className="sentence" data-tap data-label="Frase (hablar)" ref={tapRef(onSpeak)} role="button" aria-label="Decir la frase">
-        {tokens.length === 0 && <span className="sentence-hint">Toca los pictogramas para formar una frase. Toca aquí para decirla entera.</span>}
+        {tokens.length === 0 && <span className="sentence-hint">Toca los pictogramas para formar una frase</span>}
         {clearingMs > 0 && (
           <span key={clearingKey} className="autoclear-bar" style={{ animationDuration: `${clearingMs}ms` }} aria-hidden />
         )}
@@ -30,6 +30,10 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs 
         ))}
       </div>
       <div className="sentence-actions">
+        <div className="action action-speak" data-tap data-label="Hablar" ref={tapRef(onSpeak)} role="button" aria-label="Hablar">
+          <span className="action-icon">🔊</span>
+          <span>Hablar</span>
+        </div>
         <div className="action" data-tap data-label="Borrar última" ref={tapRef(onBackspace)} role="button" aria-label="Borrar la última palabra">
           <span className="action-icon">⌫</span>
           <span>Borrar</span>

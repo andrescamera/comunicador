@@ -54,7 +54,7 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose }: Pr
         <h3>Frase</h3>
         <label className="check">
           <input type="checkbox" checked={settings.clearAfterSpeak} onChange={(e) => set('clearAfterSpeak', e.target.checked)} />
-          Borrar la frase después de decirla entera (al tocar la barra de la frase)
+          Borrar la frase después de pulsar Hablar (en cuanto termina de decirla)
         </label>
         <label className="check">
           <input type="checkbox" checked={settings.autoClear} onChange={(e) => set('autoClear', e.target.checked)} />
