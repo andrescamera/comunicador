@@ -34,19 +34,17 @@ mkdir -p dist
 cp android/app/build/outputs/apk/release/app-release.apk dist/comunicador.apk
 echo "==> Listo: $(pwd)/dist/comunicador.apk ($(du -h dist/comunicador.apk | cut -f1))"
 
-# Subida a Google Drive (carpeta compartida para instalar en la tablet).
-# Configuración única (abre el navegador para iniciar sesión con tu cuenta de Google):
-#   rclone config create comunicador-drive drive scope=drive root_folder_id=1R09OXPa8RP2wq6cfILluudh4jTJjcQd9
-DRIVE_REMOTE="comunicador-drive"
-if rclone listremotes 2>/dev/null | grep -q "^${DRIVE_REMOTE}:$"; then
+# Subida a Google Drive: se copia a la carpeta sincronizada por Google Drive para escritorio
+# (Mi unidad/apk, https://drive.google.com/drive/folders/1R09OXPa8RP2wq6cfILluudh4jTJjcQd9)
+DRIVE_DIR="$HOME/Library/CloudStorage/GoogleDrive-andrescamera@gmail.com/Mi unidad/apk"
+if [[ -d "$DRIVE_DIR" ]]; then
   VERSION=$(node -p "require('./app.json').expo.version")
   STAMP=$(date +%Y%m%d-%H%M)
-  echo "==> Subiendo a Google Drive"
+  mkdir -p "$DRIVE_DIR/versiones"
   # Siempre la última como comunicador.apk, y una copia con fecha por si hay que volver atrás
-  rclone copyto dist/comunicador.apk "${DRIVE_REMOTE}:comunicador.apk"
-  rclone copyto dist/comunicador.apk "${DRIVE_REMOTE}:versiones/comunicador-${VERSION}-${STAMP}.apk"
-  echo "==> Subido a Drive: comunicador.apk (y versiones/comunicador-${VERSION}-${STAMP}.apk)"
+  cp dist/comunicador.apk "$DRIVE_DIR/comunicador.apk"
+  cp dist/comunicador.apk "$DRIVE_DIR/versiones/comunicador-${VERSION}-${STAMP}.apk"
+  echo "==> Copiado a Drive (se sube solo): apk/comunicador.apk y apk/versiones/comunicador-${VERSION}-${STAMP}.apk"
 else
-  echo "(Drive no configurado: para subir automáticamente, ejecuta una vez:"
-  echo "   rclone config create ${DRIVE_REMOTE} drive scope=drive root_folder_id=1R09OXPa8RP2wq6cfILluudh4jTJjcQd9 )"
+  echo "(No se encuentra la carpeta de Drive: $DRIVE_DIR)"
 fi
