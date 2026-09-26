@@ -74,6 +74,7 @@ export function parseText(text: string, opts: { grid?: boolean } = {}): ParsedBo
   for (const b of boards) {
     const seen = new Set<string>()
     b.items = b.items.filter((it) => {
+      if (it.row !== undefined) return true // en una cuadrícula cada celda tiene su sitio, aunque se repita
       const k = it.label.toLowerCase()
       if (!k || seen.has(k)) return false
       seen.add(k)
@@ -227,7 +228,7 @@ export async function generateLibrary(
       const positions = pb.items
         .map((it, k) => ({ it, cell: d.cells[k] }))
         .filter(({ it }) => it.row !== undefined && it.col !== undefined)
-        .map(({ it, cell }) => ({ label: cell.label, row: it.row!, col: it.col! }))
+        .map(({ it, cell }) => ({ id: cell.id, label: cell.label, row: it.row!, col: it.col! }))
       return { id: d.id, name: d.name, ...layoutAt(d.cells, { rows: pb.gridRows, cols: pb.gridCols ?? 1, cells: positions }) }
     }
     return { id: d.id, name: d.name, ...layoutCells(sortCells(d.cells), i === 0 && size !== 'auto' ? size : undefined) }

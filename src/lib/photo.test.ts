@@ -128,6 +128,10 @@ describe('grid text -> board (end to end)', () => {
     const pos = Object.fromEntries(b.cells.map((c) => [c.label, [c.row, c.col]]))
     expect(pos).toEqual({ yo: [0, 0], querer: [0, 1], agua: [0, 3], Mati: [2, 0], no: [2, 2] })
     expect(b.cells.find((c) => c.label === 'Mati')?.category).toBe('person')
+    // Palabras repetidas en la cuadrícula: cada una en su casilla
+    const rep = await generateLibrary(parseText('más, leer\nleer, más', { grid: true }))
+    const rb = rep.boards[rep.rootId]
+    expect(rb.cells.map((c) => `${c.label}@${c.row},${c.col}`).sort()).toEqual(['leer@0,1', 'leer@1,0', 'más@0,0', 'más@1,1'])
     vi.unstubAllGlobals()
   })
 })

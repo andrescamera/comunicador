@@ -174,14 +174,16 @@ export function relayoutBoard(board: Board, order: (cells: NewCell[]) => NewCell
  */
 export function layoutAt(
   cells: NewCell[],
-  grid: { rows: number; cols: number; cells: { label: string; row: number; col: number }[] },
+  grid: { rows: number; cols: number; cells: { id?: string; label: string; row: number; col: number }[] },
 ): Pick<Board, 'rows' | 'cols' | 'zones' | 'cells'> {
-  const positions = new Map(grid.cells.map((c) => [c.label.toLowerCase(), c]))
+  // Por id (exacto, admite palabras repetidas) o, si no hay id, por la palabra
+  const byId = new Map(grid.cells.filter((c) => c.id).map((c) => [c.id!, c]))
+  const byLabel = new Map(grid.cells.map((c) => [c.label.toLowerCase(), c]))
   const used = new Set<string>()
   const placed: Cell[] = []
   const rest: NewCell[] = []
   for (const cell of cells) {
-    const p = positions.get(cell.label.toLowerCase())
+    const p = byId.get(cell.id) ?? byLabel.get(cell.label.toLowerCase())
     const k = p && `${p.row},${p.col}`
     if (p && k && !used.has(k)) {
       used.add(k)
