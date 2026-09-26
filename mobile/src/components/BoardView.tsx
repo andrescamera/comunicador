@@ -25,13 +25,19 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
   const [firedKey, setFiredKey] = useState<string | null>(null)
   const firedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  const cw = (dims.w - gap * (board.cols - 1)) / board.cols
-  const ch = (dims.h - gap * (board.rows - 1)) / board.rows
+  // Celdas cuadradas: el mayor tamaño que cabe, con el tablero centrado
+  const size = Math.max(0, Math.min((dims.w - gap * (board.cols - 1)) / board.cols, (dims.h - gap * (board.rows - 1)) / board.rows))
+  const cw = size
+  const ch = size
+  const ox = (dims.w - (board.cols * cw + (board.cols - 1) * gap)) / 2
+  const oy = 0 // pegado arriba, justo debajo de la barra de la frase
   const byPos = useMemo(() => new Map(board.cells.map((c) => [`${c.row},${c.col}`, c])), [board.cells])
 
   /** Casilla bajo el dedo, calculada con la geometría (sin buscar vistas): rápido y exacto. */
-  const slotAt = (x: number, y: number): { row: number; col: number } | null => {
+  const slotAt = (px: number, py: number): { row: number; col: number } | null => {
     if (cw <= 0 || ch <= 0) return null
+    const x = px - ox
+    const y = py - oy
     const col = Math.floor(x / (cw + gap))
     const row = Math.floor(y / (ch + gap))
     if (col < 0 || row < 0 || col >= board.cols || row >= board.rows) return null
@@ -67,7 +73,7 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
     },
   })
 
-  const pos = (row: number, col: number) => ({ left: col * (cw + gap), top: row * (ch + gap) })
+  const pos = (row: number, col: number) => ({ left: ox + col * (cw + gap), top: oy + row * (ch + gap) })
   const visible = editing ? board.cells : board.cells.filter((c) => !c.hidden)
 
   const empties: { row: number; col: number }[] = []
@@ -83,7 +89,7 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
         <View style={styles.headerRow}>
           {ZONE_ORDER.filter((z) => board.zones[z][1] >= board.zones[z][0]).map((z) => {
             const [s, e] = board.zones[z]
-            const left = s * (cw + gap)
+            const left = ox + s * (cw + gap)
             const width = (e - s + 1) * cw + (e - s) * gap
             return (
               <TextInput

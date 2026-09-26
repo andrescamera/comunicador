@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native'
 import type { Voice } from 'expo-speech'
 import { DEFAULT_SETTINGS, type Settings } from '../shared'
-import { speak, warmUpSpeech } from '../speech'
+import { spanishVoices, speak } from '../speech'
 import { colors } from '../theme'
 import { Btn, Sheet } from './Sheet'
 
@@ -16,7 +16,7 @@ interface Props {
 export function SettingsSheet({ settings, onChange, onResetBoards, onClose }: Props) {
   const [voices, setVoices] = useState<Voice[]>([])
   useEffect(() => {
-    void warmUpSpeech().then(setVoices)
+    void spanishVoices().then(setVoices)
   }, [])
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => onChange({ ...settings, [k]: v })
 

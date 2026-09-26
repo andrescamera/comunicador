@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native'
-import { type Cell, realize } from '../shared'
+import { type Cell, cellColors, realize } from '../shared'
 import { colors, radius } from '../theme'
 import { Picto } from './Picto'
 import { TapButton } from './TapButton'
@@ -13,15 +13,14 @@ interface Props {
   /** > 0 mientras hay un borrado automático pendiente */
   clearingMs: number
   clearingKey: number
-  compact?: boolean
+  /** Altura de la barra = tamaño de una celda del tablero */
+  height: number
+  gap: number
+  hint: string
 }
 
-const MAX_VISIBLE = 10
-
-export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs, clearingKey, compact }: Props) {
+export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs, clearingKey, height, gap, hint }: Props) {
   const words = realize(tokens)
-  // Se muestran las últimas palabras si la frase es muy larga
-  const start = Math.max(0, tokens.length - MAX_VISIBLE)
   const progress = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -32,29 +31,38 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs,
     }
   }, [clearingMs, clearingKey, progress])
 
-  const height = compact ? 70 : 110
+  // Cada palabra de la frase se ve como una celda pequeña, con el mismo pictograma y color
+  const tokenSize = height - 10
+  const fontSize = Math.max(10, Math.min(18, tokenSize * 0.15))
+  const [barWidth, setBarWidth] = useState(0)
+  const maxVisible = Math.max(1, Math.floor((barWidth || 600) / (tokenSize + 4)))
+  const start = Math.max(0, tokens.length - maxVisible) // si no cabe, se ven las últimas palabras
+
   return (
-    <View style={[styles.bar, { height }]}>
+    <View style={[styles.bar, { height, gap }]}>
       <TapButton label="Frase (hablar)" onTap={onSpeak} style={styles.sentence}>
-        <View style={styles.tokens}>
-          {tokens.length === 0 && <Text style={styles.hint}>Toca los pictogramas para formar una frase</Text>}
-          {tokens.slice(start).map((t, i) => (
-            <View key={start + i} style={styles.token}>
-              <Picto id={t.picto} size={height - 44} />
-              <Text style={styles.word} numberOfLines={1}>
-                {words[start + i]}
-              </Text>
-            </View>
-          ))}
+        <View style={styles.tokens} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
+          {tokens.length === 0 && <Text style={styles.hint}>{hint}</Text>}
+          {tokens.slice(start).map((t, i) => {
+            const { bg, border } = cellColors(t.category, t.kind)
+            return (
+              <View key={start + i} style={[styles.token, { width: tokenSize, height: tokenSize, backgroundColor: bg, borderColor: border }]}>
+                <Picto id={t.picto} />
+                <Text style={[styles.word, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                  {words[start + i]}
+                </Text>
+              </View>
+            )
+          })}
         </View>
         {clearingMs > 0 && <Animated.View style={[styles.countdown, { transform: [{ scaleX: progress }] }]} />}
       </TapButton>
-      <TapButton label="Borrar última" onTap={onBackspace} style={styles.action}>
-        <Text style={styles.icon}>⌫</Text>
+      <TapButton label="Borrar última" onTap={onBackspace} style={[styles.action, { width: height }]}>
+        <Text style={[styles.icon, { fontSize: height * 0.3 }]}>⌫</Text>
         <Text style={styles.actionText}>Borrar</Text>
       </TapButton>
-      <TapButton label="Borrar todo" onTap={onClear} style={styles.action}>
-        <Text style={styles.icon}>✕</Text>
+      <TapButton label="Borrar todo" onTap={onClear} style={[styles.action, { width: height }]}>
+        <Text style={[styles.icon, { fontSize: height * 0.3 }]}>✕</Text>
         <Text style={styles.actionText}>Todo</Text>
       </TapButton>
     </View>
@@ -62,7 +70,7 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs,
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', gap: 8 },
+  bar: { flex: 1, flexDirection: 'row' },
   sentence: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -71,10 +79,10 @@ const styles = StyleSheet.create({
     borderRadius: radius,
     overflow: 'hidden',
   },
-  tokens: { flex: 1, width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, gap: 6 },
-  hint: { color: colors.muted, fontSize: 16 },
-  token: { alignItems: 'center', minWidth: 56, maxWidth: 110 },
-  word: { fontWeight: '700', fontSize: 15, color: colors.text },
+  tokens: { flex: 1, width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 3, gap: 4 },
+  hint: { color: colors.muted, fontSize: 15, paddingHorizontal: 8 },
+  token: { borderWidth: 2, borderRadius: 10, padding: 3, alignItems: 'center' },
+  word: { fontWeight: '700', color: colors.text },
   countdown: {
     position: 'absolute',
     left: 0,
@@ -85,12 +93,11 @@ const styles = StyleSheet.create({
     transformOrigin: 'left',
   },
   action: {
-    width: 84,
     backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: colors.line,
     borderRadius: radius,
   },
-  icon: { fontSize: 26, color: colors.text },
-  actionText: { fontWeight: '700', color: colors.text },
+  icon: { color: colors.text },
+  actionText: { fontWeight: '700', color: colors.text, fontSize: 13 },
 })

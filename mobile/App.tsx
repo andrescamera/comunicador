@@ -58,6 +58,7 @@ export default function App() {
   const [movingId, setMovingId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0)
+  const [area, setArea] = useState({ w: 0, h: 0 }) // espacio útil (sin márgenes) para barra + tablero
   const clearTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const clearGen = useRef(0)
   const settingsRef = useRef(settings)
@@ -78,7 +79,7 @@ export default function App() {
       const [savedLib, savedSettings] = await Promise.all([loadLibrary(), loadSettings()])
       setSettings(savedSettings)
       setLoaded(true)
-      void warmUpSpeech()
+      void warmUpSpeech(savedSettings)
       if (savedLib) setLib(savedLib)
       else await loadSample()
     })()
@@ -266,29 +267,62 @@ export default function App() {
 
   const showLog = settings.showTapLog && !editing && width >= 900
 
+  // Una sola barra arriba de la altura de una celda; celdas cuadradas lo más grandes posible:
+  // alto disponible = barra + filas del tablero, todas del mismo tamaño
+  const gap = compact ? 5 : 8
+  const fitCell = area.w
+    ? Math.min((area.w - gap * (board.cols - 1)) / board.cols, (area.h - gap * board.rows) / (board.rows + 1))
+    : 90
+  const barH = Math.round(Math.max(52, Math.min(150, fitCell)))
+
   return (
     <View style={styles.app}>
       <StatusBar hidden />
       <View style={styles.row}>
         <View style={[styles.main, compact && styles.mainCompact]}>
-          {/* Barra superior */}
-          <View style={styles.topbar}>
+          <View style={styles.flex} onLayout={(e) => setArea({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
             {!editing ? (
-              <>
-                <TapButton label="Inicio" onTap={() => (setHistory([]), scheduleIdleClear(sentence.length))} style={styles.navBtn}>
-                  <Text style={styles.navText}>🏠{compact ? '' : ' Inicio'}</Text>
+              // Barra única: navegación · frase · borrar · herramientas del terapeuta
+              <View style={[styles.useBar, { height: barH, gap, marginBottom: gap }]}>
+                <TapButton label="Inicio" onTap={() => (setHistory([]), scheduleIdleClear(sentence.length))} style={[styles.navBtn, { width: barH * 0.85 }]}>
+                  <Text style={{ fontSize: barH * 0.3 }}>🏠</Text>
+                  <Text style={styles.navLabel}>Inicio</Text>
                 </TapButton>
-                <TapButton label="Atrás" disabled={!history.length} onTap={() => (setHistory((h) => h.slice(0, -1)), scheduleIdleClear(sentence.length))} style={styles.navBtn}>
-                  <Text style={styles.navText}>↩{compact ? '' : ' Atrás'}</Text>
+                <TapButton
+                  label="Atrás"
+                  disabled={!history.length}
+                  onTap={() => (setHistory((h) => h.slice(0, -1)), scheduleIdleClear(sentence.length))}
+                  style={[styles.navBtn, { width: barH * 0.85 }]}
+                >
+                  <Text style={{ fontSize: barH * 0.3, color: colors.text }}>↩</Text>
+                  <Text style={styles.navLabel} numberOfLines={1}>
+                    {history.length ? board.name : 'Atrás'}
+                  </Text>
                 </TapButton>
-                <Text style={styles.title} numberOfLines={1}>
-                  {board.name}
-                </Text>
-                <ToolBtn text={compact ? '✎' : '✎ Editar'} onPress={() => (setEditing(true), cancelAutoClear())} />
-                <ToolBtn text="⚙︎" onPress={() => setShowSettings(true)} />
-              </>
+                <SentenceBar
+                  tokens={sentence}
+                  height={barH}
+                  gap={gap}
+                  hint={history.length ? `${board.name} · toca los pictogramas para formar una frase` : 'Toca los pictogramas para formar una frase'}
+                  onSpeak={speakSentence}
+                  onBackspace={() => {
+                    scheduleIdleClear(sentence.length - 1)
+                    setSentence((s) => s.slice(0, -1))
+                  }}
+                  onClear={() => {
+                    cancelAutoClear()
+                    setSentence([])
+                  }}
+                  clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
+                  clearingKey={clearing}
+                />
+                <View style={styles.tools}>
+                  <ToolBtn text="✎" onPress={() => (setEditing(true), cancelAutoClear())} small />
+                  <ToolBtn text="⚙︎" onPress={() => setShowSettings(true)} small />
+                </View>
+              </View>
             ) : (
-              <View style={styles.editBar}>
+              <View style={[styles.editBar, { marginBottom: gap }]}>
                 <TextInput style={styles.nameInput} value={board.name} onChangeText={(t) => updateBoard(board.id, (b) => ({ ...b, name: t }))} />
                 <Text style={styles.muted}>Filas</Text>
                 <ToolBtn text="−" onPress={() => resize(board.rows - 1, board.cols)} />
@@ -304,25 +338,6 @@ export default function App() {
                 <ToolBtn text="✓ Terminar" primary onPress={() => (setEditing(false), setMovingId(null))} />
               </View>
             )}
-          </View>
-
-          {!editing && (
-            <SentenceBar
-              tokens={sentence}
-              compact={compact}
-              onSpeak={speakSentence}
-              onBackspace={() => {
-                scheduleIdleClear(sentence.length - 1)
-                setSentence((s) => s.slice(0, -1))
-              }}
-              onClear={() => {
-                cancelAutoClear()
-                setSentence([])
-              }}
-              clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
-              clearingKey={clearing}
-            />
-          )}
 
           {editing && (
             <View style={styles.hintRow}>
@@ -340,7 +355,7 @@ export default function App() {
             <BoardView
               board={board}
               editing={editing}
-              gap={compact ? 5 : 8}
+              gap={gap}
               onTapCell={onCellTap}
               onTapSlot={onTapSlot}
               movingId={movingId}
@@ -353,6 +368,7 @@ export default function App() {
                 })
               }
             />
+          </View>
           </View>
         </View>
         {showLog && <TapLog onClose={() => setSettings({ ...settings, showTapLog: false })} />}
@@ -392,9 +408,13 @@ export default function App() {
   )
 }
 
-function ToolBtn({ text, onPress, primary }: { text: string; onPress: () => void; primary?: boolean }) {
+function ToolBtn({ text, onPress, primary, small }: { text: string; onPress: () => void; primary?: boolean; small?: boolean }) {
   return (
-    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.tool, primary && styles.toolPrimary, pressed && { opacity: 0.6 }]}>
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [styles.tool, small && styles.toolSmall, primary && styles.toolPrimary, pressed && { opacity: 0.6 }]}
+    >
       <Text style={[styles.toolText, primary && { color: 'white' }]}>{text}</Text>
     </Pressable>
   )
@@ -404,21 +424,23 @@ const styles = StyleSheet.create({
   app: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
   row: { flex: 1, flexDirection: 'row' },
-  main: { flex: 1, padding: 10, gap: 10 },
-  mainCompact: { padding: 6, gap: 6 },
-  topbar: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
-  navBtn: { height: 48, paddingHorizontal: 14, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.line, borderRadius: radius },
-  navText: { fontSize: 17, fontWeight: '700', color: colors.text },
-  title: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '800', color: colors.text },
+  main: { flex: 1, padding: 10 },
+  mainCompact: { padding: 6 },
+  flex: { flex: 1 },
+  useBar: { flexDirection: 'row' },
+  navBtn: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.line, borderRadius: radius },
+  navLabel: { fontSize: 13, fontWeight: '700', color: colors.text, paddingHorizontal: 2 },
+  tools: { justifyContent: 'space-between' },
   editBar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   nameInput: { borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, fontSize: 17, fontWeight: '700', minWidth: 140, backgroundColor: colors.surface },
   count: { fontWeight: '800', fontSize: 16, color: colors.text, minWidth: 18, textAlign: 'center' },
   tool: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  toolSmall: { flex: 1, maxHeight: 60, width: 44, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
   toolPrimary: { backgroundColor: colors.accent, borderColor: colors.accent },
   toolText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   hint: { flex: 1, color: colors.muted, fontSize: 13 },
-  notice: { backgroundColor: '#fff4d6', borderColor: '#f0c75e', borderWidth: 1, borderRadius: 10, padding: 8, color: colors.text },
+  notice: { backgroundColor: '#fff4d6', borderColor: '#f0c75e', borderWidth: 1, borderRadius: 10, padding: 8, marginBottom: 6, color: colors.text },
   boardArea: { flex: 1 },
   muted: { color: colors.muted },
 })

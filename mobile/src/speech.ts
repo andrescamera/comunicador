@@ -2,14 +2,22 @@ import * as Speech from 'expo-speech'
 
 let generation = 0
 
-/** Inicializa el motor de voz al arrancar para que la primera palabra suene sin retraso. */
-export async function warmUpSpeech(): Promise<Speech.Voice[]> {
+export async function spanishVoices(): Promise<Speech.Voice[]> {
   try {
     const voices = await Speech.getAvailableVoicesAsync()
     return voices.filter((v) => v.language.toLowerCase().startsWith('es'))
   } catch {
     return []
   }
+}
+
+/**
+ * Android no arranca el motor de voz (ni carga la voz en español) hasta la primera locución:
+ * eso es el retraso del primer toque. Se arranca al abrir la app diciendo algo en silencio.
+ */
+export async function warmUpSpeech(opts: { rate: number; voiceURI: string }): Promise<void> {
+  await spanishVoices()
+  Speech.speak('hola', { language: 'es-ES', voice: opts.voiceURI || undefined, rate: opts.rate, volume: 0 })
 }
 
 /**
