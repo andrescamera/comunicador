@@ -1,0 +1,7 @@
+// Lógica compartida con la versión web (../src/lib): sin dependencias del navegador.
+export * from '../../src/lib/types'
+export * from '../../src/lib/grammar'
+export * from '../../src/lib/layout'
+export * from '../../src/lib/generator'
+export * from '../../src/lib/arasaac'
+export * from '../../src/lib/colors'

@@ -47,3 +47,19 @@ npm test         # tests de gramática y del generador
 - Artículos y concordancia de género/número en la frase.
 
 Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · licencia CC BY-NC-SA.
+
+## App nativa (Android / iOS) — `mobile/`
+
+React Native + Expo (SDK 57). Reutiliza la lógica de `src/lib` (gramática, colocación por zonas,
+generador desde texto, ARASAAC); la interfaz es nativa y los toques usan el sistema de respuesta táctil
+de React Native con las mismas reglas que la web.
+
+```bash
+cd mobile
+npm install
+npx expo start --web              # probar en el navegador
+./scripts/build-apk.sh --accept-licenses   # primera vez: acepta licencias del SDK y compila
+./scripts/build-apk.sh            # siguientes veces → mobile/dist/comunicador.apk
+```
+
+Requisitos para compilar (ya instalados con Homebrew): `openjdk@17`, `android-commandlinetools`.

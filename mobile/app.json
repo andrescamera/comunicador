@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Comunicador",
+    "slug": "comunicador",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.andrescamera.comunicador"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2f5d8a",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.andrescamera.comunicador",
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-image"
+    ],
+    "backgroundColor": "#eef1f5"
+  }
+}
