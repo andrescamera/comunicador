@@ -1,6 +1,9 @@
+import { Image } from 'expo-image'
+import * as ImagePicker from 'expo-image-picker'
 import { useMemo, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { type Cell, generateLibrary, GRID_SIZES, type GridSize, type Library, parseText, SAMPLE_TEXT } from '../shared'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { isTextRecognitionSupported, recognizeText } from '../../modules/text-recognizer'
+import { type Cell, generateLibrary, GRID_SIZES, type GridSize, gridFromLines, gridToText, layoutAt, type Library, parseText, type PhotoGrid, SAMPLE_TEXT } from '../shared'
 import { colors } from '../theme'
 import { BoardView } from './BoardView'
 import { CellEditor } from './CellEditor'
@@ -28,13 +31,47 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
   const [tab, setTab] = useState('')
   const [editing, setEditing] = useState<Cell | null>(null)
   const [size, setSize] = useState<GridSize>('auto')
+  const [photo, setPhoto] = useState<{ uri: string; grid: PhotoGrid } | null>(null)
+  const [keepLayout, setKeepLayout] = useState(true)
+  const [reading, setReading] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+
+  /** Foto de otro tablero -> texto reconocido en el dispositivo -> filas y columnas -> texto editable */
+  const fromPhoto = async () => {
+    setPhotoError('')
+    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 1 })
+    if (picked.canceled || !picked.assets?.[0]) return
+    const uri = picked.assets[0].uri
+    setReading(true)
+    try {
+      const result = await recognizeText(uri)
+      const grid = gridFromLines(result.lines)
+      if (!grid.cells.length) {
+        setPhotoError('No se ha encontrado texto en la foto. Prueba con una foto más nítida, de frente y con buena luz.')
+        return
+      }
+      setPhoto({ uri, grid })
+      setKeepLayout(true)
+      setText(gridToText(grid))
+    } catch (e) {
+      setPhotoError(`No se pudo leer la foto: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setReading(false)
+    }
+  }
 
   const parsed = useMemo(() => parseText(text), [text])
   const count = parsed.reduce((n, b) => n + b.items.length, 0)
 
   const generate = async () => {
     setProgress(0)
-    const lib = await generateLibrary(parsed, (d, t) => setProgress(Math.round((d / t) * 100)), size)
+    const usePhoto = photo && keepLayout
+    const lib = await generateLibrary(parsed, (d, t) => setProgress(Math.round((d / t) * 100)), usePhoto ? 'auto' : size)
+    if (usePhoto) {
+      // Misma distribución que el tablero de la foto
+      const root = lib.boards[lib.rootId]
+      lib.boards[lib.rootId] = { ...root, ...layoutAt(root.cells.map(({ row: _r, col: _c, ...c }) => c), photo.grid) }
+    }
     setProgress(null)
     setPreview(lib)
     setTab(lib.rootId)
@@ -112,9 +149,34 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
         Palabras separadas por comas, o texto libre (se extraen las palabras clave). "Comillas" = frase completa en una celda. Todo va al tablero
         principal; empieza una línea con «carpeta Nombre:» para crear una carpeta. Las líneas con # son comentarios.
       </Text>
+      {isTextRecognitionSupported && (
+        <View style={styles.photoBox}>
+          <View style={styles.photoRow}>
+            <Btn title={reading ? 'Leyendo la foto…' : '📷 Desde una foto de otro tablero'} kind="primary" disabled={reading} onPress={fromPhoto} />
+            {reading && <ActivityIndicator color={colors.accent} />}
+          </View>
+          <Text style={styles.muted}>Elige una foto o captura del tablero y recórtala para que se vea solo la cuadrícula. El texto se lee en la tablet, sin enviarlo a ningún sitio.</Text>
+          {!!photoError && <Text style={styles.error}>{photoError}</Text>}
+          {photo && (
+            <View style={styles.photoRow}>
+              <Image source={photo.uri} style={styles.thumb} contentFit="contain" />
+              <View style={{ flex: 1, gap: 6 }}>
+                <Text style={styles.label}>
+                  {photo.grid.cells.length} palabras en {photo.grid.rows} filas × {photo.grid.cols} columnas
+                </Text>
+                <Text style={styles.muted}>Revisa el texto de abajo y corrige las palabras mal leídas.</Text>
+                <View style={styles.photoRow}>
+                  <Switch value={keepLayout} onValueChange={setKeepLayout} />
+                  <Text style={{ flex: 1, color: colors.text }}>Mantener la distribución de la foto (cada palabra en su mismo sitio)</Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+      )}
       <ScrollView horizontal contentContainerStyle={styles.examples} showsHorizontalScrollIndicator={false}>
         {EXAMPLES.map((ex) => (
-          <Btn key={ex.name} title={`Ejemplo: ${ex.name}`} onPress={() => setText(ex.text)} />
+          <Btn key={ex.name} title={`Ejemplo: ${ex.name}`} onPress={() => (setText(ex.text), setPhoto(null))} />
         ))}
       </ScrollView>
       <TextInput
@@ -136,8 +198,8 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
           ))}
         </View>
       )}
-      <Text style={styles.label}>Cuadrícula</Text>
-      <View style={styles.sizes}>
+      {!(photo && keepLayout) && <Text style={styles.label}>Cuadrícula</Text>}
+      <View style={[styles.sizes, photo && keepLayout && { display: 'none' }]}>
         {(['auto', ...GRID_SIZES] as GridSize[]).map((g) => {
           const key = g === 'auto' ? 'auto' : `${g.rows}x${g.cols}`
           const active = size === 'auto' ? key === 'auto' : key === `${size.rows}x${size.cols}`
@@ -174,4 +236,8 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   tabText: { color: colors.text, fontWeight: '600' },
   previewBox: { height: 420, maxHeight: '100%' },
+  photoBox: { gap: 8, padding: 12, borderRadius: 12, backgroundColor: colors.accentSoft },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  thumb: { width: 120, height: 90, borderRadius: 8, backgroundColor: 'white' },
+  error: { color: colors.bad },
 })

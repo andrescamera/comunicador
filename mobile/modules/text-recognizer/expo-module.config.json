@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["TextRecognizerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.textrecognizer.TextRecognizerModule"]
+  }
+}

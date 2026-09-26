@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "expo.modules.textrecognizer.text-recognizer-mergeReleaseResources-19:/values-v24/values-v24.xml",
+            "map": [
+                {
+                    "source": "/Users/acameramartinez/.gradle/caches/9.3.1/transforms/934314b8d797651ec7e4c088fc029277/transformed/appcompat-1.6.1/res/values-v24/values-v24.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,212",
+                        "endColumns": "156,134",
+                        "endOffsets": "207,342"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "expo.modules.textrecognizer.text-recognizer-release-21:/values-v24/values-v24.xml",
+            "map": [
+                {
+                    "source": "/Users/acameramartinez/.gradle/caches/9.3.1/transforms/934314b8d797651ec7e4c088fc029277/transformed/appcompat-1.6.1/res/values-v24/values-v24.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,212",
+                        "endColumns": "156,134",
+                        "endOffsets": "207,342"
+                    }
+                }
+            ]
+        }
+    ]
+}

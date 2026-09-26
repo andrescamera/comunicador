@@ -52,7 +52,7 @@ export const GRID_SIZES = [
 
 type Counts = Record<Zone, number>
 
-function countZones(cells: Pick<Cell, 'kind' | 'category'>[]): Counts {
+export function countZones(cells: Pick<Cell, 'kind' | 'category'>[]): Counts {
   const counts: Counts = { A: 0, B: 0, C: 0, D: 0, E: 0 }
   for (const c of cells) counts[zoneOf(c)] += 1
   return counts
@@ -165,6 +165,37 @@ export function layoutCells(
 export function relayoutBoard(board: Board, order: (cells: NewCell[]) => NewCell[]): Board {
   const cells = order(board.cells.map(({ row: _r, col: _c, ...c }) => c))
   return { ...board, ...layoutCells(cells, { rows: board.rows, cols: board.cols }) }
+}
+
+/**
+ * Distribución copiada de un tablero fotografiado: cada celda va a la casilla donde estaba
+ * su palabra en la foto (así se conserva la memoria motora del tablero anterior).
+ * Las que no aparecen en la foto ocupan huecos libres de su zona.
+ */
+export function layoutAt(
+  cells: NewCell[],
+  grid: { rows: number; cols: number; cells: { label: string; row: number; col: number }[] },
+): Pick<Board, 'rows' | 'cols' | 'zones' | 'cells'> {
+  const positions = new Map(grid.cells.map((c) => [c.label.toLowerCase(), c]))
+  const used = new Set<string>()
+  const placed: Cell[] = []
+  const rest: NewCell[] = []
+  for (const cell of cells) {
+    const p = positions.get(cell.label.toLowerCase())
+    const k = p && `${p.row},${p.col}`
+    if (p && k && !used.has(k)) {
+      used.add(k)
+      placed.push({ ...cell, row: p.row, col: p.col })
+    } else rest.push(cell)
+  }
+  let board: Pick<Board, 'rows' | 'cols' | 'zones' | 'cells'> = {
+    rows: Math.max(1, grid.rows),
+    cols: Math.max(1, grid.cols),
+    zones: computeZones(countZones(cells), Math.max(1, grid.rows), Math.max(1, grid.cols)),
+    cells: placed,
+  }
+  for (const cell of rest) board = placeCell(board, cell)
+  return board
 }
 
 /** Mueve una celda a otra casilla; si está ocupada, las intercambia. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classify } from './grammar'
-import { computeZones, layoutCells, moveCellTo, type NewCell, pickSize, placeCell, resizeBoard, zoneOf } from './layout'
+import { computeZones, layoutAt, layoutCells, moveCellTo, type NewCell, pickSize, placeCell, resizeBoard, zoneOf } from './layout'
 import type { Board } from './types'
 
 let n = 0
@@ -87,5 +87,17 @@ describe('layout', () => {
     expect(ranges[0][0]).toBe(0)
     expect(ranges[ranges.length - 1][1]).toBe(11)
     for (let i = 1; i < ranges.length; i++) expect(ranges[i][0]).toBe(ranges[i - 1][1] + 1)
+  })
+})
+
+describe('layoutAt (distribución de una foto)', () => {
+  it('keeps photo positions and fills free slots with the rest', () => {
+    const grid = { rows: 2, cols: 3, cells: [{ label: 'agua', row: 0, col: 2 }, { label: 'yo', row: 1, col: 0 }] }
+    const b = { id: 'b', name: 'x', ...layoutAt(['yo', 'agua', 'comer'].map(word), grid) }
+    expect(at(b, 'agua')).toEqual([0, 2])
+    expect(at(b, 'yo')).toEqual([1, 0])
+    const slots = b.cells.map((c) => `${c.row},${c.col}`)
+    expect(new Set(slots).size).toBe(3)
+    expect(b.rows).toBe(2)
   })
 })

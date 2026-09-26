@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "expo.modules.textrecognizer.text-recognizer-release-21:/layout-watch-v20/abc_alert_dialog_title_material.xml",
+        "source": "expo.modules.textrecognizer.text-recognizer-appcompat-1.6.1-10:/layout-watch-v20/abc_alert_dialog_title_material.xml"
+    },
+    {
+        "merged": "expo.modules.textrecognizer.text-recognizer-release-21:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml",
+        "source": "expo.modules.textrecognizer.text-recognizer-appcompat-1.6.1-10:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml"
+    }
+]

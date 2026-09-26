@@ -1,0 +1,36 @@
+{
+    "logs": [
+        {
+            "outputFile": "expo.modules.textrecognizer.text-recognizer-mergeReleaseResources-19:/values-hdpi-v4/values-hdpi-v4.xml",
+            "map": [
+                {
+                    "source": "/Users/acameramartinez/.gradle/caches/9.3.1/transforms/934314b8d797651ec7e4c088fc029277/transformed/appcompat-1.6.1/res/values-hdpi-v4/values-hdpi-v4.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "6",
+                        "endColumns": "13",
+                        "endOffsets": "327"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "expo.modules.textrecognizer.text-recognizer-release-21:/values-hdpi-v4/values-hdpi-v4.xml",
+            "map": [
+                {
+                    "source": "/Users/acameramartinez/.gradle/caches/9.3.1/transforms/934314b8d797651ec7e4c088fc029277/transformed/appcompat-1.6.1/res/values-hdpi-v4/values-hdpi-v4.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "6",
+                        "endColumns": "13",
+                        "endOffsets": "327"
+                    }
+                }
+            ]
+        }
+    ]
+}

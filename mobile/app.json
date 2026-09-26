@@ -25,7 +25,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-image"
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Para crear tableros a partir de la foto de otro tablero.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "backgroundColor": "#eef1f5"
   }
