@@ -28,13 +28,15 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
   const [tab, setTab] = useState<string>('')
   const [editing, setEditing] = useState<Cell | null>(null)
   const [size, setSize] = useState<GridSize>('auto')
+  // Mantener filas y columnas: cada línea es una fila y cada palabra entre comas, una columna
+  const [gridMode, setGridMode] = useState(false)
 
-  const parsed = useMemo(() => parseText(text), [text])
+  const parsed = useMemo(() => parseText(text, { grid: gridMode }), [text, gridMode])
   const wordCount = parsed.reduce((n, b) => n + b.items.length, 0)
 
   const generate = async () => {
     setProgress({ done: 0, total: 1 })
-    const lib = await generateLibrary(parsed, (done, total) => setProgress({ done, total }), size)
+    const lib = await generateLibrary(parsed, (done, total) => setProgress({ done, total }), gridMode ? 'auto' : size)
     setProgress(null)
     setPreview(lib)
     setTab(lib.rootId)
@@ -82,12 +84,20 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
             placeholder={'Desayuno: yo, querer, leche, galletas, más, terminado\ncarpeta Parque: columpio, tobogán, arena, "otra vez"'}
             autoFocus
           />
+          <label className="check">
+            <input type="checkbox" checked={gridMode} onChange={(e) => setGridMode(e.target.checked)} />
+            Mantener filas y columnas: cada línea es una fila y las palabras quedan en el orden escrito (<code>_</code> = casilla vacía)
+          </label>
           {parsed.length > 0 && (
             <div className="parsed">
               {parsed.map((b, i) => (
                 <div key={i}>
                   <strong>{b.name}</strong>
-                  <span className="muted">{i === 0 ? ' (principal)' : ' (carpeta)'}</span>: {b.items.map((it) => (it.kind === 'phrase' ? `“${it.label}”` : it.label)).join(' · ')}
+                  <span className="muted">
+                    {i === 0 ? ' (principal)' : ' (carpeta)'}
+                    {b.gridRows ? ` · ${b.gridRows} filas × ${b.gridCols} columnas` : ''}
+                  </span>
+                  : {b.items.map((it) => (it.kind === 'phrase' ? `“${it.label}”` : it.label)).join(' · ')}
                 </div>
               ))}
             </div>
@@ -97,7 +107,7 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
               {wordCount} celdas{parsed.length > 1 ? `, ${parsed.length - 1} carpeta${parsed.length === 2 ? '' : 's'}` : ''}
             </span>
             <span className="spacer" />
-            <label className="inline">
+            <label className="inline" hidden={gridMode}>
               Cuadrícula
               <select
                 value={size === 'auto' ? 'auto' : `${size.rows}x${size.cols}`}

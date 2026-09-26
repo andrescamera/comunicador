@@ -31,12 +31,18 @@ class TextRecognizerModule : Module() {
         .addOnSuccessListener { result ->
           val lines = result.textBlocks.flatMap { it.lines }.mapNotNull { line ->
             val box = line.boundingBox ?: return@mapNotNull null
+            // Palabras con su posición: permiten separar etiquetas de celdas vecinas unidas en una línea
+            val elements = line.elements.mapNotNull { el ->
+              val b = el.boundingBox ?: return@mapNotNull null
+              mapOf("text" to el.text, "x" to b.left, "y" to b.top, "width" to b.width(), "height" to b.height())
+            }
             mapOf(
               "text" to line.text,
               "x" to box.left,
               "y" to box.top,
               "width" to box.width(),
               "height" to box.height(),
+              "elements" to elements,
             )
           }
           promise.resolve(mapOf("width" to image.width, "height" to image.height, "lines" to lines))

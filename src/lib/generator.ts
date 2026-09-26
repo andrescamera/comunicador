@@ -1,6 +1,6 @@
 import { bestPicto } from './arasaac'
 import { CATEGORY_ORDER, classify, isKnownWord, lemmatize } from './grammar'
-import { layoutCells, type NewCell, ZONE_ORDER, zoneOf } from './layout'
+import { layoutAt, layoutCells, type NewCell, ZONE_ORDER, zoneOf } from './layout'
 import type { Board, Cell, CellKind, Library } from './types'
 import { uid } from './types'
 
@@ -8,10 +8,15 @@ export interface ParsedItem {
   label: string
   kind: CellKind
   proper?: boolean // nombre propio (Mati, Lucía): persona, sin pictograma aproximado
+  // Posición fija, solo en modo cuadrícula (cada línea es una fila)
+  row?: number
+  col?: number
 }
 export interface ParsedBoard {
   name: string
   items: ParsedItem[]
+  gridRows?: number // modo cuadrícula: nº de filas (líneas) con posición fija
+  gridCols?: number
 }
 
 const STOPWORDS = new Set([
@@ -31,9 +36,12 @@ const STOPWORDS = new Set([
  * - Solo "carpeta Nombre: ..." crea un tablero aparte, enlazado desde el principal.
  * - Con comas: cada elemento es una celda. Entre comillas: frase completa en una celda.
  * - Sin comas: texto libre; se quitan palabras vacías y se pasan los verbos a infinitivo.
+ * - Con `grid: true` (mantener filas y columnas): cada línea es una fila y cada palabra entre
+ *   comas, una columna, en ese orden; "_" es un hueco vacío y una línea "_" es una fila vacía.
+ *   Así se transcribe la foto de otro tablero sin perder su distribución.
  * Devuelve el tablero principal en la posición 0 y después las carpetas.
  */
-export function parseText(text: string): ParsedBoard[] {
+export function parseText(text: string, opts: { grid?: boolean } = {}): ParsedBoard[] {
   const main: ParsedBoard = { name: '', items: [] }
   const folders: ParsedBoard[] = []
   for (const rawLine of text.normalize('NFC').split('\n')) {
@@ -42,17 +50,23 @@ export function parseText(text: string): ParsedBoard[] {
     const folder = line.match(/^carpeta\s+([^:"]{1,40}):\s*(.*)$/i)
     const labeled = folder ? null : line.match(/^([^:",]{1,40}):\s*(.*)$/)
     const body = folder ? folder[2] : labeled ? labeled[2] : line
-    const items = body.includes(',') ? parseList(body) : parseFreeText(body)
 
+    let target = main
     if (folder) {
       const name = folder[1].trim()
       // Dos líneas con la misma carpeta se juntan
-      const existing = folders.find((b) => b.name.toLowerCase() === name.toLowerCase())
-      if (existing) existing.items.push(...items)
-      else folders.push({ name, items })
+      target = folders.find((b) => b.name.toLowerCase() === name.toLowerCase()) ?? { name, items: [] }
+      if (!folders.includes(target)) folders.push(target)
+    } else if (labeled && !main.name) main.name = labeled[1].trim()
+
+    if (opts.grid) {
+      const row = target.gridRows ?? 0
+      const cells = parseGridRow(body, row)
+      target.items.push(...cells.items)
+      target.gridRows = row + 1
+      target.gridCols = Math.max(target.gridCols ?? 0, cells.width)
     } else {
-      if (labeled && !main.name) main.name = labeled[1].trim()
-      main.items.push(...items)
+      target.items.push(...(body.includes(',') ? parseList(body) : parseFreeText(body)))
     }
   }
   main.name ||= 'Inicio'
@@ -69,11 +83,27 @@ export function parseText(text: string): ParsedBoard[] {
   return boards
 }
 
+/** Una fila de la cuadrícula: cada trozo entre comas es una celda en su columna; "_" o vacío = hueco. */
+function parseGridRow(body: string, row: number): { items: ParsedItem[]; width: number } {
+  const parts = body.split(',').map((p) => p.trim())
+  const items: ParsedItem[] = []
+  parts.forEach((p, col) => {
+    if (!p || /^_+$/.test(p)) return
+    const quoted = p.match(/^["“'](.+)["”']$/)
+    const text = (quoted ? quoted[1] : p).trim()
+    // En una cuadrícula cada trozo es UNA celda: 3 palabras o más es una frase hecha
+    const kind = quoted || text.split(/\s+/).length >= 3 ? 'phrase' : 'word'
+    if (kind === 'word' && isProperName(text)) items.push({ label: text, kind, proper: true, row, col })
+    else items.push({ label: kind === 'phrase' ? text : text.toLowerCase(), kind, row, col })
+  })
+  return { items, width: parts.length }
+}
+
 function parseList(body: string): ParsedItem[] {
   return body
     .split(',')
     .map((s) => s.trim())
-    .filter(Boolean)
+    .filter((s) => s && !/^_+$/.test(s)) // "_" = hueco: solo tiene sentido en modo cuadrícula
     .flatMap((s): ParsedItem[] => {
       const quoted = s.match(/^["“'](.+)["”']$/)
       if (quoted) return [{ label: quoted[1].trim(), kind: 'phrase' }]
@@ -94,7 +124,7 @@ function parseFreeText(body: string): ParsedItem[] {
   for (const raw of rest.split(/[\s.;¿?¡!]+/)) {
     const original = raw.trim()
     const word = original.toLowerCase()
-    if (!word || STOPWORDS.has(word)) continue
+    if (!word || STOPWORDS.has(word) || /^_+$/.test(word)) continue
     if (isProperName(original)) items.push({ label: original, kind: 'word', proper: true })
     else items.push({ label: lemmatize(word) ?? word, kind: 'word' })
   }
@@ -190,11 +220,18 @@ export async function generateLibrary(
   }
   tick()
 
-  const boards: Board[] = drafts.map((d, i) => ({
-    id: d.id,
-    name: d.name,
-    ...layoutCells(sortCells(d.cells), i === 0 && size !== 'auto' ? size : undefined),
-  }))
+  const boards: Board[] = drafts.map((d, i) => {
+    const pb = parsed[i]
+    if (pb.gridRows) {
+      // Cuadrícula escrita con "|": cada celda en su fila y columna exactas
+      const positions = pb.items
+        .map((it, k) => ({ it, cell: d.cells[k] }))
+        .filter(({ it }) => it.row !== undefined && it.col !== undefined)
+        .map(({ it, cell }) => ({ label: cell.label, row: it.row!, col: it.col! }))
+      return { id: d.id, name: d.name, ...layoutAt(d.cells, { rows: pb.gridRows, cols: pb.gridCols ?? 1, cells: positions }) }
+    }
+    return { id: d.id, name: d.name, ...layoutCells(sortCells(d.cells), i === 0 && size !== 'auto' ? size : undefined) }
+  })
   return { rootId: root.id, boards: Object.fromEntries(boards.map((b) => [b.id, b])) }
 }
 
@@ -210,3 +247,4 @@ no, más, eso, esto, aquí, otra vez, todo, ya, también, bien, mal, grande, peq
 agua, comida, baño, casa, colegio, parque, música, tele
 # Social
 hola, adiós, sí, gracias, por favor, vale`
+

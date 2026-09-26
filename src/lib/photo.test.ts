@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseText } from './generator'
-import { cleanLabel, gridFromLines, gridToText, type TextLine } from './photo'
+import { cleanLabel, gridFromLines, gridToText, splitLine, type TextLine } from './photo'
 
 // Tablero fotografiado: celdas de 200×220 px, etiqueta bajo cada pictograma, algo torcido
 const PITCH_X = 200
@@ -59,16 +59,74 @@ describe('gridFromLines', () => {
     expect(names.cells.map((c) => c.label)).toEqual(['galletas', 'leche', 'agua', 'Mati'])
   })
 
-  it('produces creator text that parses back to the same words', () => {
-    const grid = gridFromLines([label('yo', 0, 0), label('otra vez', 0, 1), label('quiero ir al baño', 1, 0)])
+  it('transcribes the photo as a grid text that keeps rows, columns and empty slots', () => {
+    const grid = gridFromLines([
+      label('yo', 0, 0),
+      label('otra vez', 0, 1),
+      label('agua', 0, 3),
+      label('quiero ir al baño', 2, 0), // la fila 1 está vacía
+      label('no', 2, 2),
+    ])
+    expect(grid.rows).toBe(3)
+    expect(grid.cols).toBe(4)
     const text = gridToText(grid)
-    expect(text).toBe('yo, otra vez\n"quiero ir al baño"')
-    const [board] = parseText(text)
-    expect(board.items.map((i) => `${i.kind}:${i.label}`)).toEqual(['word:yo', 'word:otra vez', 'phrase:quiero ir al baño'])
+    expect(text).toBe('yo, otra vez, _, agua\n_\n"quiero ir al baño", _, no')
+    const [board] = parseText(text, { grid: true })
+    expect(board.gridRows).toBe(3)
+    expect(board.gridCols).toBe(4)
+    expect(board.items.map((i) => `${i.kind}:${i.label}@${i.row},${i.col}`)).toEqual([
+      'word:yo@0,0',
+      'word:otra vez@0,1',
+      'word:agua@0,3',
+      'phrase:quiero ir al baño@2,0',
+      'word:no@2,2',
+    ])
+  })
+
+  it('splits a recognised line that joins the labels of neighbouring cells', () => {
+    const joined: TextLine = {
+      text: 'yo tú',
+      x: 100,
+      y: 200,
+      width: 300,
+      height: 28,
+      elements: [
+        { text: 'yo', x: 100, y: 200, width: 30, height: 28 },
+        { text: 'tú', x: 370, y: 200, width: 30, height: 28 },
+      ],
+    }
+    expect(splitLine(joined).map((b) => b.text)).toEqual(['yo', 'tú'])
+    const phrase: TextLine = {
+      ...joined,
+      text: 'por favor',
+      elements: [
+        { text: 'por', x: 100, y: 200, width: 45, height: 28 },
+        { text: 'favor', x: 155, y: 200, width: 70, height: 28 },
+      ],
+    }
+    expect(splitLine(phrase).map((b) => b.text)).toEqual(['por favor'])
   })
 
   it('cleans punctuation', () => {
     expect(cleanLabel('¿Qué?', false)).toBe('qué')
     expect(cleanLabel('comemos.', false)).toBe('comer')
+  })
+})
+
+describe('grid text -> board (end to end)', () => {
+  it('places every cell exactly where the grid text says, keeping the size', async () => {
+    const { vi } = await import('vitest')
+    vi.stubGlobal('fetch', async () => new Response('[]', { status: 404 })) // sin red: sin pictogramas
+    const { generateLibrary } = await import('./generator')
+    const lib = await generateLibrary(parseText('yo, querer, _, agua\n_\nMati, _, no', { grid: true }))
+    const b = lib.boards[lib.rootId]
+    expect([b.rows, b.cols]).toEqual([3, 4])
+    // sin el modo cuadrícula, las mismas palabras se ordenan por categorías (no se respeta el orden)
+    const byCategory = await generateLibrary(parseText('yo, querer, _, agua\n_\nMati, _, no'))
+    expect(byCategory.boards[byCategory.rootId].cells.map((c) => c.label)).not.toContain('_')
+    const pos = Object.fromEntries(b.cells.map((c) => [c.label, [c.row, c.col]]))
+    expect(pos).toEqual({ yo: [0, 0], querer: [0, 1], agua: [0, 3], Mati: [2, 0], no: [2, 2] })
+    expect(b.cells.find((c) => c.label === 'Mati')?.category).toBe('person')
+    vi.unstubAllGlobals()
   })
 })

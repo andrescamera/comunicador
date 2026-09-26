@@ -1,12 +1,17 @@
 import { lemmatize, normalizeText } from './grammar'
 
 /** Línea de texto reconocida en la foto, en píxeles de la imagen. */
-export interface TextLine {
+export interface TextBox {
   text: string
   x: number
   y: number
   width: number
   height: number
+}
+
+/** Línea reconocida; `elements` son sus palabras con su propia posición (si el motor las da). */
+export interface TextLine extends TextBox {
+  elements?: TextBox[]
 }
 
 export interface PhotoCell {
@@ -80,15 +85,25 @@ function clusterCenters(values: number[], tol: number): number[] {
 }
 
 /**
- * Paso de la cuadrícula a partir de los centros de filas o columnas: la distancia típica
- * entre vecinos. Un hueco de dos celdas cuenta como dos pasos, así que se usa la mediana
- * de las distancias pequeñas.
+ * Paso de la cuadrícula (distancia entre filas o columnas vecinas). Si hay filas o columnas
+ * vacías, algunas distancias son múltiplos del paso: se toma la menor como referencia y cada
+ * distancia se divide por el número de pasos que contiene.
  */
-function pitch(centers: number[]): number {
-  if (centers.length < 2) return 0
-  const diffs = centers.slice(1).map((c, i) => c - centers[i])
-  const m = median(diffs)
-  return median(diffs.filter((d) => d < m * 1.5))
+function pitch(diffs: number[], minGap: number): number {
+  const ds = diffs.filter((d) => d > minGap)
+  if (!ds.length) return 0
+  const base = Math.min(...ds)
+  return median(ds.map((d) => d / Math.max(1, Math.round(d / base))))
+}
+
+/**
+ * Las celdas de un tablero son casi cuadradas: si un paso es casi el doble (o más) que el
+ * otro, es que todas las filas (o columnas) medidas estaban separadas por huecos vacíos.
+ */
+function correctWithOther(p: number, other: number): number {
+  if (!p || !other) return p
+  const ratio = p / other
+  return ratio >= 1.8 ? p / Math.round(ratio) : p
 }
 
 /**
@@ -106,11 +121,37 @@ export function cleanLabel(text: string, keepCapitals: boolean): string {
 }
 
 /**
+ * El reconocedor a veces junta en una línea las etiquetas de celdas vecinas ("yo      tú").
+ * Se parte la línea donde la separación entre palabras es mucho mayor que un espacio.
+ */
+export function splitLine(line: TextLine): TextBox[] {
+  const words = [...(line.elements ?? [])].sort((a, b) => a.x - b.x)
+  if (words.length < 2) return [line]
+  const gapLimit = median(words.map((w) => w.height)) * 1.1
+  const groups: TextBox[][] = [[words[0]]]
+  for (let i = 1; i < words.length; i++) {
+    const prev = words[i - 1]
+    const gap = words[i].x - (prev.x + prev.width)
+    if (gap > gapLimit) groups.push([words[i]])
+    else groups[groups.length - 1].push(words[i])
+  }
+  if (groups.length === 1) return [line]
+  return groups.map((g) => {
+    const x = Math.min(...g.map((w) => w.x))
+    const y = Math.min(...g.map((w) => w.y))
+    const right = Math.max(...g.map((w) => w.x + w.width))
+    const bottom = Math.max(...g.map((w) => w.y + w.height))
+    return { text: g.map((w) => w.text).join(' '), x, y, width: right - x, height: bottom - y }
+  })
+}
+
+/**
  * Reconstruye la cuadrícula de un tablero fotografiado a partir de sus etiquetas:
  * filas y columnas por la posición de los textos, conservando los huecos vacíos.
  */
 export function gridFromLines(lines: TextLine[]): PhotoGrid {
   let boxes: Box[] = lines
+    .flatMap(splitLine)
     .filter((l) => isLabel(l.text))
     .map((l) => ({ text: l.text.trim(), cx: l.x + l.width / 2, cy: l.y + l.height / 2, w: l.width, h: l.height }))
   if (!boxes.length) return { rows: 0, cols: 0, cells: [] }
@@ -125,7 +166,6 @@ export function gridFromLines(lines: TextLine[]): PhotoGrid {
     boxes.map((b) => b.cy),
     h * 1.2,
   )
-  const rowPitch = pitch(rowCenters) || h * 4
 
   // El paso de columna se estima dentro de cada fila (vecinos en la misma fila)
   const rowOf = (b: Box) => rowCenters.reduce((best, c, i) => (Math.abs(c - b.cy) < Math.abs(rowCenters[best] - b.cy) ? i : best), 0)
@@ -138,7 +178,13 @@ export function gridFromLines(lines: TextLine[]): PhotoGrid {
     for (let i = 1; i < xs.length; i++) colDiffs.push(xs[i] - xs[i - 1])
   })
   const minW = median(boxes.map((b) => b.w)) * 0.5
-  const colPitch = median(colDiffs.filter((d) => d > minW).filter((d, _, all) => d < median(all) * 1.5)) || median(boxes.map((b) => b.w)) * 2
+  const rawCol = pitch(colDiffs, minW)
+  const rawRow = pitch(
+    rowCenters.slice(1).map((c, i) => c - rowCenters[i]),
+    h,
+  )
+  const colPitch = correctWithOther(rawCol, rawRow) || median(boxes.map((b) => b.w)) * 2
+  const rowPitch = correctWithOther(rawRow, rawCol) || h * 4
 
   // Si casi todas las etiquetas empiezan por mayúscula es el estilo del tablero, no nombres propios
   const capitalized = boxes.filter((b) => /^\p{Lu}/u.test(b.text)).length / boxes.length
@@ -177,15 +223,19 @@ export function gridFromLines(lines: TextLine[]): PhotoGrid {
   }
 }
 
-/** Texto para el creador: una línea por fila de la foto, palabras separadas por comas. */
+/**
+ * Texto para el creador, fiel a la foto (para leerlo con "mantener filas y columnas"):
+ * una línea por fila, palabras separadas por comas en su orden, "_" en los huecos
+ * y "_" para una fila vacía.
+ */
 export function gridToText(grid: PhotoGrid): string {
-  const rows: string[][] = Array.from({ length: grid.rows }, () => [])
-  for (const c of [...grid.cells].sort((a, b) => a.row - b.row || a.col - b.col)) {
-    // 3 palabras o más = frase hecha (entre comillas); "otra vez" o "por favor" siguen siendo palabras
-    rows[c.row].push(c.label.split(' ').length >= 3 ? `"${c.label}"` : c.label)
-  }
-  return rows
-    .filter((r) => r.length)
-    .map((r) => r.join(', '))
+  const table: string[][] = Array.from({ length: grid.rows }, () => Array.from({ length: grid.cols }, () => '_'))
+  for (const c of grid.cells) table[c.row][c.col] = c.label.split(' ').length >= 3 ? `"${c.label}"` : c.label
+  return table
+    .map((r) => {
+      // Los huecos del final de la fila sobran: el ancho lo marca la fila más larga
+      const last = r.reduce((acc, cell, i) => (cell !== '_' ? i : acc), -1)
+      return last < 0 ? '_' : r.slice(0, last + 1).join(', ')
+    })
     .join('\n')
 }

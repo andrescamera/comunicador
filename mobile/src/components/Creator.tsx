@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { isTextRecognitionSupported, recognizeText } from '../../modules/text-recognizer'
-import { type Cell, generateLibrary, GRID_SIZES, type GridSize, gridFromLines, gridToText, layoutAt, type Library, parseText, type PhotoGrid, SAMPLE_TEXT } from '../shared'
+import { type Cell, generateLibrary, GRID_SIZES, type GridSize, gridFromLines, gridToText, type Library, parseText, type PhotoGrid, SAMPLE_TEXT } from '../shared'
 import { colors } from '../theme'
 import { BoardView } from './BoardView'
 import { CellEditor } from './CellEditor'
@@ -32,7 +32,8 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
   const [editing, setEditing] = useState<Cell | null>(null)
   const [size, setSize] = useState<GridSize>('auto')
   const [photo, setPhoto] = useState<{ uri: string; grid: PhotoGrid } | null>(null)
-  const [keepLayout, setKeepLayout] = useState(true)
+  // Mantener filas y columnas: cada línea es una fila y cada palabra entre comas, una columna
+  const [gridMode, setGridMode] = useState(false)
   const [reading, setReading] = useState(false)
   const [photoError, setPhotoError] = useState('')
 
@@ -51,7 +52,7 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
         return
       }
       setPhoto({ uri, grid })
-      setKeepLayout(true)
+      setGridMode(true)
       setText(gridToText(grid))
     } catch (e) {
       setPhotoError(`No se pudo leer la foto: ${e instanceof Error ? e.message : String(e)}`)
@@ -60,18 +61,13 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
     }
   }
 
-  const parsed = useMemo(() => parseText(text), [text])
+  const parsed = useMemo(() => parseText(text, { grid: gridMode }), [text, gridMode])
   const count = parsed.reduce((n, b) => n + b.items.length, 0)
 
   const generate = async () => {
     setProgress(0)
-    const usePhoto = photo && keepLayout
-    const lib = await generateLibrary(parsed, (d, t) => setProgress(Math.round((d / t) * 100)), usePhoto ? 'auto' : size)
-    if (usePhoto) {
-      // Misma distribución que el tablero de la foto
-      const root = lib.boards[lib.rootId]
-      lib.boards[lib.rootId] = { ...root, ...layoutAt(root.cells.map(({ row: _r, col: _c, ...c }) => c), photo.grid) }
-    }
+    // En modo cuadrícula el tamaño y las posiciones salen del propio texto
+    const lib = await generateLibrary(parsed, (d, t) => setProgress(Math.round((d / t) * 100)), gridMode ? 'auto' : size)
     setProgress(null)
     setPreview(lib)
     setTab(lib.rootId)
@@ -164,11 +160,7 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
                 <Text style={styles.label}>
                   {photo.grid.cells.length} palabras en {photo.grid.rows} filas × {photo.grid.cols} columnas
                 </Text>
-                <Text style={styles.muted}>Revisa el texto de abajo y corrige las palabras mal leídas.</Text>
-                <View style={styles.photoRow}>
-                  <Switch value={keepLayout} onValueChange={setKeepLayout} />
-                  <Text style={{ flex: 1, color: colors.text }}>Mantener la distribución de la foto (cada palabra en su mismo sitio)</Text>
-                </View>
+                <Text style={styles.muted}>Revisa el texto de abajo y corrige las palabras mal leídas. Cada línea es una fila de la foto; «_» es una casilla vacía.</Text>
               </View>
             </View>
           )}
@@ -188,18 +180,29 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
         textAlignVertical="top"
         autoCapitalize="none"
       />
+      <View style={styles.photoRow}>
+        <Switch value={gridMode} onValueChange={setGridMode} />
+        <Text style={{ flex: 1, color: colors.text }}>
+          Mantener filas y columnas: cada línea es una fila y las palabras quedan en el orden escrito («_» = casilla vacía). Si se desactiva, se ordenan
+          por categorías.
+        </Text>
+      </View>
       {parsed.length > 0 && (
         <View style={styles.parsed}>
           {parsed.map((b, i) => (
             <Text key={i} style={styles.parsedLine}>
               <Text style={{ fontWeight: '700' }}>{b.name}</Text>
-              <Text style={styles.muted}>{i === 0 ? ' (principal)' : ' (carpeta)'}</Text>: {b.items.map((it) => (it.kind === 'phrase' ? `“${it.label}”` : it.label)).join(' · ')}
+              <Text style={styles.muted}>
+                {i === 0 ? ' (principal)' : ' (carpeta)'}
+                {b.gridRows ? ` · ${b.gridRows} filas × ${b.gridCols} columnas` : ''}
+              </Text>
+              : {b.items.map((it) => (it.kind === 'phrase' ? `“${it.label}”` : it.label)).join(' · ')}
             </Text>
           ))}
         </View>
       )}
-      {!(photo && keepLayout) && <Text style={styles.label}>Cuadrícula</Text>}
-      <View style={[styles.sizes, photo && keepLayout && { display: 'none' }]}>
+      {!gridMode && <Text style={styles.label}>Cuadrícula</Text>}
+      <View style={[styles.sizes, gridMode && { display: 'none' }]}>
         {(['auto', ...GRID_SIZES] as GridSize[]).map((g) => {
           const key = g === 'auto' ? 'auto' : `${g.rows}x${g.cols}`
           const active = size === 'auto' ? key === 'auto' : key === `${size.rows}x${size.cols}`

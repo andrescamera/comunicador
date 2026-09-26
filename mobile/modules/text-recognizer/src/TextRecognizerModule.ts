@@ -1,11 +1,15 @@
 import { requireOptionalNativeModule } from 'expo'
 
-export interface RecognizedLine {
+export interface RecognizedBox {
   text: string
   x: number
   y: number
   width: number
   height: number
+}
+
+export interface RecognizedLine extends RecognizedBox {
+  elements?: RecognizedBox[] // palabras de la línea (Android)
 }
 
 export interface RecognitionResult {
