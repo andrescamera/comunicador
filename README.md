@@ -62,4 +62,13 @@ npx expo start --web              # probar en el navegador
 ./scripts/build-apk.sh            # siguientes veces → mobile/dist/comunicador.apk
 ```
 
-Requisitos para compilar (ya instalados con Homebrew): `openjdk@17`, `android-commandlinetools`.
+Requisitos para compilar (ya instalados con Homebrew): `openjdk@17`, `android-commandlinetools`, `watchman`.
+
+Desarrollo con emulador de tablet (Pixel Tablet, Android 16) y recarga instantánea:
+
+```bash
+cd mobile
+./scripts/emulator.sh --app   # arranca el emulador, instala la versión de desarrollo y Metro
+```
+
+Cada cambio en el código aparece en el emulador en 1–2 s. Solo hay que volver a ejecutarlo si se añade un módulo nativo.

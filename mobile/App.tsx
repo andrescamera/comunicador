@@ -1,5 +1,6 @@
 import { Image } from 'expo-image'
 import { useKeepAwake } from 'expo-keep-awake'
+import { NavigationBar } from 'expo-navigation-bar'
 import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
@@ -273,7 +274,9 @@ export default function App() {
 
   return (
     <View style={styles.app}>
+      {/* Pantalla completa: sin barra de estado ni barra de navegación de Android */}
       <StatusBar hidden />
+      <NavigationBar hidden />
       <View style={styles.row}>
         <View style={[styles.main, { padding: gap }]}>
           <View style={styles.flex} onLayout={(e) => setArea({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
@@ -425,7 +428,7 @@ const styles = StyleSheet.create({
   navBtn: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.line, borderRadius: radius },
   navLabel: { fontSize: 13, fontWeight: '700', color: colors.text, paddingHorizontal: 2 },
   tools: {},
-  editBar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  editBar: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   nameInput: { borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, fontSize: 17, fontWeight: '700', minWidth: 140, backgroundColor: colors.surface },
   count: { fontWeight: '800', fontSize: 16, color: colors.text, minWidth: 18, textAlign: 'center' },
   tool: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },

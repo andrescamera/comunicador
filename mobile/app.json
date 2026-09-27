@@ -33,6 +33,12 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "hidden": true
+        }
       ]
     ],
     "backgroundColor": "#eef1f5"
