@@ -13,13 +13,14 @@ interface Props {
   /** > 0 mientras hay un borrado automático pendiente */
   clearingMs: number
   clearingKey: number
-  /** Altura de la barra = tamaño de una celda del tablero */
+  /** Tamaño de una celda del tablero: la barra es la primera fila de la misma cuadrícula */
   height: number
+  cellWidth: number
   gap: number
   hint: string
 }
 
-export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs, clearingKey, height, gap, hint }: Props) {
+export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs, clearingKey, height, cellWidth, gap, hint }: Props) {
   const words = realize(tokens)
   const progress = useRef(new Animated.Value(1)).current
 
@@ -32,10 +33,11 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs,
   }, [clearingMs, clearingKey, progress])
 
   // Cada palabra de la frase se ve como una celda pequeña, con el mismo pictograma y color
-  const tokenSize = height - 10
-  const fontSize = Math.max(10, Math.min(18, tokenSize * 0.15))
+  const tokenH = height - 8
+  const tokenW = Math.max(40, cellWidth - 8)
+  const fontSize = Math.max(10, Math.min(20, tokenW * 0.14, tokenH * 0.15))
   const [barWidth, setBarWidth] = useState(0)
-  const maxVisible = Math.max(1, Math.floor((barWidth || 600) / (tokenSize + 4)))
+  const maxVisible = Math.max(1, Math.floor((barWidth || 600) / (tokenW + 4)))
   const start = Math.max(0, tokens.length - maxVisible) // si no cabe, se ven las últimas palabras
 
   return (
@@ -46,7 +48,7 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs,
           {tokens.slice(start).map((t, i) => {
             const { bg, border } = cellColors(t.category, t.kind)
             return (
-              <View key={start + i} style={[styles.token, { width: tokenSize, height: tokenSize, backgroundColor: bg, borderColor: border }]}>
+              <View key={start + i} style={[styles.token, { width: tokenW, height: tokenH, backgroundColor: bg, borderColor: border }]}>
                 <Picto id={t.picto} />
                 <Text style={[styles.word, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
                   {words[start + i]}
@@ -57,12 +59,12 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs,
         </View>
         {clearingMs > 0 && <Animated.View style={[styles.countdown, { transform: [{ scaleX: progress }] }]} />}
       </TapButton>
-      <TapButton label="Borrar última" onTap={onBackspace} style={[styles.action, { width: height }]}>
-        <Text style={[styles.icon, { fontSize: height * 0.3 }]}>⌫</Text>
+      <TapButton label="Borrar última" onTap={onBackspace} style={[styles.action, { width: cellWidth }]}>
+        <Text style={[styles.icon, { fontSize: Math.min(height, cellWidth) * 0.3 }]}>⌫</Text>
         <Text style={styles.actionText}>Borrar</Text>
       </TapButton>
-      <TapButton label="Borrar todo" onTap={onClear} style={[styles.action, { width: height }]}>
-        <Text style={[styles.icon, { fontSize: height * 0.3 }]}>✕</Text>
+      <TapButton label="Borrar todo" onTap={onClear} style={[styles.action, { width: cellWidth }]}>
+        <Text style={[styles.icon, { fontSize: Math.min(height, cellWidth) * 0.3 }]}>✕</Text>
         <Text style={styles.actionText}>Todo</Text>
       </TapButton>
     </View>

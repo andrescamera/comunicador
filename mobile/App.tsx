@@ -9,7 +9,6 @@ import { Creator } from './src/components/Creator'
 import { SentenceBar } from './src/components/SentenceBar'
 import { SettingsSheet } from './src/components/SettingsSheet'
 import { TapButton } from './src/components/TapButton'
-import { TapLog } from './src/components/TapLog'
 import {
   bestPicto,
   type Board,
@@ -265,36 +264,33 @@ export default function App() {
     setShowCreator(false)
   }
 
-  const showLog = settings.showTapLog && !editing && width >= 900
-
-  // Una sola barra arriba de la altura de una celda; celdas cuadradas lo más grandes posible:
-  // alto disponible = barra + filas del tablero, todas del mismo tamaño
-  const gap = compact ? 5 : 8
-  const fitCell = area.w
-    ? Math.min((area.w - gap * (board.cols - 1)) / board.cols, (area.h - gap * board.rows) / (board.rows + 1))
-    : 90
-  const barH = Math.round(Math.max(52, Math.min(150, fitCell)))
+  // Toda la pantalla es una cuadrícula: la primera fila (frase y botones) y debajo las filas del
+  // tablero, todas del mismo alto y con las mismas columnas
+  const gap = compact ? 4 : 6
+  const cellW = area.w ? (area.w - gap * (board.cols - 1)) / board.cols : 90
+  const barH = area.h ? Math.max(44, (area.h - gap * board.rows) / (board.rows + 1)) : 90
+  const icon = Math.min(barH, cellW) * 0.32
 
   return (
     <View style={styles.app}>
       <StatusBar hidden />
       <View style={styles.row}>
-        <View style={[styles.main, compact && styles.mainCompact]}>
+        <View style={[styles.main, { padding: gap }]}>
           <View style={styles.flex} onLayout={(e) => setArea({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
             {!editing ? (
               // Barra única: navegación · frase · borrar · herramientas del terapeuta
               <View style={[styles.useBar, { height: barH, gap, marginBottom: gap }]}>
-                <TapButton label="Inicio" onTap={() => (setHistory([]), scheduleIdleClear(sentence.length))} style={[styles.navBtn, { width: barH * 0.85 }]}>
-                  <Text style={{ fontSize: barH * 0.3 }}>🏠</Text>
+                <TapButton label="Inicio" onTap={() => (setHistory([]), scheduleIdleClear(sentence.length))} style={[styles.navBtn, { width: cellW }]}>
+                  <Text style={{ fontSize: icon }}>🏠</Text>
                   <Text style={styles.navLabel}>Inicio</Text>
                 </TapButton>
                 <TapButton
                   label="Atrás"
                   disabled={!history.length}
                   onTap={() => (setHistory((h) => h.slice(0, -1)), scheduleIdleClear(sentence.length))}
-                  style={[styles.navBtn, { width: barH * 0.85 }]}
+                  style={[styles.navBtn, { width: cellW }]}
                 >
-                  <Text style={{ fontSize: barH * 0.3, color: colors.text }}>↩</Text>
+                  <Text style={{ fontSize: icon, color: colors.text }}>↩</Text>
                   <Text style={styles.navLabel} numberOfLines={1}>
                     {history.length ? board.name : 'Atrás'}
                   </Text>
@@ -302,6 +298,7 @@ export default function App() {
                 <SentenceBar
                   tokens={sentence}
                   height={barH}
+                  cellWidth={cellW}
                   gap={gap}
                   hint={history.length ? `${board.name} · toca los pictogramas para formar una frase` : 'Toca los pictogramas para formar una frase'}
                   onSpeak={speakSentence}
@@ -316,7 +313,7 @@ export default function App() {
                   clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
                   clearingKey={clearing}
                 />
-                <View style={styles.tools}>
+                <View style={[styles.tools, { width: cellW, gap }]}>
                   <ToolBtn text="✎" onPress={() => (setEditing(true), cancelAutoClear())} small />
                   <ToolBtn text="⚙︎" onPress={() => setShowSettings(true)} small />
                 </View>
@@ -371,7 +368,6 @@ export default function App() {
           </View>
           </View>
         </View>
-        {showLog && <TapLog onClose={() => setSettings({ ...settings, showTapLog: false })} />}
       </View>
 
       {editTarget && (
@@ -425,17 +421,16 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
   row: { flex: 1, flexDirection: 'row' },
   main: { flex: 1, padding: 10 },
-  mainCompact: { padding: 6 },
   flex: { flex: 1 },
   useBar: { flexDirection: 'row' },
   navBtn: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.line, borderRadius: radius },
   navLabel: { fontSize: 13, fontWeight: '700', color: colors.text, paddingHorizontal: 2 },
-  tools: { justifyContent: 'space-between' },
+  tools: {},
   editBar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   nameInput: { borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, fontSize: 17, fontWeight: '700', minWidth: 140, backgroundColor: colors.surface },
   count: { fontWeight: '800', fontSize: 16, color: colors.text, minWidth: 18, textAlign: 'center' },
   tool: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
-  toolSmall: { flex: 1, maxHeight: 60, width: 44, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
+  toolSmall: { flex: 1, paddingHorizontal: 0, paddingVertical: 0, alignItems: 'center', justifyContent: 'center' },
   toolPrimary: { backgroundColor: colors.accent, borderColor: colors.accent },
   toolText: { fontSize: 15, fontWeight: '600', color: colors.text },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },

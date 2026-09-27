@@ -3,7 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { tapGuard } from '../tap'
 import { colors } from '../theme'
 
-export function TapLog({ onClose }: { onClose: () => void }) {
+/** Registro de toques (en Ajustes): qué pulsaciones se aceptaron y por qué se ignoraron las demás. */
+export function TapLog() {
   const log = useSyncExternalStore(
     (cb) => tapGuard.subscribe(cb),
     () => tapGuard.log,
@@ -16,14 +17,11 @@ export function TapLog({ onClose }: { onClose: () => void }) {
         <Pressable onPress={() => tapGuard.clearLog()}>
           <Text style={styles.link}>Limpiar</Text>
         </Pressable>
-        <Pressable onPress={onClose} hitSlop={10}>
-          <Text style={styles.link}>✕</Text>
-        </Pressable>
       </View>
       <Text style={styles.summary}>
         <Text style={{ color: colors.ok }}>{ok} activados</Text> · <Text style={{ color: colors.bad }}>{log.length - ok} ignorados</Text>
       </Text>
-      <ScrollView>
+      <ScrollView nestedScrollEnabled>
         {log.map((e) => (
           <View key={e.n} style={styles.item}>
             <Text style={styles.itemLabel}>{e.label}</Text>
@@ -38,7 +36,7 @@ export function TapLog({ onClose }: { onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  panel: { width: 250, borderLeftWidth: 1, borderLeftColor: colors.line, backgroundColor: '#f8f9fb' },
+  panel: { height: 260, borderWidth: 1, borderColor: colors.line, borderRadius: 10, backgroundColor: '#f8f9fb', overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderBottomWidth: 1, borderBottomColor: colors.line },
   title: { flex: 1, fontWeight: '700', color: colors.text },
   link: { color: colors.accent, fontWeight: '600' },

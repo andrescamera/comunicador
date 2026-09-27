@@ -25,12 +25,11 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
   const [firedKey, setFiredKey] = useState<string | null>(null)
   const firedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  // Celdas cuadradas: el mayor tamaño que cabe, con el tablero centrado
-  const size = Math.max(0, Math.min((dims.w - gap * (board.cols - 1)) / board.cols, (dims.h - gap * (board.rows - 1)) / board.rows))
-  const cw = size
-  const ch = size
-  const ox = (dims.w - (board.cols * cw + (board.cols - 1) * gap)) / 2
-  const oy = 0 // pegado arriba, justo debajo de la barra de la frase
+  // Cuadrícula que ocupa todo el espacio disponible (100 % de ancho y alto)
+  const cw = Math.max(0, (dims.w - gap * (board.cols - 1)) / board.cols)
+  const ch = Math.max(0, (dims.h - gap * (board.rows - 1)) / board.rows)
+  const ox = 0
+  const oy = 0
   const byPos = useMemo(() => new Map(board.cells.map((c) => [`${c.row},${c.col}`, c])), [board.cells])
 
   /** Casilla bajo el dedo, calculada con la geometría (sin buscar vistas): rápido y exacto. */

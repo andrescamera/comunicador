@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, type Settings } from '../shared'
 import { spanishVoices, speak } from '../speech'
 import { colors } from '../theme'
 import { Btn, Sheet } from './Sheet'
+import { TapLog } from './TapLog'
 
 interface Props {
   settings: Settings
@@ -58,7 +59,8 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose }: Pr
       <Btn title="Probar voz" onPress={() => speak('Hola, esta es mi voz', settings)} />
 
       <Text style={styles.h}>Pruebas</Text>
-      <Toggle label="Mostrar registro de toques" value={settings.showTapLog} onChange={(v) => set('showTapLog', v)} />
+      <Text style={styles.help}>Últimas pulsaciones: cuáles se aceptaron y por qué se ignoraron las demás.</Text>
+      <TapLog />
       <View style={styles.row}>
         <Btn title="Restaurar ajustes" onPress={() => onChange({ ...DEFAULT_SETTINGS })} />
         <Btn
