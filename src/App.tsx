@@ -273,7 +273,7 @@ export default function App() {
           <div className="topbar-tools">
             {editing && (
               <button type="button" onClick={() => setShowCreator(true)}>
-                ✨<span className="btn-text"> Crear desde texto</span>
+                ✨<span className="btn-text"> Crear tablero</span>
               </button>
             )}
             <button

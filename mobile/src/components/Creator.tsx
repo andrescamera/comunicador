@@ -128,7 +128,7 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
 
   return (
     <Sheet
-      title="Crear tableros desde texto"
+      title="Crear tablero"
       onClose={onClose}
       wide
       footer={
@@ -141,14 +141,11 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
         </>
       }
     >
-      <Text style={styles.muted}>
-        Palabras separadas por comas, o texto libre (se extraen las palabras clave). "Comillas" = frase completa en una celda. Todo va al tablero
-        principal; empieza una línea con «carpeta Nombre:» para crear una carpeta. Las líneas con # son comentarios.
-      </Text>
       {isTextRecognitionSupported && (
         <View style={styles.photoBox}>
           <View style={styles.photoRow}>
-            <Btn title={reading ? 'Leyendo la foto…' : '📷 Desde una foto de otro tablero'} kind="primary" disabled={reading} onPress={fromPhoto} />
+            <Text style={styles.section}>📷 Desde una foto</Text>
+            <Btn title={reading ? 'Leyendo la foto…' : 'Elegir foto de la galería'} kind="primary" disabled={reading} onPress={fromPhoto} />
             {reading && <ActivityIndicator color={colors.accent} />}
           </View>
           <Text style={styles.muted}>Elige una foto o captura del tablero y recórtala para que se vea solo la cuadrícula. El texto se lee en la tablet, sin enviarlo a ningún sitio.</Text>
@@ -166,6 +163,11 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
           )}
         </View>
       )}
+      <Text style={styles.section}>✏️ Desde texto</Text>
+      <Text style={styles.muted}>
+        Palabras separadas por comas, o texto libre (se extraen las palabras clave). "Comillas" = frase completa en una celda. Todo va al tablero
+        principal; empieza una línea con «carpeta Nombre:» para crear una carpeta. Las líneas con # son comentarios.
+      </Text>
       <ScrollView horizontal contentContainerStyle={styles.examples} showsHorizontalScrollIndicator={false}>
         {EXAMPLES.map((ex) => (
           <Btn key={ex.name} title={`Ejemplo: ${ex.name}`} onPress={() => (setText(ex.text), setPhoto(null))} />
@@ -187,7 +189,7 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
           por categorías.
         </Text>
       </View>
-      {parsed.length > 0 && (
+      {count > 0 && (
         <View style={styles.parsed}>
           {parsed.map((b, i) => (
             <Text key={i} style={styles.parsedLine}>
@@ -219,6 +221,7 @@ export function Creator({ currentBoardName, onReplace, onAddToCurrent, onAddAsFo
 
 const styles = StyleSheet.create({
   muted: { color: colors.muted, fontSize: 14 },
+  section: { fontSize: 17, fontWeight: '700', color: colors.text },
   label: { fontWeight: '600', color: colors.text },
   examples: { gap: 8 },
   textarea: {

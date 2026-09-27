@@ -62,7 +62,7 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
   const missing = preview ? Object.values(preview.boards).flatMap((b) => b.cells).filter((c) => !c.picto).length : 0
 
   return (
-    <Modal title="Crear tableros desde texto" onClose={onClose} wide>
+    <Modal title="Crear tablero" onClose={onClose} wide>
       {!preview ? (
         <div className="creator">
           <p className="muted">
