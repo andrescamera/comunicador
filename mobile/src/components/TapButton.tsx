@@ -26,7 +26,7 @@ export function TapButton({ label, onTap, style, children, disabled }: Props) {
       accessibilityRole="button"
       accessibilityLabel={label}
       onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-      style={[style, pressed && styles.pressed, disabled && styles.disabled]}
+      style={[styles.base, style, pressed && styles.pressed, disabled && styles.disabled]}
       {...handlers}
     >
       <View pointerEvents="none" style={styles.fill}>
@@ -37,6 +37,8 @@ export function TapButton({ label, onTap, style, children, disabled }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // Valores explícitos: Android no restablece solo un estilo que se quita (escala, opacidad)
+  base: { transform: [{ scale: 1 }], opacity: 1 },
   fill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { borderColor: colors.accent, transform: [{ scale: 0.96 }] },
   disabled: { opacity: 0.4 },

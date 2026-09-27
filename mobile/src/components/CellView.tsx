@@ -44,9 +44,14 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
 export const CellView = memo(CellViewBase)
 
 const styles = StyleSheet.create({
+  // Valores explícitos (borde continuo, opacidad 1, escala 1): Android reutiliza la vista y no
+  // restablece solo un estilo que se quita (p. ej. el borde punteado de la edición)
   cell: {
     position: 'absolute',
     borderWidth: 3,
+    borderStyle: 'solid',
+    opacity: 1,
+    transform: [{ scale: 1 }],
     borderRadius: 14,
     padding: 5,
     alignItems: 'center',

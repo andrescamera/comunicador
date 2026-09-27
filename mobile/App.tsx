@@ -330,7 +330,6 @@ export default function App() {
                 <Text style={styles.count}>{board.cols}</Text>
                 <ToolBtn text="+" onPress={() => resize(board.rows, Math.min(16, board.cols + 1))} />
                 <ToolBtn text={compact ? '⇅' : '⇅ Reordenar'} onPress={reorganize} />
-                <View style={{ flex: 1 }} />
                 <ToolBtn text={compact ? '✨' : '✨ Crear desde texto'} onPress={() => setShowCreator(true)} />
                 <ToolBtn text="✓ Terminar" primary onPress={() => (setEditing(false), setMovingId(null))} />
               </View>
