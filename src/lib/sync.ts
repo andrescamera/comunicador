@@ -218,7 +218,7 @@ export class SyncEngine {
     }
     this.meta.firstLinkDone = true
     this.io.saveMeta(this.meta)
-    await this.sync()
+    this.schedule(500) // tras sustituir los tableros, dar tiempo a que la app los aplique
   }
 
   async sync(): Promise<void> {

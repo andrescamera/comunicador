@@ -159,7 +159,17 @@ export default function App() {
   }
 
   const currentId = history[history.length - 1] ?? lib.rootId
-  const board: Board = lib.boards[currentId] ?? lib.boards[lib.rootId]
+  // Red de seguridad: si falta el tablero (p. ej. borrado desde otro dispositivo), se usa el principal o el primero
+  const board: Board | undefined = lib.boards[currentId] ?? lib.boards[lib.rootId] ?? Object.values(lib.boards)[0]
+  if (!board) {
+    return (
+      <View style={[styles.app, styles.center]}>
+        <StatusBar hidden />
+        <Text style={styles.muted}>No hay tableros.</Text>
+        <Btn title="Cargar el tablero de ejemplo" kind="primary" onPress={() => void loadSample()} />
+      </View>
+    )
+  }
   const say = (text: string, onEnd?: () => void) => speak(text, settingsRef.current, onEnd)
 
   // ---------- Borrado automático de la frase ----------

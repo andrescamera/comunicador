@@ -29,16 +29,22 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
   useEffect(() => {
     const e = new SyncEngine(supabase, {
       getLibrary: () => libRef.current,
-      applyRemote: (c: RemoteChanges) =>
-        setLib((l) => {
+      // Se actualiza también la referencia al momento: el motor no debe trabajar con la biblioteca
+      // anterior mientras la interfaz aún no se ha vuelto a dibujar
+      applyRemote: (c: RemoteChanges) => {
+        const merge = (l: Library | null) => {
           if (!l) return l
           const boards = { ...l.boards }
           for (const b of c.upserts) boards[b.id] = b
           for (const id of c.deletes) delete boards[id]
           const rootId = c.rootId && boards[c.rootId] ? c.rootId : l.rootId
           return { rootId, boards }
-        }),
+        }
+        libRef.current = merge(libRef.current)
+        setLib(merge)
+      },
       replaceLibrary: (next) => {
+        libRef.current = next
         setLib(() => next)
         onReplacedRef.current?.()
       },
