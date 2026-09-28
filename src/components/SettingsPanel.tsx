@@ -3,15 +3,18 @@ import { speak, spanishVoices } from '../lib/speech'
 import type { Settings } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { Modal } from './Modal'
+import { AccountPanel } from './AccountPanel'
+import type { CloudSync } from '../lib/useCloudSync'
 
 interface Props {
   settings: Settings
   onChange: (s: Settings) => void
   onResetBoards: () => void
   onClose: () => void
+  cloud: CloudSync
 }
 
-export function SettingsPanel({ settings, onChange, onResetBoards, onClose }: Props) {
+export function SettingsPanel({ settings, onChange, onResetBoards, onClose, cloud }: Props) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>(spanishVoices())
   useEffect(() => {
     if (!('speechSynthesis' in window)) return
@@ -25,6 +28,9 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose }: Pr
   return (
     <Modal title="Ajustes" onClose={onClose}>
       <section className="settings">
+        <h3>Cuenta y sincronización</h3>
+        <AccountPanel cloud={cloud} />
+
         <h3>Pulsación</h3>
         <label className="radio">
           <input type="radio" checked={settings.activateOn === 'release'} onChange={() => set('activateOn', 'release')} />

@@ -9,6 +9,9 @@ import { folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from '
 import { moveCellTo, type NewCell, placeCell, relayoutBoard, resizeBoard, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
+import { loadSyncMeta, saveSyncMeta, supabase } from './lib/cloud'
+import { useCloudSync } from './lib/useCloudSync'
+import { Modal } from './components/Modal'
 import { speak } from './lib/speech'
 import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './lib/storage'
 import { tapManager, tapRef } from './lib/tap'
@@ -42,6 +45,16 @@ export default function App() {
   }, [notice])
 
   tapManager.settings = settings
+
+  // Sincronización en la nube (si hay sesión iniciada)
+  const cloud = useCloudSync({
+    supabase,
+    lib,
+    setLib,
+    loadMeta: loadSyncMeta,
+    saveMeta: saveSyncMeta,
+    onReplaced: () => (setHistory([]), setSentence([])),
+  })
   const settingsRef = useRef(settings)
   settingsRef.current = settings
 
@@ -385,7 +398,22 @@ export default function App() {
             void loadSample()
           }}
           onClose={() => setShowSettings(false)}
+          cloud={cloud}
         />
+      )}
+      {cloud.status.state === 'choose' && (
+        <Modal title="Tus tableros en la nube" onClose={() => void cloud.resolveFirstLink('use-remote')}>
+          <p>
+            Tu cuenta ya tiene {cloud.status.remoteBoards} tablero(s) y este navegador tiene {cloud.status.localBoards} propio(s). ¿Cuáles quieres usar a
+            partir de ahora?
+          </p>
+          <p className="muted">Los que no elijas no se pierden: se guardan como copia de seguridad en tu cuenta.</p>
+          <footer className="modal-footer">
+            <span className="spacer" />
+            <button type="button" onClick={() => void cloud.resolveFirstLink('use-local')}>Subir los de este navegador</button>
+            <button type="button" className="primary" onClick={() => void cloud.resolveFirstLink('use-remote')}>Usar los de la cuenta</button>
+          </footer>
+        </Modal>
       )}
     </div>
   )

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native'
 import type { Voice } from 'expo-speech'
-import { DEFAULT_SETTINGS, type Settings } from '../shared'
+import { type CloudSync, DEFAULT_SETTINGS, type Settings } from '../shared'
+import { AccountSection } from './AccountSection'
 import { spanishVoices, speak } from '../speech'
 import { colors } from '../theme'
 import { Btn, Sheet } from './Sheet'
@@ -12,9 +13,10 @@ interface Props {
   onChange: (s: Settings) => void
   onResetBoards: () => void
   onClose: () => void
+  cloud: CloudSync
 }
 
-export function SettingsSheet({ settings, onChange, onResetBoards, onClose }: Props) {
+export function SettingsSheet({ settings, onChange, onResetBoards, onClose, cloud }: Props) {
   const [voices, setVoices] = useState<Voice[]>([])
   useEffect(() => {
     void spanishVoices().then(setVoices)
@@ -23,6 +25,9 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose }: Pr
 
   return (
     <Sheet title="Ajustes" onClose={onClose}>
+      <Text style={styles.h}>Cuenta y sincronización</Text>
+      <AccountSection cloud={cloud} />
+
       <Text style={styles.h}>Pulsación</Text>
       <Choice
         options={[

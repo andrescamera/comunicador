@@ -31,10 +31,13 @@ import {
   sentenceText,
   type Settings,
   sortCells,
+  useCloudSync,
   uid,
   zoneOf,
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
+import { loadSyncMeta, saveSyncMeta, supabase } from './src/cloud'
+import { Btn, Sheet } from './src/components/Sheet'
 import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './src/storage'
 import { tapGuard } from './src/tap'
 import { colors, radius } from './src/theme'
@@ -64,6 +67,16 @@ export default function App() {
   const settingsRef = useRef(settings)
   settingsRef.current = settings
   tapGuard.settings = settings
+
+  // Sincronización en la nube (si hay sesión iniciada)
+  const cloud = useCloudSync({
+    supabase,
+    lib,
+    setLib,
+    loadMeta: loadSyncMeta,
+    saveMeta: saveSyncMeta,
+    onReplaced: () => (setHistory([]), setSentence([])),
+  })
 
   const loadSample = useCallback(async () => {
     setLib(null)
@@ -400,7 +413,26 @@ export default function App() {
             void loadSample()
           }}
           onClose={() => setShowSettings(false)}
+          cloud={cloud}
         />
+      )}
+      {cloud.status.state === 'choose' && (
+        <Sheet
+          title="Tus tableros en la nube"
+          onClose={() => void cloud.resolveFirstLink('use-remote')}
+          footer={
+            <>
+              <Btn title="Subir los de esta tablet" onPress={() => void cloud.resolveFirstLink('use-local')} />
+              <Btn title="Usar los de la cuenta" kind="primary" onPress={() => void cloud.resolveFirstLink('use-remote')} />
+            </>
+          }
+        >
+          <Text style={styles.chooseText}>
+            Tu cuenta ya tiene {cloud.status.remoteBoards} tablero(s) y esta tablet tiene {cloud.status.localBoards} propio(s). ¿Cuáles quieres
+            usar a partir de ahora?
+          </Text>
+          <Text style={styles.muted}>Los que no elijas no se pierden: se guardan como copia de seguridad en tu cuenta.</Text>
+        </Sheet>
       )}
     </View>
   )
@@ -440,4 +472,5 @@ const styles = StyleSheet.create({
   notice: { backgroundColor: '#fff4d6', borderColor: '#f0c75e', borderWidth: 1, borderRadius: 10, padding: 8, marginBottom: 6, color: colors.text },
   boardArea: { flex: 1 },
   muted: { color: colors.muted },
+  chooseText: { color: colors.text, fontSize: 16 },
 })
