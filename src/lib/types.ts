@@ -22,7 +22,6 @@ export interface Cell {
   row: number
   col: number
   hidden?: boolean // oculta pero conservando su hueco
-  singular?: string // solo en la frase: la palabra antes de pasarla a plural
 }
 
 /**
@@ -53,7 +52,7 @@ export interface Settings {
   minHoldMs: number // duración mínima de la pulsación
   moveTolerancePx: number // si el puntero se mueve más que esto, se cancela
   speakOnTap: boolean
-  pluralWaitMs: number // espera antes de decir un nombre/descriptivo, por si se pulsa Plural
+  returnHome: boolean // tras elegir una ficha dentro de una carpeta, volver al tablero principal
   rate: number
   voiceURI: string
   showTapLog: boolean
@@ -68,7 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   minHoldMs: 0,
   moveTolerancePx: 14,
   speakOnTap: true,
-  pluralWaitMs: 800,
+  returnHome: true,
   rate: 1,
   voiceURI: '',
   showTapLog: true,

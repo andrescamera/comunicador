@@ -81,6 +81,12 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
           </label>
         )}
 
+        <h3>Carpetas</h3>
+        <label className="check">
+          <input type="checkbox" checked={settings.returnHome} onChange={(e) => set('returnHome', e.target.checked)} />
+          Volver al tablero principal después de elegir una ficha dentro de una carpeta
+        </label>
+
         <h3>Voz</h3>
         <label className="check">
           <input type="checkbox" checked={settings.speakOnTap} onChange={(e) => set('speakOnTap', e.target.checked)} />
@@ -96,11 +102,6 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          Espera para el plural: <strong>{settings.pluralWaitMs} ms</strong>
-          <input type="range" min={0} max={2000} step={100} value={settings.pluralWaitMs} onChange={(e) => set('pluralWaitMs', +e.target.value)} />
-          <small>Tiempo para pulsar Plural después de tocar un nombre o descriptivo (se suma al bloqueo tras activar). Así la palabra no se dice dos veces. 0 = sin espera.</small>
         </label>
         <label>
           Velocidad: <strong>{settings.rate.toFixed(2)}</strong>

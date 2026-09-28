@@ -10,9 +10,6 @@ interface Props {
   onSpeak: () => void
   onBackspace: () => void
   onClear: () => void
-  /** Pasar la última palabra a plural (o volver al singular) */
-  onPlural: () => void
-  pluralState: 'none' | 'singular' | 'plural'
   /** > 0 mientras hay un borrado automático pendiente */
   clearingMs: number
   clearingKey: number
@@ -23,7 +20,7 @@ interface Props {
   hint: string
 }
 
-export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, onPlural, pluralState, clearingMs, clearingKey, height, cellWidth, gap, hint }: Props) {
+export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs, clearingKey, height, cellWidth, gap, hint }: Props) {
   const words = realize(tokens)
   const progress = useRef(new Animated.Value(1)).current
 
@@ -61,15 +58,6 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, onPlural, p
           })}
         </View>
         {clearingMs > 0 && <Animated.View style={[styles.countdown, { transform: [{ scaleX: progress }] }]} />}
-      </TapButton>
-      <TapButton
-        label="Plural"
-        onTap={onPlural}
-        disabled={pluralState === 'none'}
-        style={[styles.action, { width: cellWidth }, pluralState === 'plural' && styles.active]}
-      >
-        <Text style={[styles.icon, { fontSize: Math.min(height, cellWidth) * 0.26, fontWeight: '800' }]}>+s</Text>
-        <Text style={styles.actionText}>{pluralState === 'plural' ? 'Singular' : 'Plural'}</Text>
       </TapButton>
       <TapButton label="Borrar última" onTap={onBackspace} style={[styles.action, { width: cellWidth }]}>
         <Text style={[styles.icon, { fontSize: Math.min(height, cellWidth) * 0.3 }]}>⌫</Text>
@@ -113,6 +101,5 @@ const styles = StyleSheet.create({
     borderRadius: radius,
   },
   icon: { color: colors.text },
-  active: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
   actionText: { fontWeight: '700', color: colors.text, fontSize: 13 },
 })

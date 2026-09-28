@@ -14,8 +14,6 @@ import {
   bestPicto,
   type Board,
   buildFolder,
-  canPluralize,
-  pluralize,
   type Cell,
   classify,
   DEFAULT_SETTINGS,
@@ -67,7 +65,6 @@ export default function App() {
   const [area, setArea] = useState({ w: 0, h: 0 }) // espacio útil (sin márgenes) para barra + tablero
   const clearTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const clearGen = useRef(0)
-  const pendingSpeech = useRef<ReturnType<typeof setTimeout> | undefined>(undefined) // palabra esperando por si se pulsa Plural
   const settingsRef = useRef(settings)
   settingsRef.current = settings
   tapGuard.settings = settings
@@ -195,7 +192,6 @@ export default function App() {
   /** Al tocar la barra de la frase: se dice entera y se borra en cuanto termina. */
   const speakSentence = () => {
     cancelAutoClear()
-    clearTimeout(pendingSpeech.current)
     if (!sentence.length) return
     const gen = clearGen.current
     say(sentenceText(sentence), () => {
@@ -203,26 +199,6 @@ export default function App() {
       if (settingsRef.current.clearAfterSpeak) setSentence([])
       else scheduleIdleClear(sentence.length)
     })
-  }
-
-  // Plural de la última palabra de la frase (como el botón «número» de Verbo)
-  const lastToken = sentence[sentence.length - 1]
-  const pluralState: 'none' | 'singular' | 'plural' = !lastToken
-    ? 'none'
-    : lastToken.singular
-      ? 'plural'
-      : canPluralize(lastToken.category, lastToken.kind)
-        ? 'singular'
-        : 'none'
-  const togglePlural = () => {
-    if (pluralState === 'none') return
-    const t = sentence[sentence.length - 1]
-    const changed: Cell = t.singular ? { ...t, label: t.singular, singular: undefined } : { ...t, label: pluralize(t.label), singular: t.label }
-    const next = [...sentence.slice(0, -1), changed]
-    setSentence(next)
-    scheduleIdleClear(next.length)
-    clearTimeout(pendingSpeech.current) // la palabra en singular ya no se dice
-    if (settings.speakOnTap) say(realize(next)[next.length - 1] || changed.label)
   }
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
@@ -236,20 +212,6 @@ export default function App() {
     setNotice(`Carpeta «${name}» creada. Tócala y pulsa «Abrir carpeta» para editar su contenido.`)
   }
 
-  /**
-   * Decir la palabra tocada. Nombres y descriptivos esperan un momento: si en ese tiempo se pulsa
-   * Plural, solo se oye el plural (y no la palabra dos veces).
-   */
-  const speakWord = (next: Cell[], cell: Cell) => {
-    clearTimeout(pendingSpeech.current)
-    if (!settings.speakOnTap) return
-    const text = realize(next)[next.length - 1] || cell.label
-    if (settings.pluralWaitMs > 0 && canPluralize(cell.category, cell.kind)) {
-      // La espera cuenta desde que termina el bloqueo tras el toque (antes no se puede pulsar Plural)
-      pendingSpeech.current = setTimeout(() => say(text), settings.lockoutMs + settings.pluralWaitMs)
-    } else say(text)
-  }
-
   const onCellTap = (cell: Cell) => {
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
@@ -259,7 +221,9 @@ export default function App() {
     const next = [...sentence, cell]
     scheduleIdleClear(next.length)
     setSentence(next)
-    speakWord(next, cell)
+    if (settings.speakOnTap) say(realize(next)[next.length - 1] || cell.label)
+    // Dentro de una carpeta: tras elegir una ficha se vuelve al tablero principal
+    if (settings.returnHome && history.length > 0) setHistory([])
   }
 
   // ---------- Edición ----------
@@ -379,17 +343,13 @@ export default function App() {
                   hint={history.length ? `${board.name} · toca los pictogramas para formar una frase` : 'Toca los pictogramas para formar una frase'}
                   onSpeak={speakSentence}
                   onBackspace={() => {
-                    clearTimeout(pendingSpeech.current)
                     scheduleIdleClear(sentence.length - 1)
                     setSentence((s) => s.slice(0, -1))
                   }}
                   onClear={() => {
                     cancelAutoClear()
-                    clearTimeout(pendingSpeech.current)
                     setSentence([])
                   }}
-                  onPlural={togglePlural}
-                  pluralState={pluralState}
                   clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
                   clearingKey={clearing}
                 />

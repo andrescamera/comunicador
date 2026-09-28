@@ -899,14 +899,6 @@ label.check {
   flex: 1 1 180px;
 }
 
-/* Botón plural */
-.action.disabled {
-  opacity: 0.35;
-}
-.action.active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
 .folder-templates {
   display: flex;
   flex-direction: column;
