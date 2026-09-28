@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { searchPictos, type PictoResult } from '../lib/arasaac'
+import { FOLDER_TEMPLATES } from '../lib/generator'
 import { classify, normalizeText } from '../lib/grammar'
 import { CATEGORY_LABELS, type Category, type Cell } from '../lib/types'
 import { Modal } from './Modal'
@@ -12,10 +13,17 @@ interface Props {
   onDelete?: () => void
   onStartMove?: () => void
   onClose: () => void
+  /** Crear una carpeta nueva (vacía o con el vocabulario de una plantilla) */
+  onCreateFolder?: (name: string, template: string | undefined, picto: number | undefined) => Promise<void>
+  /** Entrar en la carpeta para editar lo que tiene dentro */
+  onOpenFolder?: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
+  const [template, setTemplate] = useState<string | undefined>(undefined)
+  const [creating, setCreating] = useState(false)
+  const newFolder = isNew && draft.kind === 'folder'
   const [query, setQuery] = useState(cell.label)
   const [results, setResults] = useState<PictoResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -49,23 +57,45 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
             Texto
             <input value={draft.label} onChange={(e) => setLabel(e.target.value)} autoFocus />
           </label>
-          {draft.kind !== 'folder' && (
+          {(draft.kind !== 'folder' || isNew) && (
             <div className="row">
               <label>
                 Tipo
                 <select value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as Cell['kind'] })}>
                   <option value="word">Palabra (se conjuga)</option>
                   <option value="phrase">Frase hecha</option>
+                  {isNew && <option value="folder">Carpeta (abre otro tablero)</option>}
                 </select>
               </label>
-              <label>
+              {draft.kind !== 'folder' && <label>
                 Categoría (color)
                 <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as Category })}>
                   {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </select>
-              </label>
+              </label>}
+            </div>
+          )}
+          {newFolder && (
+            <div className="folder-templates">
+              <span>Contenido de la carpeta</span>
+              <div className="examples">
+                {[undefined, ...Object.keys(FOLDER_TEMPLATES)].map((t) => (
+                  <button
+                    key={t ?? 'vacia'}
+                    type="button"
+                    className={template === t ? 'selected' : ''}
+                    onClick={() => {
+                      setTemplate(t)
+                      if (t && !draft.label.trim()) setLabel(t)
+                    }}
+                  >
+                    {t ?? 'Vacía'}
+                  </button>
+                ))}
+              </div>
+              {template && <small className="muted">Se crea con {FOLDER_TEMPLATES[template].split(',').length} palabras que luego puedes cambiar.</small>}
             </div>
           )}
           {!isNew && (
@@ -98,10 +128,22 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
       <footer className="modal-footer">
         {onDelete && <button type="button" className="danger" onClick={onDelete}>Eliminar</button>}
         {onStartMove && <button type="button" onClick={onStartMove}>✥ Mover a otra casilla</button>}
+        {onOpenFolder && <button type="button" onClick={onOpenFolder}>📂 Abrir carpeta</button>}
         <span className="spacer" />
         <button type="button" onClick={onClose}>Cancelar</button>
-        <button type="button" className="primary" disabled={!draft.label.trim()} onClick={() => onSave({ ...draft, label: normalizeText(draft.label) })}>
-          Guardar
+        <button
+          type="button"
+          className="primary"
+          disabled={!draft.label.trim() || creating}
+          onClick={async () => {
+            if (newFolder && onCreateFolder) {
+              setCreating(true)
+              await onCreateFolder(normalizeText(draft.label), template, draft.picto)
+              setCreating(false)
+            } else onSave({ ...draft, label: normalizeText(draft.label) })
+          }}
+        >
+          {creating ? 'Creando carpeta…' : newFolder ? 'Crear carpeta' : 'Guardar'}
         </button>
       </footer>
       <p className="credit">Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA</p>

@@ -898,3 +898,24 @@ label.check {
   min-width: 0;
   flex: 1 1 180px;
 }
+
+/* Botón plural */
+.action.disabled {
+  opacity: 0.35;
+}
+.action.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.folder-templates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.folder-templates button.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}

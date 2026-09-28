@@ -249,3 +249,30 @@ agua, comida, baño, casa, colegio, parque, música, tele
 # Social
 hola, adiós, sí, gracias, por favor, vale`
 
+
+/** Vocabulario de partida para carpetas nuevas (se puede editar después como cualquier tablero). */
+export const FOLDER_TEMPLATES: Record<string, string> = {
+  Animales:
+    'perro, gato, pájaro, pez, caballo, vaca, cerdo, oveja, gallina, pato, conejo, ratón, león, elefante, jirafa, mono, oso, tortuga, serpiente, mariposa',
+  Comidas:
+    'agua, leche, zumo, pan, galletas, fruta, manzana, plátano, naranja, fresa, yogur, queso, huevo, pasta, arroz, pizza, patatas, pollo, pescado, verdura, helado, bocadillo',
+  Colores: 'rojo, azul, amarillo, verde, naranja, rosa, morado, marrón, negro, blanco, gris',
+  Juguetes: 'pelota, muñeca, coche, puzle, bloques, peluche, tren, globo, pinturas, libro, columpio, tobogán, tablet, música',
+}
+
+/**
+ * Crea el tablero de una carpeta nueva: vacío o con el vocabulario de una plantilla.
+ * Devuelve el tablero y la celda-carpeta que lo abre (sin posición: la pone quien la coloca).
+ */
+export async function buildFolder(name: string, template?: string): Promise<{ board: Board; cell: NewCell }> {
+  const words = template ? FOLDER_TEMPLATES[template] : ''
+  let board: Board
+  if (words) {
+    const lib = await generateLibrary(parseText(`${name}: ${words}`))
+    board = { ...lib.boards[lib.rootId], name }
+  } else {
+    board = { id: uid('b'), name, ...layoutCells([], { rows: 4, cols: 6 }) }
+  }
+  const cell = await folderCell(board)
+  return { board, cell }
+}

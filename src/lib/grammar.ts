@@ -1,4 +1,4 @@
-import type { Category, Cell } from './types'
+import type { Category, Cell, CellKind } from './types'
 
 // Persona gramatical: 0=yo 1=tú 2=él/ella 3=nosotros 4=vosotros 5=ellos
 export type Person = 0 | 1 | 2 | 3 | 4 | 5
@@ -332,3 +332,38 @@ export function classify(label: string, arasaacType?: number): Category {
 export const CATEGORY_ORDER: Category[] = [
   'pronoun', 'person', 'question', 'verb', 'negation', 'adjective', 'noun', 'misc', 'social',
 ]
+
+// ---------- Plural ----------
+
+const UNACCENT: Record<string, string> = { á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u' }
+
+/**
+ * Plural en español de un nombre o adjetivo:
+ * casa → casas, café → cafés, flor → flores, ratón → ratones, autobús → autobuses,
+ * lápiz → lápices, pez → peces, lunes → lunes. Las expresiones de varias palabras
+ * pluralizan la primera ("otra vez" no se toca: no es un nombre).
+ */
+export function pluralize(word: string): string {
+  const w = word.trim()
+  if (!w) return w
+  if (w.includes(' ')) {
+    const [first, ...rest] = w.split(' ')
+    return [pluralize(first), ...rest].join(' ')
+  }
+  const lower = w.toLowerCase()
+  // Vocal (con o sin tilde, salvo í/ú tónicas que admiten -s de todas formas): +s
+  if (/[aeiouáéó]$/.test(lower)) return w + 's'
+  if (/[íú]$/.test(lower)) return w + 's'
+  // -z → -ces
+  if (lower.endsWith('z')) return w.slice(0, -1) + 'ces'
+  // Llanas terminadas en -s o -x no cambian (lunes, tórax); agudas en -s sí (autobús → autobuses)
+  if (/[sx]$/.test(lower) && !/[áéíóú][sx]$/.test(lower)) return w
+  // Agudas con tilde en la última sílaba la pierden: ratón → ratones, autobús → autobuses
+  const unaccented = w.replace(/([áéíóú])([nsl])$/, (_, v: string, c: string) => UNACCENT[v] + c)
+  return unaccented + 'es'
+}
+
+/** ¿Tiene sentido ponerla en plural? (nombres y descriptivos) */
+export function canPluralize(category: Category, kind: CellKind): boolean {
+  return kind === 'word' && (category === 'noun' || category === 'adjective')
+}

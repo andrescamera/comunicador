@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
-import { type Category, CATEGORY_LABELS, type Cell, cellColors, classify, normalizeText, type PictoResult, searchPictos } from '../shared'
+import { type Category, CATEGORY_LABELS, type Cell, cellColors, classify, FOLDER_TEMPLATES, normalizeText, type PictoResult, searchPictos } from '../shared'
 import { colors } from '../theme'
 import { Picto } from './Picto'
 import { Btn, Sheet } from './Sheet'
@@ -12,10 +12,17 @@ interface Props {
   onDelete?: () => void
   onStartMove?: () => void
   onClose: () => void
+  /** Crear una carpeta nueva (vacía o con el vocabulario de una plantilla) */
+  onCreateFolder?: (name: string, template: string | undefined, picto: number | undefined) => Promise<void>
+  /** Entrar en la carpeta para editar lo que tiene dentro */
+  onOpenFolder?: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
+  const [template, setTemplate] = useState<string | undefined>(undefined)
+  const [creating, setCreating] = useState(false)
+  const newFolder = !!isNew && draft.kind === 'folder'
   const [query, setQuery] = useState(cell.label)
   const [results, setResults] = useState<PictoResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -46,9 +53,21 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         <>
           {onDelete && <Btn title="Eliminar" kind="danger" onPress={onDelete} />}
           {onStartMove && <Btn title="✥ Mover a otra casilla" onPress={onStartMove} />}
+          {onOpenFolder && <Btn title="📂 Abrir carpeta" onPress={onOpenFolder} />}
           <View style={{ flex: 1 }} />
           <Btn title="Cancelar" onPress={onClose} />
-          <Btn title="Guardar" kind="primary" disabled={!draft.label.trim()} onPress={() => onSave({ ...draft, label: normalizeText(draft.label) })} />
+          <Btn
+            title={creating ? 'Creando carpeta…' : newFolder ? 'Crear carpeta' : 'Guardar'}
+            kind="primary"
+            disabled={!draft.label.trim() || creating}
+            onPress={async () => {
+              if (newFolder && onCreateFolder) {
+                setCreating(true)
+                await onCreateFolder(normalizeText(draft.label), template, draft.picto)
+                setCreating(false)
+              } else onSave({ ...draft, label: normalizeText(draft.label) })
+            }}
+          />
         </>
       }
     >
@@ -62,14 +81,41 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         <View style={styles.fields}>
           <Text style={styles.label}>Texto</Text>
           <TextInput style={styles.input} value={draft.label} onChangeText={setLabel} autoFocus={isNew} />
-          {draft.kind !== 'folder' && (
+          {(draft.kind !== 'folder' || isNew) && (
             <>
               <Text style={styles.label}>Tipo</Text>
               <View style={styles.chips}>
-                {(['word', 'phrase'] as const).map((k) => (
-                  <Chip key={k} active={draft.kind === k} onPress={() => setDraft({ ...draft, kind: k })} text={k === 'word' ? 'Palabra (se conjuga)' : 'Frase hecha'} />
+                {(isNew ? (['word', 'phrase', 'folder'] as const) : (['word', 'phrase'] as const)).map((k) => (
+                  <Chip
+                    key={k}
+                    active={draft.kind === k}
+                    onPress={() => setDraft({ ...draft, kind: k })}
+                    text={k === 'word' ? 'Palabra (se conjuga)' : k === 'phrase' ? 'Frase hecha' : 'Carpeta'}
+                  />
                 ))}
               </View>
+            </>
+          )}
+          {newFolder && (
+            <>
+              <Text style={styles.label}>Contenido de la carpeta</Text>
+              <View style={styles.chips}>
+                {[undefined, ...Object.keys(FOLDER_TEMPLATES)].map((t) => (
+                  <Chip
+                    key={t ?? 'vacia'}
+                    active={template === t}
+                    onPress={() => {
+                      setTemplate(t)
+                      if (t && !draft.label.trim()) setLabel(t)
+                    }}
+                    text={t ?? 'Vacía'}
+                  />
+                ))}
+              </View>
+            </>
+          )}
+          {draft.kind !== 'folder' && (
+            <>
               <Text style={styles.label}>Categoría (color y columna)</Text>
               <View style={styles.chips}>
                 {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (

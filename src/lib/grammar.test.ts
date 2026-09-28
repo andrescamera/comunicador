@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classify, conjugate, lemmatize, sentenceText } from './grammar'
+import { classify, conjugate, lemmatize, pluralize, sentenceText } from './grammar'
 import type { Category, CellKind } from './types'
 
 const w = (label: string, category?: Category, kind: CellKind = 'word') => ({
@@ -112,5 +112,33 @@ describe('parseText', async () => {
   })
   it('names the main board Inicio without a label', () => {
     expect(parseText('yo, querer, agua')[0].name).toBe('Inicio')
+  })
+})
+
+describe('pluralize', () => {
+  it.each([
+    ['casa', 'casas'],
+    ['galleta', 'galletas'],
+    ['café', 'cafés'],
+    ['sofá', 'sofás'],
+    ['flor', 'flores'],
+    ['color', 'colores'],
+    ['ratón', 'ratones'],
+    ['camión', 'camiones'],
+    ['autobús', 'autobuses'],
+    ['lápiz', 'lápices'],
+    ['pez', 'peces'],
+    ['lunes', 'lunes'],
+    ['tren', 'trenes'],
+    ['rojo', 'rojos'],
+    ['azul', 'azules'],
+    ['marrón', 'marrones'],
+    ['pan', 'panes'],
+    ['coche de bomberos', 'coches de bomberos'],
+  ])('%s → %s', (w, p) => expect(pluralize(w)).toBe(p))
+
+  it('plural nouns make gustar-like verbs agree', () => {
+    expect(sentenceText([w('yo'), w('gustar'), w('galleta', 'noun')])).toBe('a mí me gusta galleta')
+    expect(sentenceText([w('yo'), w('gustar'), w(pluralize('galleta'), 'noun')])).toBe('a mí me gustan galletas')
   })
 })

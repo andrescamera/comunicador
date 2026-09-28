@@ -22,6 +22,7 @@ export interface Cell {
   row: number
   col: number
   hidden?: boolean // oculta pero conservando su hueco
+  singular?: string // solo en la frase: la palabra antes de pasarla a plural
 }
 
 /**

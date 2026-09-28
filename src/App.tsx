@@ -5,9 +5,9 @@ import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
-import { folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from './lib/generator'
+import { buildFolder, folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from './lib/generator'
 import { moveCellTo, type NewCell, placeCell, relayoutBoard, resizeBoard, zoneOf } from './lib/layout'
-import { classify, realize, sentenceText } from './lib/grammar'
+import { canPluralize, classify, pluralize, realize, sentenceText } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { loadSyncMeta, saveSyncMeta, supabase } from './lib/cloud'
 import { useCloudSync } from './lib/useCloudSync'
@@ -118,7 +118,9 @@ export default function App() {
       </div>
     )
   }
-  if (!cloud.email) return <LoginScreen cloud={cloud} />
+  // Solo en desarrollo (localhost): «?local» permite probar sin cuenta. No existe en la versión publicada.
+  const devBypass = import.meta.env.DEV && new URLSearchParams(window.location.search).has('local')
+  if (!cloud.email && !devBypass) return <LoginScreen cloud={cloud} />
 
   if (!lib) {
     return (
@@ -170,6 +172,38 @@ export default function App() {
       if (settingsRef.current.clearAfterSpeak) setSentence([])
       else scheduleIdleClear(sentence.length)
     })
+  }
+
+  // Plural de la última palabra de la frase (como el botón «número» de Verbo)
+  const lastToken = sentence[sentence.length - 1]
+  const pluralState: 'none' | 'singular' | 'plural' = !lastToken
+    ? 'none'
+    : lastToken.singular
+      ? 'plural'
+      : canPluralize(lastToken.category, lastToken.kind)
+        ? 'singular'
+        : 'none'
+  const togglePlural = () => {
+    if (pluralState === 'none') return
+    const t = sentence[sentence.length - 1]
+    const changed: Cell = t.singular
+      ? { ...t, label: t.singular, singular: undefined }
+      : { ...t, label: pluralize(t.label), singular: t.label }
+    const next = [...sentence.slice(0, -1), changed]
+    setSentence(next)
+    scheduleIdleClear(next.length)
+    if (settings.speakOnTap) say(realize(next)[next.length - 1] || changed.label)
+  }
+
+  // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
+  const createFolder = async (row: number, col: number, name: string, template: string | undefined, picto: number | undefined) => {
+    const { board: sub, cell } = await buildFolder(name, template)
+    const folder: Cell = { ...cell, picto: picto ?? cell.picto, row, col }
+    setLib((l) =>
+      l ? { ...l, boards: { ...l.boards, [sub.id]: sub, [board.id]: { ...l.boards[board.id], cells: [...l.boards[board.id].cells, folder] } } } : l,
+    )
+    setEditTarget(null)
+    setNotice(`Carpeta «${name}» creada. Pulsa sobre ella y «Abrir carpeta» para editar su contenido.`)
   }
 
   const onCellTap = (cell: Cell) => {
@@ -290,6 +324,11 @@ export default function App() {
             </>
           ) : (
             <div className="edit-toolbar">
+              {history.length > 0 && (
+                <button type="button" onClick={() => setHistory((h) => h.slice(0, -1))} title="Volver al tablero anterior">
+                  ↩ Volver
+                </button>
+              )}
               <input
                 className="board-name-input"
                 value={board.name}
@@ -341,6 +380,8 @@ export default function App() {
               scheduleIdleClear(sentence.length - 1)
               setSentence((s) => s.slice(0, -1))
             }}
+            onPlural={togglePlural}
+            pluralState={pluralState}
             onClear={() => {
               cancelAutoClear()
               setSentence([])
@@ -404,6 +445,19 @@ export default function App() {
                 }
           }
           onClose={() => setEditTarget(null)}
+          onCreateFolder={
+            editTarget.isNew
+              ? (name, template, picto) => createFolder(editTarget.cell.row, editTarget.cell.col, name, template, picto)
+              : undefined
+          }
+          onOpenFolder={
+            !editTarget.isNew && editTarget.cell.kind === 'folder' && editTarget.cell.target && lib.boards[editTarget.cell.target]
+              ? () => {
+                  setHistory((h) => [...h, editTarget.cell.target!])
+                  setEditTarget(null)
+                }
+              : undefined
+          }
         />
       )}
       {showCreator && (

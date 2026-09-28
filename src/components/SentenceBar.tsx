@@ -8,12 +8,16 @@ interface Props {
   onSpeak: () => void
   onBackspace: () => void
   onClear: () => void
+  /** Pasar la última palabra a plural (o volver al singular) */
+  onPlural: () => void
+  /** 'none': la última palabra no admite plural; 'plural': ya está en plural */
+  pluralState: 'none' | 'singular' | 'plural'
   /** > 0 mientras hay un borrado automático pendiente (duración de la cuenta atrás) */
   clearingMs?: number
   clearingKey?: number // cambia en cada toque para reiniciar la barra de cuenta atrás
 }
 
-export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs = 0, clearingKey }: Props) {
+export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, onPlural, pluralState, clearingMs = 0, clearingKey }: Props) {
   const words = realize(tokens)
   return (
     <div className="sentence-bar">
@@ -30,6 +34,18 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs 
         ))}
       </div>
       <div className="sentence-actions">
+        <div
+          className={`action action-plural ${pluralState === 'none' ? 'disabled' : ''} ${pluralState === 'plural' ? 'active' : ''}`}
+          data-tap
+          data-label="Plural"
+          ref={tapRef(onPlural)}
+          role="button"
+          aria-label="Poner la última palabra en plural"
+          aria-pressed={pluralState === 'plural'}
+        >
+          <span className="action-icon">+s</span>
+          <span>{pluralState === 'plural' ? 'Singular' : 'Plural'}</span>
+        </div>
         <div className="action" data-tap data-label="Borrar última" ref={tapRef(onBackspace)} role="button" aria-label="Borrar la última palabra">
           <span className="action-icon">⌫</span>
           <span>Borrar</span>

@@ -13,6 +13,9 @@ import { TapButton } from './src/components/TapButton'
 import {
   bestPicto,
   type Board,
+  buildFolder,
+  canPluralize,
+  pluralize,
   type Cell,
   classify,
   DEFAULT_SETTINGS,
@@ -200,6 +203,36 @@ export default function App() {
     })
   }
 
+  // Plural de la última palabra de la frase (como el botón «número» de Verbo)
+  const lastToken = sentence[sentence.length - 1]
+  const pluralState: 'none' | 'singular' | 'plural' = !lastToken
+    ? 'none'
+    : lastToken.singular
+      ? 'plural'
+      : canPluralize(lastToken.category, lastToken.kind)
+        ? 'singular'
+        : 'none'
+  const togglePlural = () => {
+    if (pluralState === 'none') return
+    const t = sentence[sentence.length - 1]
+    const changed: Cell = t.singular ? { ...t, label: t.singular, singular: undefined } : { ...t, label: pluralize(t.label), singular: t.label }
+    const next = [...sentence.slice(0, -1), changed]
+    setSentence(next)
+    scheduleIdleClear(next.length)
+    if (settings.speakOnTap) say(realize(next)[next.length - 1] || changed.label)
+  }
+
+  // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
+  const createFolder = async (row: number, col: number, name: string, template: string | undefined, picto: number | undefined) => {
+    const { board: sub, cell } = await buildFolder(name, template)
+    const folder: Cell = { ...cell, picto: picto ?? cell.picto, row, col }
+    setLib((l) =>
+      l ? { ...l, boards: { ...l.boards, [sub.id]: sub, [board.id]: { ...l.boards[board.id], cells: [...l.boards[board.id].cells, folder] } } } : l,
+    )
+    setEditTarget(null)
+    setNotice(`Carpeta «${name}» creada. Tócala y pulsa «Abrir carpeta» para editar su contenido.`)
+  }
+
   const onCellTap = (cell: Cell) => {
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
@@ -336,6 +369,8 @@ export default function App() {
                     cancelAutoClear()
                     setSentence([])
                   }}
+                  onPlural={togglePlural}
+                  pluralState={pluralState}
                   clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
                   clearingKey={clearing}
                 />
@@ -346,6 +381,7 @@ export default function App() {
               </View>
             ) : (
               <View style={[styles.editBar, { marginBottom: gap }]}>
+                {history.length > 0 && <ToolBtn text="↩ Volver" onPress={() => setHistory((h) => h.slice(0, -1))} />}
                 <TextInput style={styles.nameInput} value={board.name} onChangeText={(t) => updateBoard(board.id, (b) => ({ ...b, name: t }))} />
                 <Text style={styles.muted}>Filas</Text>
                 <ToolBtn text="−" onPress={() => resize(board.rows - 1, board.cols)} />
@@ -403,6 +439,17 @@ export default function App() {
           onDelete={editTarget.isNew ? undefined : () => deleteCell(editTarget.cell.id)}
           onStartMove={editTarget.isNew ? undefined : () => (setMovingId(editTarget.cell.id), setEditTarget(null))}
           onClose={() => setEditTarget(null)}
+          onCreateFolder={
+            editTarget.isNew ? (name, template, picto) => createFolder(editTarget.cell.row, editTarget.cell.col, name, template, picto) : undefined
+          }
+          onOpenFolder={
+            !editTarget.isNew && editTarget.cell.kind === 'folder' && editTarget.cell.target && lib.boards[editTarget.cell.target]
+              ? () => {
+                  setHistory((h) => [...h, editTarget.cell.target!])
+                  setEditTarget(null)
+                }
+              : undefined
+          }
         />
       )}
       {showCreator && (
