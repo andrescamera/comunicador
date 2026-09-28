@@ -98,6 +98,11 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
           </select>
         </label>
         <label>
+          Espera para el plural: <strong>{settings.pluralWaitMs} ms</strong>
+          <input type="range" min={0} max={2000} step={100} value={settings.pluralWaitMs} onChange={(e) => set('pluralWaitMs', +e.target.value)} />
+          <small>Tiempo para pulsar Plural después de tocar un nombre o descriptivo (se suma al bloqueo tras activar). Así la palabra no se dice dos veces. 0 = sin espera.</small>
+        </label>
+        <label>
           Velocidad: <strong>{settings.rate.toFixed(2)}</strong>
           <input type="range" min={0.5} max={1.5} step={0.05} value={settings.rate} onChange={(e) => set('rate', +e.target.value)} />
         </label>

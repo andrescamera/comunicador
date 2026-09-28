@@ -53,6 +53,7 @@ export interface Settings {
   minHoldMs: number // duración mínima de la pulsación
   moveTolerancePx: number // si el puntero se mueve más que esto, se cancela
   speakOnTap: boolean
+  pluralWaitMs: number // espera antes de decir un nombre/descriptivo, por si se pulsa Plural
   rate: number
   voiceURI: string
   showTapLog: boolean
@@ -67,6 +68,7 @@ export const DEFAULT_SETTINGS: Settings = {
   minHoldMs: 0,
   moveTolerancePx: 14,
   speakOnTap: true,
+  pluralWaitMs: 800,
   rate: 1,
   voiceURI: '',
   showTapLog: true,

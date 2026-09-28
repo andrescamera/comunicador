@@ -37,6 +37,7 @@ export default function App() {
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
   const clearTimer = useRef<number | undefined>(undefined)
   const clearGen = useRef(0)
+  const pendingSpeech = useRef<ReturnType<typeof setTimeout> | undefined>(undefined) // palabra esperando por si se pulsa Plural
 
   useEffect(() => {
     if (!notice) return
@@ -165,6 +166,7 @@ export default function App() {
   /** Al tocar la barra de la frase: se dice entera y se borra en cuanto termina. */
   const speakSentence = () => {
     cancelAutoClear()
+    clearTimeout(pendingSpeech.current)
     if (!sentence.length) return
     const gen = clearGen.current
     say(sentenceText(sentence), () => {
@@ -192,6 +194,7 @@ export default function App() {
     const next = [...sentence.slice(0, -1), changed]
     setSentence(next)
     scheduleIdleClear(next.length)
+    clearTimeout(pendingSpeech.current) // la palabra en singular ya no se dice
     if (settings.speakOnTap) say(realize(next)[next.length - 1] || changed.label)
   }
 
@@ -206,6 +209,20 @@ export default function App() {
     setNotice(`Carpeta «${name}» creada. Pulsa sobre ella y «Abrir carpeta» para editar su contenido.`)
   }
 
+  /**
+   * Decir la palabra tocada. Nombres y descriptivos esperan un momento: si en ese tiempo se pulsa
+   * Plural, solo se oye el plural (y no la palabra dos veces).
+   */
+  const speakWord = (next: Cell[], cell: Cell) => {
+    clearTimeout(pendingSpeech.current)
+    if (!settings.speakOnTap) return
+    const text = realize(next)[next.length - 1] || cell.label
+    if (settings.pluralWaitMs > 0 && canPluralize(cell.category, cell.kind)) {
+      // La espera cuenta desde que termina el bloqueo tras el toque (antes no se puede pulsar Plural)
+      pendingSpeech.current = setTimeout(() => say(text), settings.lockoutMs + settings.pluralWaitMs)
+    } else say(text)
+  }
+
   const onCellTap = (cell: Cell) => {
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
@@ -215,7 +232,7 @@ export default function App() {
     const next = [...sentence, cell]
     scheduleIdleClear(next.length)
     setSentence(next)
-    if (settings.speakOnTap) say(realize(next)[next.length - 1] || cell.label)
+    speakWord(next, cell)
   }
 
   const updateBoard = (id: string, fn: (b: Board) => Board) =>
@@ -377,6 +394,7 @@ export default function App() {
             tokens={sentence}
             onSpeak={speakSentence}
             onBackspace={() => {
+              clearTimeout(pendingSpeech.current)
               scheduleIdleClear(sentence.length - 1)
               setSentence((s) => s.slice(0, -1))
             }}
@@ -384,6 +402,7 @@ export default function App() {
             pluralState={pluralState}
             onClear={() => {
               cancelAutoClear()
+              clearTimeout(pendingSpeech.current)
               setSentence([])
             }}
             clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}

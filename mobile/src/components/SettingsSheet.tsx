@@ -54,6 +54,8 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
 
       <Text style={styles.h}>Voz</Text>
       <Toggle label="Decir cada palabra al tocarla" value={settings.speakOnTap} onChange={(v) => set('speakOnTap', v)} />
+ <Stepper label="Espera para el plural" unit="ms" value={settings.pluralWaitMs} step={100} min={0} max={2000} onChange={(v) => set('pluralWaitMs', v)}
+        help="Tiempo para pulsar Plural después de tocar un nombre o descriptivo (se suma al bloqueo tras activar). 0 = sin espera." />
       <Stepper label="Velocidad" unit="" value={settings.rate} step={0.05} min={0.5} max={1.5} decimals={2} onChange={(v) => set('rate', v)} />
       <Text style={styles.label}>Voz</Text>
       <Choice
