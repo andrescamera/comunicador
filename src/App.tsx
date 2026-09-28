@@ -12,7 +12,8 @@ import { bestPicto } from './lib/arasaac'
 import { loadSyncMeta, saveSyncMeta, supabase } from './lib/cloud'
 import { useCloudSync } from './lib/useCloudSync'
 import { speak } from './lib/speech'
-import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './lib/storage'
+import { clearLibrary, loadLibrary, loadSettings, saveLibrary, saveSettings } from './lib/storage'
+import { LoginScreen } from './components/LoginScreen'
 import { tapManager, tapRef } from './lib/tap'
 import type { Board, Cell, Library, Settings } from './lib/types'
 import { uid } from './lib/types'
@@ -53,6 +54,11 @@ export default function App() {
     loadMeta: loadSyncMeta,
     saveMeta: saveSyncMeta,
     onReplaced: () => (setHistory([]), setSentence([])),
+    // Privacidad en ordenadores compartidos: al salir no quedan tableros en el navegador
+    onSignedOut: () => {
+      clearLibrary()
+      window.location.reload()
+    },
   })
   const settingsRef = useRef(settings)
   settingsRef.current = settings
@@ -103,6 +109,16 @@ export default function App() {
       )
     })()
   }, [lib])
+
+  // La web es para el terapeuta: sin sesión iniciada solo se muestra el acceso
+  if (!cloud.authReady) {
+    return (
+      <div className="loading">
+        <div className="spinner" />
+      </div>
+    )
+  }
+  if (!cloud.email) return <LoginScreen cloud={cloud} />
 
   if (!lib) {
     return (

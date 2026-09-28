@@ -38,5 +38,13 @@ export const loadLibrary = () => {
   return lib ? migrate(lib) : null
 }
 export const saveLibrary = (lib: Library) => write(LIB_KEY, lib)
+/** Borra los tableros guardados en este navegador (al cerrar sesión en un ordenador compartido) */
+export const clearLibrary = () => {
+  try {
+    localStorage.removeItem(LIB_KEY)
+  } catch {
+    // nada que borrar
+  }
+}
 export const loadSettings = (): Settings => ({ ...DEFAULT_SETTINGS, ...(read<Partial<Settings>>(SETTINGS_KEY) ?? {}) })
 export const saveSettings = (s: Settings) => write(SETTINGS_KEY, s)

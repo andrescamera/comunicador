@@ -11,15 +11,18 @@ interface Options {
   saveMeta: (m: SyncMeta) => void
   /** La biblioteca se sustituyó entera (p. ej. se eligieron los tableros de la cuenta) */
   onReplaced?: () => void
+  /** Tras cerrar sesión o borrar la cuenta (la web borra los tableros del navegador) */
+  onSignedOut?: () => void
 }
 
 /**
  * Cuenta y sincronización en la nube (mismo código en la web y en la tablet):
  * inicio de sesión con email y contraseña, motor de sincronización y estado para la interfaz.
  */
-export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onReplaced }: Options) {
+export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onReplaced, onSignedOut }: Options) {
   const [status, setStatus] = useState<SyncStatus>({ state: 'signed-out' })
   const [email, setEmail] = useState<string | null>(null)
+  const [authReady, setAuthReady] = useState(false) // ya se sabe si hay sesión guardada
   const libRef = useRef(lib)
   libRef.current = lib
   const engine = useRef<SyncEngine | null>(null)
@@ -55,6 +58,7 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
     engine.current = e
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       setEmail(session?.user.email ?? null)
+      setAuthReady(true)
       if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) void e.start()
       if (!session) {
         e.stop()
@@ -75,6 +79,7 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
   return {
     status,
     email,
+    authReady,
     /** Entrar con email y contraseña */
     signIn: async (address: string, password: string) => {
       const { error } = await supabase.auth.signInWithPassword({ email: address.trim(), password })
@@ -88,8 +93,9 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
     },
     signOut: async () => {
       engine.current?.stop()
-      saveMeta(emptyMeta()) // otra cuenta podrá entrar en este dispositivo; los tableros locales se quedan
+      saveMeta(emptyMeta()) // otra cuenta podrá entrar en este dispositivo
       await supabase.auth.signOut()
+      onSignedOut?.()
     },
     /** RGPD: borra la cuenta y todos sus tableros del servidor (los del dispositivo se quedan) */
     deleteAccount: async () => {
@@ -98,6 +104,7 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
       engine.current?.stop()
       saveMeta(emptyMeta())
       await supabase.auth.signOut()
+      onSignedOut?.()
     },
     syncNow: () => engine.current?.sync(),
   }

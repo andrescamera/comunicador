@@ -868,3 +868,33 @@ label.check {
 .error {
   color: var(--bad);
 }
+
+/* Pantalla de acceso */
+.login-screen {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.login-card {
+  width: min(520px, 100%);
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.login-card h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+.login-card p {
+  margin: 0;
+}
+.login-card .row input {
+  min-width: 0;
+  flex: 1 1 180px;
+}

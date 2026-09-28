@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { statusText, type CloudSync } from '../lib/useCloudSync'
 
 /** Cuenta y sincronización (en Ajustes): inicio de sesión con email y contraseña. */
-export function AccountPanel({ cloud }: { cloud: CloudSync }) {
+export function AccountPanel({ cloud, intro = true }: { cloud: CloudSync; intro?: boolean }) {
   const [address, setAddress] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -51,10 +51,12 @@ export function AccountPanel({ cloud }: { cloud: CloudSync }) {
   const valid = /.+@.+\..+/.test(address) && password.length >= 6
   return (
     <div className="account">
-      <p className="muted">
-        Inicia sesión para editar los tableros aquí y tenerlos sincronizados con la tablet. Solo se guardan tu email y tus tableros, en servidores de
-        la UE.
-      </p>
+      {intro && (
+        <p className="muted">
+          Inicia sesión para editar los tableros aquí y tenerlos sincronizados con la tablet. Solo se guardan tu email y tus tableros, en servidores
+          de la UE.
+        </p>
+      )}
       <form
         className="row"
         onSubmit={(e) => {
