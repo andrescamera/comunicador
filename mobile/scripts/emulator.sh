@@ -30,6 +30,15 @@ adb shell settings put system accelerometer_rotation 0
 adb shell cmd window user-rotation lock 0 # horizontal (orientación natural de la Pixel Tablet)
 echo "==> Emulador listo"
 
+# Si la versión de desarrollo ya está instalada y el servidor (Metro) corre: conectar y abrir la app
+if adb shell pm list packages | grep -q com.andrescamera.comunicador && curl -s -m 2 http://localhost:8081/status | grep -q running; then
+  adb reverse tcp:8081 tcp:8081 >/dev/null
+  sleep 3 # el sistema termina de arrancar: si la app se abre antes, no encuentra el servidor
+  adb shell am force-stop com.andrescamera.comunicador
+  adb shell am start -n com.andrescamera.comunicador/.MainActivity >/dev/null
+  echo "==> App abierta y conectada al servidor de desarrollo"
+fi
+
 if [[ "${1:-}" == "--app" ]]; then
   echo "==> Versión de desarrollo (recarga instantánea al guardar cambios)"
   npx expo run:android
