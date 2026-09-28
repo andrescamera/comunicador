@@ -32,10 +32,14 @@ echo "==> Emulador listo"
 
 # Si la versión de desarrollo ya está instalada y el servidor (Metro) corre: conectar y abrir la app
 if adb shell pm list packages | grep -q com.andrescamera.comunicador && curl -s -m 2 http://localhost:8081/status | grep -q running; then
-  adb reverse tcp:8081 tcp:8081 >/dev/null
-  sleep 3 # el sistema termina de arrancar: si la app se abre antes, no encuentra el servidor
-  adb shell am force-stop com.andrescamera.comunicador
-  adb shell am start -n com.andrescamera.comunicador/.MainActivity >/dev/null
+  # Recién arrancado, el emulador tarda en aceptar la redirección al servidor (Metro): la primera
+  # apertura puede fallar. Se conecta y abre dos veces, con una pausa entre medias.
+  for attempt in 1 2; do
+    sleep 6
+    adb reverse tcp:8081 tcp:8081 >/dev/null
+    adb shell am force-stop com.andrescamera.comunicador
+    adb shell am start -n com.andrescamera.comunicador/.MainActivity >/dev/null
+  done
   echo "==> App abierta y conectada al servidor de desarrollo"
 fi
 
