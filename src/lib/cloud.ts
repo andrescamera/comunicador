@@ -2,9 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_KEY, SUPABASE_URL } from './cloudConfig'
 import { emptyMeta, type SyncMeta } from './sync'
 
-// Web: la sesión se guarda en el navegador (localStorage)
+// Web: la sesión se guarda en el navegador (localStorage). Al volver del enlace de confirmación
+// del email, la sesión viene en la dirección y se inicia sola.
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 })
 
 const META_KEY = 'comunicador:sync:v1'
