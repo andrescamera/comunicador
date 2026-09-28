@@ -15,7 +15,7 @@ interface Options {
 
 /**
  * Cuenta y sincronización en la nube (mismo código en la web y en la tablet):
- * inicio de sesión con código por email, motor de sincronización y estado para la interfaz.
+ * inicio de sesión con email y contraseña, motor de sincronización y estado para la interfaz.
  */
 export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onReplaced }: Options) {
   const [status, setStatus] = useState<SyncStatus>({ state: 'signed-out' })
@@ -69,13 +69,16 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
   return {
     status,
     email,
-    sendCode: async (address: string) => {
-      const { error } = await supabase.auth.signInWithOtp({ email: address.trim(), options: { shouldCreateUser: true } })
-      if (error) throw new Error(error.message)
+    /** Entrar con email y contraseña */
+    signIn: async (address: string, password: string) => {
+      const { error } = await supabase.auth.signInWithPassword({ email: address.trim(), password })
+      if (error) throw new Error(translateAuthError(error.message))
     },
-    verifyCode: async (address: string, code: string) => {
-      const { error } = await supabase.auth.verifyOtp({ email: address.trim(), token: code.trim(), type: 'email' })
-      if (error) throw new Error(error.message)
+    /** Crear cuenta. Devuelve true si hay que confirmar el email antes de poder entrar. */
+    signUp: async (address: string, password: string): Promise<boolean> => {
+      const { data, error } = await supabase.auth.signUp({ email: address.trim(), password })
+      if (error) throw new Error(translateAuthError(error.message))
+      return !data.session
     },
     signOut: async () => {
       engine.current?.stop()
@@ -96,6 +99,18 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
 }
 
 export type CloudSync = ReturnType<typeof useCloudSync>
+
+/** Mensajes de Supabase más frecuentes, en castellano */
+export function translateAuthError(message: string): string {
+  const m = message.toLowerCase()
+  if (m.includes('invalid login credentials')) return 'Email o contraseña incorrectos.'
+  if (m.includes('email not confirmed')) return 'Falta confirmar el email: abre el mensaje que te enviamos y pulsa el enlace.'
+  if (m.includes('already registered')) return 'Ya existe una cuenta con ese email: usa «Entrar».'
+  if (m.includes('password') && m.includes('6')) return 'La contraseña debe tener al menos 6 caracteres.'
+  if (m.includes('rate limit') || m.includes('too many')) return 'Demasiados intentos seguidos. Espera unos minutos.'
+  if (m.includes('fetch') || m.includes('network')) return 'Sin conexión. Comprueba internet e inténtalo de nuevo.'
+  return message
+}
 
 export function statusText(s: SyncStatus): string {
   switch (s.state) {

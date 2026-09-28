@@ -4,17 +4,18 @@ import { type CloudSync, statusText } from '../shared'
 import { colors } from '../theme'
 import { Btn } from './Sheet'
 
-/** Cuenta y sincronización (en Ajustes): inicio de sesión con código por email. */
+/** Cuenta y sincronización (en Ajustes): inicio de sesión con email y contraseña. */
 export function AccountSection({ cloud }: { cloud: CloudSync }) {
   const [address, setAddress] = useState('')
-  const [code, setCode] = useState('')
-  const [step, setStep] = useState<'email' | 'code'>('email')
+  const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true)
     setError('')
+    setInfo('')
     try {
       await fn()
     } catch (e) {
@@ -54,48 +55,48 @@ export function AccountSection({ cloud }: { cloud: CloudSync }) {
     )
   }
 
+  const valid = /.+@.+\..+/.test(address) && password.length >= 6
   return (
     <View style={styles.box}>
       <Text style={styles.muted}>
         Inicia sesión para editar los tableros también desde el ordenador y tenerlos sincronizados. Solo se guardan tu email y tus tableros, en
         servidores de la UE.
       </Text>
-      {step === 'email' ? (
-        <View style={styles.row}>
-          <TextInput
-            style={styles.input}
-            value={address}
-            onChangeText={setAddress}
-            placeholder="tu@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-          <Btn
-            title="Enviarme un código"
-            kind="primary"
-            disabled={busy || !/.+@.+\..+/.test(address)}
-            onPress={() => void run(async () => (await cloud.sendCode(address), setStep('code')))}
-          />
-        </View>
-      ) : (
-        <>
-          <Text style={styles.text}>Te hemos enviado un código a {address}. Escríbelo aquí:</Text>
-          <View style={styles.row}>
-            <TextInput
-              style={[styles.input, styles.code]}
-              value={code}
-              onChangeText={setCode}
-              placeholder="123456"
-              keyboardType="number-pad"
-              maxLength={8}
-            />
-            <Btn title="Entrar" kind="primary" disabled={busy || code.trim().length < 6} onPress={() => void run(() => cloud.verifyCode(address, code))} />
-            <Btn title="Cambiar email" onPress={() => (setStep('email'), setCode(''))} />
-          </View>
-        </>
-      )}
+      <View style={styles.row}>
+        <TextInput
+          style={styles.input}
+          value={address}
+          onChangeText={setAddress}
+          placeholder="tu@email.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+        />
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Contraseña (mín. 6)"
+          secureTextEntry
+          autoCapitalize="none"
+          autoComplete="password"
+        />
+      </View>
+      <View style={styles.row}>
+        <Btn title="Entrar" kind="primary" disabled={busy || !valid} onPress={() => void run(() => cloud.signIn(address, password))} />
+        <Btn
+          title="Crear cuenta"
+          disabled={busy || !valid}
+          onPress={() =>
+            void run(async () => {
+              const mustConfirm = await cloud.signUp(address, password)
+              if (mustConfirm) setInfo(`Cuenta creada. Te hemos enviado un email a ${address}: abre el enlace para confirmarla y después pulsa «Entrar».`)
+            })
+          }
+        />
+      </View>
       {busy && <ActivityIndicator color={colors.accent} />}
+      {!!info && <Text style={styles.info}>{info}</Text>}
       {!!error && <Text style={styles.error}>{error}</Text>}
     </View>
   )
@@ -107,6 +108,6 @@ const styles = StyleSheet.create({
   text: { color: colors.text },
   muted: { color: colors.muted, fontSize: 13 },
   error: { color: colors.bad },
+  info: { color: colors.ok },
   input: { flex: 1, minWidth: 200, borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, color: colors.text },
-  code: { maxWidth: 160, letterSpacing: 4, fontSize: 20 },
 })

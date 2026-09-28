@@ -862,11 +862,8 @@ label.check {
   flex: 1;
   min-width: 200px;
 }
-.account input.code {
-  flex: 0 0 140px;
-  min-width: 0;
-  letter-spacing: 4px;
-  font-size: 1.2rem;
+.info {
+  color: var(--ok);
 }
 .error {
   color: var(--bad);

@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { statusText, type CloudSync } from '../lib/useCloudSync'
 
-/** Cuenta y sincronización (en Ajustes): inicio de sesión con código por email. */
+/** Cuenta y sincronización (en Ajustes): inicio de sesión con email y contraseña. */
 export function AccountPanel({ cloud }: { cloud: CloudSync }) {
   const [address, setAddress] = useState('')
-  const [code, setCode] = useState('')
-  const [step, setStep] = useState<'email' | 'code'>('email')
+  const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true)
     setError('')
+    setInfo('')
     try {
       await fn()
     } catch (e) {
@@ -47,44 +48,47 @@ export function AccountPanel({ cloud }: { cloud: CloudSync }) {
     )
   }
 
+  const valid = /.+@.+\..+/.test(address) && password.length >= 6
   return (
     <div className="account">
       <p className="muted">
         Inicia sesión para editar los tableros aquí y tenerlos sincronizados con la tablet. Solo se guardan tu email y tus tableros, en servidores de
         la UE.
       </p>
-      {step === 'email' ? (
-        <form
-          className="row"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void run(async () => (await cloud.sendCode(address), setStep('code')))
-          }}
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void run(() => cloud.signIn(address, password))
+        }}
+      >
+        <input type="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="tu@email.com" autoComplete="email" required />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Contraseña (mín. 6)"
+          autoComplete="current-password"
+          required
+        />
+        <button type="submit" className="primary" disabled={busy || !valid}>
+          Entrar
+        </button>
+        <button
+          type="button"
+          disabled={busy || !valid}
+          onClick={() =>
+            void run(async () => {
+              const mustConfirm = await cloud.signUp(address, password)
+              if (mustConfirm) setInfo(`Cuenta creada. Te hemos enviado un email a ${address}: abre el enlace para confirmarla y después pulsa «Entrar».`)
+            })
+          }
         >
-          <input type="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="tu@email.com" autoComplete="email" required />
-          <button type="submit" className="primary" disabled={busy}>
-            Enviarme un código
-          </button>
-        </form>
-      ) : (
-        <form
-          className="row"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void run(() => cloud.verifyCode(address, code))
-          }}
-        >
-          <span>Código enviado a {address}:</span>
-          <input className="code" value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="123456" maxLength={8} />
-          <button type="submit" className="primary" disabled={busy || code.trim().length < 6}>
-            Entrar
-          </button>
-          <button type="button" onClick={() => (setStep('email'), setCode(''))}>
-            Cambiar email
-          </button>
-        </form>
-      )}
+          Crear cuenta
+        </button>
+      </form>
       {busy && <p className="muted">Un momento…</p>}
+      {info && <p className="info">{info}</p>}
       {error && <p className="error">{error}</p>}
     </div>
   )
