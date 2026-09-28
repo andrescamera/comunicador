@@ -27,7 +27,8 @@ import {
   placeCell,
   realize,
   relayoutBoard,
-  resizeBoard,
+  normalizeLibrary,
+  resizeLibrary,
   SAMPLE_TEXT,
   sentenceText,
   type Settings,
@@ -104,6 +105,12 @@ export default function App() {
   }, [settings, loaded])
   useEffect(() => {
     if (lib) saveLibrary(lib)
+  }, [lib])
+  // Todos los tableros con la cuadrícula del principal (también los que llegan de otro dispositivo)
+  useEffect(() => {
+    if (!lib) return
+    const n = normalizeLibrary(lib)
+    if (n !== lib) setLib(n)
   }, [lib])
   useEffect(() => {
     if (!notice) return
@@ -203,7 +210,8 @@ export default function App() {
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
   const createFolder = async (row: number, col: number, name: string, template: string | undefined, picto: number | undefined) => {
-    const { board: sub, cell } = await buildFolder(name, template)
+    const root = lib.boards[lib.rootId] ?? board
+    const { board: sub, cell } = await buildFolder(name, template, { rows: root.rows, cols: root.cols })
     const folder: Cell = { ...cell, picto: picto ?? cell.picto, row, col }
     setLib((l) =>
       l ? { ...l, boards: { ...l.boards, [sub.id]: sub, [board.id]: { ...l.boards[board.id], cells: [...l.boards[board.id].cells, folder] } } } : l,
@@ -238,9 +246,10 @@ export default function App() {
     updateBoard(board.id, (b) => ({ ...b, cells: b.cells.filter((c) => c.id !== id) }))
     setEditTarget(null)
   }
+  // Filas y columnas son comunes a todos los tableros: las fichas miden lo mismo en todas partes
   const resize = (rows: number, cols: number) => {
-    const next = resizeBoard(board, rows, cols)
-    if (next) updateBoard(board.id, () => next)
+    const next = resizeLibrary(lib, rows, cols)
+    if (next) setLib(next)
     else setNotice('No se puede reducir: no queda ninguna fila o columna vacía. Mueve o elimina alguna ficha antes.')
   }
   const reorganize = () =>
@@ -305,8 +314,10 @@ export default function App() {
   // Toda la pantalla es una cuadrícula: la primera fila (frase y botones) y debajo las filas del
   // tablero, todas del mismo alto y con las mismas columnas
   const gap = compact ? 4 : 6
-  const cellW = area.w ? (area.w - gap * (board.cols - 1)) / board.cols : 90
-  const barH = area.h ? Math.max(44, (area.h - gap * board.rows) / (board.rows + 1)) : 90
+  // La geometría sale del tablero principal: fichas y barra superior idénticas en todos los tableros
+  const grid = lib.boards[lib.rootId] ?? board
+  const cellW = area.w ? (area.w - gap * (grid.cols - 1)) / grid.cols : 90
+  const barH = area.h ? Math.max(44, (area.h - gap * grid.rows) / (grid.rows + 1)) : 90
   const icon = Math.min(barH, cellW) * 0.32
 
   return (
@@ -331,9 +342,7 @@ export default function App() {
                   style={[styles.navBtn, { width: cellW }]}
                 >
                   <Text style={{ fontSize: icon, color: colors.text }}>↩</Text>
-                  <Text style={styles.navLabel} numberOfLines={1}>
-                    {history.length ? board.name : 'Atrás'}
-                  </Text>
+                  <Text style={styles.navLabel}>Atrás</Text>
                 </TapButton>
                 <SentenceBar
                   tokens={sentence}

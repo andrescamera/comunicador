@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classify } from './grammar'
-import { computeZones, layoutAt, layoutCells, moveCellTo, type NewCell, pickSize, placeCell, resizeBoard, zoneOf } from './layout'
+import { computeZones, layoutAt, layoutCells, moveCellTo, type NewCell, normalizeLibrary, pickSize, placeCell, resizeBoard, resizeLibrary, zoneOf } from './layout'
 import type { Board } from './types'
 
 let n = 0
@@ -126,5 +126,31 @@ describe('layoutAt (distribución de una foto)', () => {
     const slots = b.cells.map((c) => `${c.row},${c.col}`)
     expect(new Set(slots).size).toBe(3)
     expect(b.rows).toBe(2)
+  })
+})
+
+describe('cuadrícula común (fichas del mismo tamaño en todos los tableros)', () => {
+  const lib = () => {
+    const root = { ...board(['yo', 'querer', 'agua', 'hola'], { rows: 3, cols: 6 }), id: 'root' }
+    const folder = { ...board(['perro', 'gato'], { rows: 2, cols: 3 }), id: 'folder' }
+    return { rootId: 'root', boards: { root, folder } }
+  }
+
+  it('normalizes every folder to the root size without moving cells that fit', () => {
+    const l = lib()
+    const before = l.boards.folder.cells.map((c) => [c.id, c.row, c.col])
+    const n = normalizeLibrary(l)
+    expect([n.boards.folder.rows, n.boards.folder.cols]).toEqual([3, 6])
+    expect(n.boards.folder.cells.map((c) => [c.id, c.row, c.col])).toEqual(before)
+  })
+
+  it('resizes all boards together, or none', () => {
+    const n = normalizeLibrary(lib())
+    const bigger = resizeLibrary(n, 4, 7)!
+    expect(Object.values(bigger.boards).map((b) => [b.rows, b.cols])).toEqual([
+      [4, 7],
+      [4, 7],
+    ])
+    expect(resizeLibrary(n, 1, 1)).toBeNull() // el principal no puede bajar a 1 × 1
   })
 })

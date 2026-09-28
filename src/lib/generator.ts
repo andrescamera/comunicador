@@ -264,14 +264,18 @@ export const FOLDER_TEMPLATES: Record<string, string> = {
  * Crea el tablero de una carpeta nueva: vacío o con el vocabulario de una plantilla.
  * Devuelve el tablero y la celda-carpeta que lo abre (sin posición: la pone quien la coloca).
  */
-export async function buildFolder(name: string, template?: string): Promise<{ board: Board; cell: NewCell }> {
+export async function buildFolder(
+  name: string,
+  template: string | undefined,
+  size: { rows: number; cols: number }, // la cuadrícula común (la del tablero principal)
+): Promise<{ board: Board; cell: NewCell }> {
   const words = template ? FOLDER_TEMPLATES[template] : ''
   let board: Board
   if (words) {
-    const lib = await generateLibrary(parseText(`${name}: ${words}`))
+    const lib = await generateLibrary(parseText(`${name}: ${words}`), undefined, size)
     board = { ...lib.boards[lib.rootId], name }
   } else {
-    board = { id: uid('b'), name, ...layoutCells([], { rows: 4, cols: 6 }) }
+    board = { id: uid('b'), name, ...layoutCells([], size) }
   }
   const cell = await folderCell(board)
   return { board, cell }

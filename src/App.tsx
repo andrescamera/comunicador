@@ -6,7 +6,7 @@ import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { buildFolder, folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from './lib/generator'
-import { moveCellTo, type NewCell, placeCell, relayoutBoard, resizeBoard, zoneOf } from './lib/layout'
+import { moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { loadSyncMeta, saveSyncMeta, supabase } from './lib/cloud'
@@ -66,6 +66,12 @@ export default function App() {
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => {
     if (lib) saveLibrary(lib)
+  }, [lib])
+  // Todos los tableros con la cuadrícula del principal (también los que llegan de otro dispositivo)
+  useEffect(() => {
+    if (!lib) return
+    const n = normalizeLibrary(lib)
+    if (n !== lib) setLib(n)
   }, [lib])
 
   const loadSample = useCallback(async () => {
@@ -176,7 +182,8 @@ export default function App() {
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
   const createFolder = async (row: number, col: number, name: string, template: string | undefined, picto: number | undefined) => {
-    const { board: sub, cell } = await buildFolder(name, template)
+    const root = lib.boards[lib.rootId] ?? board
+    const { board: sub, cell } = await buildFolder(name, template, { rows: root.rows, cols: root.cols })
     const folder: Cell = { ...cell, picto: picto ?? cell.picto, row, col }
     setLib((l) =>
       l ? { ...l, boards: { ...l.boards, [sub.id]: sub, [board.id]: { ...l.boards[board.id], cells: [...l.boards[board.id].cells, folder] } } } : l,
@@ -217,9 +224,10 @@ export default function App() {
     updateBoard(board.id, (b) => moveCellTo(b, id, row, col))
     setMovingId(null)
   }
+  // Filas y columnas son comunes a todos los tableros: las fichas miden lo mismo en todas partes
   const resize = (rows: number, cols: number) => {
-    const next = resizeBoard(board, rows, cols)
-    if (next) updateBoard(board.id, () => next)
+    const next = resizeLibrary(lib, rows, cols)
+    if (next) setLib(next)
     else setNotice('No se puede reducir: no queda ninguna fila o columna vacía. Mueve o elimina alguna ficha antes.')
   }
   const strip = ({ row: _r, col: _c, ...cell }: Cell): NewCell => cell

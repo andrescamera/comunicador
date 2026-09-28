@@ -266,3 +266,48 @@ export function resizeBoard(board: Board, rows: number, cols: number): Board | n
   if (rows > b.rows) b = { ...b, rows }
   return b
 }
+
+// ---------- Cuadrícula común a todos los tableros ----------
+// Todas las fichas tienen el mismo tamaño en todos los tableros (también dentro de las carpetas):
+// todos los tableros de una biblioteca comparten las filas y columnas del tablero principal.
+
+type Lib = { rootId: string; boards: Record<string, Board> }
+
+/** Ajusta un tablero a la cuadrícula común sin mover celdas si caben; si no, lo recoloca por zonas. */
+export function fitBoard(board: Board, rows: number, cols: number): Board {
+  if (board.rows === rows && board.cols === cols) return board
+  const fits = board.cells.every((c) => c.row < rows && c.col < cols)
+  if (fits) {
+    const zones = { ...board.zones }
+    for (const z of ZONE_ORDER) zones[z] = [Math.min(zones[z][0], cols), Math.min(zones[z][1], cols - 1)]
+    zones.E = [Math.min(zones.E[0], cols), cols - 1] // la última zona llega hasta el borde derecho
+    return { ...board, rows, cols, zones }
+  }
+  const cells = board.cells.map(({ row: _r, col: _c, ...c }) => c)
+  return { ...board, ...layoutCells(cells, { rows, cols }) }
+}
+
+/** Todos los tableros con las filas y columnas del principal. */
+export function normalizeLibrary<L extends Lib>(lib: L): L {
+  const root = lib.boards[lib.rootId]
+  if (!root) return lib
+  let changed = false
+  const boards: Record<string, Board> = {}
+  for (const [id, b] of Object.entries(lib.boards)) {
+    const fitted = id === lib.rootId ? b : fitBoard(b, root.rows, root.cols)
+    if (fitted !== b) changed = true
+    boards[id] = fitted
+  }
+  return changed ? { ...lib, boards } : lib
+}
+
+/** Cambiar filas/columnas de todos los tableros a la vez. Null si alguno no tiene filas/columnas vacías que quitar. */
+export function resizeLibrary<L extends Lib>(lib: L, rows: number, cols: number): L | null {
+  const boards: Record<string, Board> = {}
+  for (const [id, b] of Object.entries(lib.boards)) {
+    const r = resizeBoard(b, rows, cols)
+    if (!r) return null
+    boards[id] = r
+  }
+  return { ...lib, boards }
+}
