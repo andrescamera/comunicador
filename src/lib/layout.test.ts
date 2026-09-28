@@ -75,10 +75,37 @@ describe('layout', () => {
     expect(at(moved, 'querer')).toEqual([r1, c1])
   })
 
-  it('refuses to shrink over occupied cells', () => {
+  it('refuses to shrink when there is no empty column or row left', () => {
     const b = board(['yo', 'querer', 'agua', 'hola'], { rows: 2, cols: 5 })
     expect(resizeBoard(b, 2, 1)).toBeNull()
     expect(resizeBoard(b, 3, 6)?.cols).toBe(6)
+  })
+
+  it('removes an empty column in the middle, shifting the cells on its right', () => {
+    // yo | querer | (vacía) | agua | hola  ->  quitar una columna
+    const b = board(['yo', 'querer', 'agua', 'hola'], { rows: 1, cols: 5 })
+    const empty = [0, 1, 2, 3, 4].find((c) => !b.cells.some((x) => x.col === c))!
+    const smaller = resizeBoard(b, 1, 4)!
+    expect(smaller.cols).toBe(4)
+    for (const c of b.cells) {
+      const moved = smaller.cells.find((x) => x.id === c.id)!
+      expect(moved.col).toBe(c.col > empty ? c.col - 1 : c.col)
+    }
+    // Las zonas siguen cubriendo sus celdas
+    for (const c of smaller.cells) {
+      const [s, e] = smaller.zones[zoneOf(c)]
+      expect(c.col >= s && c.col <= e).toBe(true)
+    }
+    const slots = smaller.cells.map((c) => `${c.row},${c.col}`)
+    expect(new Set(slots).size).toBe(slots.length)
+  })
+
+  it('removes an empty row in the middle', () => {
+    const b = { ...board(['yo'], { rows: 3, cols: 2 }) }
+    b.cells = [...b.cells, { ...b.cells[0], id: 'z', label: 'tú', row: 2 }]
+    const smaller = resizeBoard(b, 2, 2)!
+    expect(smaller.rows).toBe(2)
+    expect(smaller.cells.find((c) => c.id === 'z')!.row).toBe(1)
   })
 
   it('zones cover all columns without overlapping', () => {

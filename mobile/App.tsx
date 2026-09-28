@@ -241,7 +241,7 @@ export default function App() {
   const resize = (rows: number, cols: number) => {
     const next = resizeBoard(board, rows, cols)
     if (next) updateBoard(board.id, () => next)
-    else setNotice('No se puede reducir: hay celdas en la fila o columna que quitarías. Muévelas o elimínalas antes.')
+    else setNotice('No se puede reducir: no queda ninguna fila o columna vacía. Mueve o elimina alguna ficha antes.')
   }
   const reorganize = () =>
     Alert.alert('Reordenar por categorías', 'Todas las celdas de este tablero se vuelven a colocar por columnas de categoría (cambiarán de sitio).', [

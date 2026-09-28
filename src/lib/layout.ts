@@ -215,13 +215,54 @@ export function moveCellTo(board: Board, id: string, row: number, col: number): 
   }
 }
 
-/** Cambia el tamaño sin mover celdas. Devuelve null si alguna quedaría fuera. */
+/** Quita una columna vacía: las celdas de su derecha se desplazan una columna a la izquierda. */
+function removeColumn(board: Board, c: number): Board {
+  const zones = { ...board.zones }
+  for (const z of ZONE_ORDER) {
+    const [s, e] = zones[z]
+    if (s > c) zones[z] = [s - 1, e - 1]
+    else if (e >= c) zones[z] = [s, e - 1] // la columna quitada era de esta zona
+  }
+  return {
+    ...board,
+    cols: board.cols - 1,
+    zones,
+    cells: board.cells.map((cell) => (cell.col > c ? { ...cell, col: cell.col - 1 } : cell)),
+  }
+}
+
+/** Quita una fila vacía: las celdas de debajo suben una fila. */
+function removeRow(board: Board, r: number): Board {
+  return { ...board, rows: board.rows - 1, cells: board.cells.map((cell) => (cell.row > r ? { ...cell, row: cell.row - 1 } : cell)) }
+}
+
+/**
+ * Cambia el tamaño. Al crecer se añaden filas/columnas al final sin mover nada.
+ * Al reducir se quita la columna (o fila) vacía más a la derecha (o más abajo), aunque esté en
+ * medio: es una acción explícita del terapeuta. Devuelve null si no hay ninguna vacía que quitar.
+ */
 export function resizeBoard(board: Board, rows: number, cols: number): Board | null {
   if (rows < 1 || cols < 1) return null
-  if (board.cells.some((c) => c.row >= rows || c.col >= cols)) return null
-  const zones = { ...board.zones }
-  // La última zona se estira o encoge con el borde derecho
-  zones.E = [Math.min(zones.E[0], cols), cols - 1]
-  for (const z of ZONE_ORDER) zones[z] = [Math.min(zones[z][0], cols), Math.min(zones[z][1], cols - 1)]
-  return { ...board, rows, cols, zones }
+  let b: Board = board
+  while (b.cols > cols) {
+    const used = new Set(b.cells.map((c) => c.col))
+    let empty = -1
+    for (let c = b.cols - 1; c >= 0; c--) if (!used.has(c)) { empty = c; break }
+    if (empty < 0) return null
+    b = removeColumn(b, empty)
+  }
+  while (b.rows > rows) {
+    const used = new Set(b.cells.map((c) => c.row))
+    let empty = -1
+    for (let r = b.rows - 1; r >= 0; r--) if (!used.has(r)) { empty = r; break }
+    if (empty < 0) return null
+    b = removeRow(b, empty)
+  }
+  if (cols > b.cols) {
+    // La última zona se estira con el borde derecho
+    const zones = { ...b.zones, E: [Math.min(b.zones.E[0], b.cols), cols - 1] as [number, number] }
+    b = { ...b, cols, zones }
+  }
+  if (rows > b.rows) b = { ...b, rows }
+  return b
 }
