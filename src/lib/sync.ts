@@ -128,7 +128,6 @@ export type SyncStatus =
   | { state: 'synced'; at: number }
   | { state: 'offline' }
   | { state: 'error'; message: string }
-  | { state: 'choose'; remoteBoards: number; localBoards: number } // primera vez, con tableros en los dos lados
 
 export interface RemoteChanges {
   upserts: Board[]
@@ -190,7 +189,7 @@ export class SyncEngine {
     this.timer = setTimeout(() => void this.sync(), ms)
   }
 
-  /** Primera vez en este dispositivo con tableros en la cuenta y en el dispositivo. */
+  /** Primera vez en este dispositivo con tableros en la cuenta: se usan los de la cuenta. */
   async resolveFirstLink(choice: 'use-remote' | 'use-local'): Promise<void> {
     const libId = this.meta.libraryId
     const lib = this.io.getLibrary()
@@ -238,12 +237,14 @@ export class SyncEngine {
       const libId = await this.ensureLibrary(lib)
       const remote = await this.fetchBoards(libId)
 
-      // Primera vez en este dispositivo y la cuenta ya tiene tableros: que decida el terapeuta
+      // Primera vez en este dispositivo: la cuenta manda. Si ya tiene tableros, se usan esos (los que
+      // hubiera en el dispositivo se guardan como copia); si está vacía, se suben los del dispositivo.
       const remoteAlive = remote.filter((r) => !r.deleted && r.data)
       if (!this.meta.firstLinkDone && Object.keys(this.meta.boards).length === 0 && remoteAlive.length > 0) {
         const localIds = Object.keys(lib.boards)
         if (localIds.some((id) => !remoteAlive.find((r) => r.id === id))) {
-          return this.io.onStatus({ state: 'choose', remoteBoards: remoteAlive.length, localBoards: localIds.length })
+          this.running = false
+          return this.resolveFirstLink('use-remote')
         }
       }
       this.meta.firstLinkDone = true

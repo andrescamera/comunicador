@@ -100,7 +100,6 @@ export function useCloudSync({ supabase, lib, setLib, loadMeta, saveMeta, onRepl
       await supabase.auth.signOut()
     },
     syncNow: () => engine.current?.sync(),
-    resolveFirstLink: (choice: 'use-remote' | 'use-local') => engine.current?.resolveFirstLink(choice),
   }
 }
 
@@ -130,7 +129,5 @@ export function statusText(s: SyncStatus): string {
       return 'Sin conexión: los cambios se subirán al volver'
     case 'error':
       return `Error al sincronizar: ${s.message}`
-    case 'choose':
-      return 'Elige qué tableros usar'
   }
 }
