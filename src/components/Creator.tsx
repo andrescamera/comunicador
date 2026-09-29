@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { generateLibrary, type GridSize, parseText, SAMPLE_TEXT } from '../lib/generator'
+import { gridFromLines, gridToText, type PhotoGrid } from '../lib/photo'
+import { recognizeImage } from '../lib/webOcr'
 import { GRID_SIZES } from '../lib/layout'
 import type { Cell, Library } from '../lib/types'
 import { BoardGrid } from './BoardGrid'
@@ -30,6 +32,30 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
   const [size, setSize] = useState<GridSize>('auto')
   // Mantener filas y columnas: cada línea es una fila y cada palabra entre comas, una columna
   const [gridMode, setGridMode] = useState(false)
+  const [photo, setPhoto] = useState<{ url: string; grid: PhotoGrid } | null>(null)
+  const [reading, setReading] = useState<number | null>(null) // progreso de la lectura (0–1)
+  const [photoError, setPhotoError] = useState('')
+
+  /** Foto de otro tablero -> texto leído en el navegador -> filas y columnas -> texto editable */
+  const fromPhoto = async (file: File) => {
+    setPhotoError('')
+    setReading(0)
+    try {
+      const lines = await recognizeImage(file, setReading)
+      const grid = gridFromLines(lines)
+      if (!grid.cells.length) {
+        setPhotoError('No se ha encontrado texto en la foto. Prueba con una imagen más nítida, de frente y recortada a la cuadrícula.')
+        return
+      }
+      setPhoto({ url: URL.createObjectURL(file), grid })
+      setGridMode(true)
+      setText(gridToText(grid))
+    } catch (e) {
+      setPhotoError(`No se pudo leer la foto: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setReading(null)
+    }
+  }
 
   const parsed = useMemo(() => parseText(text, { grid: gridMode }), [text, gridMode])
   const wordCount = parsed.reduce((n, b) => n + b.items.length, 0)
@@ -65,6 +91,42 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
     <Modal title="Crear tablero" onClose={onClose} wide>
       {!preview ? (
         <div className="creator">
+          <div className="photo-box">
+            <div className="row">
+              <strong>📷 Desde una foto</strong>
+              <label className="file-button">
+                {reading !== null ? `Leyendo la foto… ${Math.round(reading * 100)}%` : 'Elegir imagen'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={reading !== null}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ''
+                    if (f) void fromPhoto(f)
+                  }}
+                />
+              </label>
+            </div>
+            <p className="muted">
+              Una foto o captura del tablero (mejor recortada a la cuadrícula). El texto se lee en este ordenador: la imagen no se envía a ningún
+              sitio. La primera vez tarda un poco más porque se descarga el lector.
+            </p>
+            {photoError && <p className="error">{photoError}</p>}
+            {photo && (
+              <div className="row">
+                <img src={photo.url} alt="" className="photo-thumb" />
+                <div>
+                  <strong>
+                    {photo.grid.cells.length} palabras en {photo.grid.rows} filas × {photo.grid.cols} columnas
+                  </strong>
+                  <p className="muted">Revisa el texto de abajo y corrige las palabras mal leídas. Cada línea es una fila de la foto; «_» es una casilla vacía.</p>
+                </div>
+              </div>
+            )}
+          </div>
+          <strong>✏️ Desde texto</strong>
           <p className="muted">
             Escribe las palabras separadas por comas, o texto libre y se extraen las palabras clave. Usa <code>"comillas"</code> para una
             frase completa en una celda. Todo va al tablero principal; <code>Nombre:</code> al inicio de una línea es solo una etiqueta.
@@ -72,7 +134,7 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
           </p>
           <div className="examples">
             {EXAMPLES.map((ex) => (
-              <button key={ex.name} type="button" onClick={() => setText(ex.text)}>
+              <button key={ex.name} type="button" onClick={() => (setText(ex.text), setPhoto(null))}>
                 Ejemplo: {ex.name}
               </button>
             ))}

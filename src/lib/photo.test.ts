@@ -171,3 +171,19 @@ describe('errores típicos del reconocimiento de texto', () => {
     expect(fixOcrWord(read)).toBe(expected)
   })
 })
+
+describe('foto real leída con Tesseract (web)', async () => {
+  const { cleanOcrLines } = await import('./ocrClean')
+  const tess = (await import('./__fixtures__/verbo-board-tesseract.json')).default
+  const grid = gridFromLines(cleanOcrLines(tess.lines))
+  const rows = gridToText(grid).split('\n').map((l) => l.split(',').map((c) => c.trim()))
+
+  it('recupera la misma cuadrícula de 7×10 que en la tablet', () => {
+    expect([grid.rows, grid.cols]).toEqual([7, 10])
+  })
+  it('coloca las palabras en su fila y columna', () => {
+    expect(rows[0].slice(0, 6)).toEqual(['yo', 'estar', 'ser', 'poder', 'hola', 'más'])
+    expect(rows[3].slice(0, 4)).toEqual(['nosotros', 'parar', 'ir', 'venir'])
+    expect(rows[6]).toContain('deportes')
+  })
+})

@@ -911,3 +911,36 @@ label.check {
   border-color: var(--accent);
   color: white;
 }
+
+/* Crear tablero desde una foto */
+.photo-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+.photo-box p {
+  margin: 0;
+}
+.photo-box .row {
+  align-items: center;
+}
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+.photo-thumb {
+  width: 140px;
+  height: 90px;
+  object-fit: contain;
+  background: white;
+  border-radius: 8px;
+}
