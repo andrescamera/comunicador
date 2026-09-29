@@ -187,3 +187,37 @@ describe('foto real leída con Tesseract (web)', async () => {
     expect(rows[6]).toContain('deportes')
   })
 })
+
+describe('casillas leídas una a una', async () => {
+  const { cellLabel, pickLabel } = await import('./ocrClean')
+  const { gridFromCells, cleanLabel } = await import('./photo')
+  const word = (text: string, confidence: number, y = 0) => ({ text, confidence, x: 0, y, width: 10, height: 10 })
+  const line = (y: number, ...words: ReturnType<typeof word>[]) => ({ text: '', x: 0, y, width: 10, height: 10, elements: words })
+
+  it('se queda con la etiqueta y no con el ruido del dibujo', () => {
+    expect(cellLabel([line(0, word('Xx', 40), word('E2', 70)), line(80, word('SE', 96), word('ACABÓ', 95))])).toBe('SE ACABÓ')
+    expect(cellLabel([line(0, word('|', 90)), line(40, word('+', 92))])).toBe('')
+  })
+  it('una letra suelta solo cuenta si es una palabra leída con seguridad', () => {
+    expect(cellLabel([line(0, word('y', 90))])).toBe('y')
+    expect(cellLabel([line(0, word('L', 90))])).toBe('')
+  })
+  it('entre varias lecturas prefiere una palabra conocida', () => {
+    expect(pickLabel([{ text: 'na', score: 90 }, { text: 'yo', score: 70 }])).toBe('yo')
+    expect(pickLabel([{ text: 'naturaleza', score: 90 }])).toBe('naturaleza')
+    expect(pickLabel([])).toBe('')
+  })
+  it('conserva las casillas vacías y quita la fila de controles', () => {
+    const g = gridFromCells(3, 3, [
+      { row: 0, col: 0, label: 'leer' },
+      { row: 0, col: 2, label: 'borrar' },
+      { row: 1, col: 1, label: 'QUERER' },
+      { row: 2, col: 2, label: 'PREGUNTAS' },
+    ])
+    expect(g).toEqual({ rows: 2, cols: 3, cells: [{ row: 0, col: 1, label: 'querer' }, { row: 1, col: 2, label: 'preguntas' }] })
+  })
+  it('un plural no se toma por un verbo', () => {
+    expect(cleanLabel('preguntas', false)).toBe('preguntas')
+    expect(cleanLabel('Quiero', false)).toBe('querer')
+  })
+})

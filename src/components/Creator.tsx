@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { generateLibrary, type GridSize, parseText, SAMPLE_TEXT } from '../lib/generator'
-import { gridFromLines, gridToText, type PhotoGrid } from '../lib/photo'
-import { recognizeImage } from '../lib/webOcr'
+import { gridToText, type PhotoGrid } from '../lib/photo'
+import { readBoardPhoto } from '../lib/webOcr'
 import { GRID_SIZES } from '../lib/layout'
 import type { Cell, Library } from '../lib/types'
 import { BoardGrid } from './BoardGrid'
@@ -41,8 +41,7 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
     setPhotoError('')
     setReading(0)
     try {
-      const lines = await recognizeImage(file, setReading)
-      const grid = gridFromLines(lines)
+      const grid = await readBoardPhoto(file, setReading)
       if (!grid.cells.length) {
         setPhotoError('No se ha encontrado texto en la foto. Prueba con una imagen más nítida, de frente y recortada a la cuadrícula.')
         return

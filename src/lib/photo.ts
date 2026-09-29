@@ -185,7 +185,9 @@ export function cleanLabel(text: string, keepCapitals: boolean): string {
   if (lower.includes(' ')) return lower
   const fixed = fixOcrWord(lower)
   // "ayuda" es una palabra en sí misma (no "ayudar"): solo se pasa a infinitivo si no lo es
-  const lemma = isLexiconWord(fixed) ? null : lemmatize(fixed)
+  // "preguntas", "comidas": un "-as/-es" suele ser un plural, no el verbo en segunda persona
+  const ambiguous = /[ae]s$/.test(fixed)
+  const lemma = isLexiconWord(fixed) || ambiguous ? null : lemmatize(fixed)
   if (lemma) return lemma
   if (fixed !== lower) return fixed
   return keepCapitals && /^\p{Lu}\p{Ll}+$/u.test(t) ? t : lower
@@ -288,6 +290,23 @@ export function gridFromLines(lines: TextLine[]): PhotoGrid {
     cols: Math.max(...cells.map((c) => c.col)) + 1,
     cells,
   }
+}
+
+/**
+ * Cuadrícula a partir de las casillas detectadas en la imagen (cada una leída por separado):
+ * la posición ya es exacta, solo queda limpiar las etiquetas y quitar la fila de controles.
+ * Las casillas sin texto quedan como huecos.
+ */
+export function gridFromCells(rows: number, cols: number, read: PhotoCell[]): PhotoGrid {
+  const texts = read.filter((c) => c.label.trim())
+  const capitalized = texts.filter((c) => /^\p{Lu}/u.test(c.label)).length / Math.max(1, texts.length)
+  let cells = texts.map((c) => ({ ...c, label: cleanLabel(c.label, capitalized < 0.5) })).filter((c) => c.label)
+  const controls = cells.filter((c) => c.row === 0 && CONTROL_WORDS.has(c.label.toLowerCase())).length
+  if (controls >= 2) {
+    cells = cells.filter((c) => c.row !== 0).map((c) => ({ ...c, row: c.row - 1 }))
+    rows -= 1
+  }
+  return { rows, cols, cells }
 }
 
 /**
