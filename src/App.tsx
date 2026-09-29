@@ -181,13 +181,18 @@ export default function App() {
   }
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
-  const createFolder = async (row: number, col: number, name: string, template: string | undefined, picto: number | undefined) => {
+  // `replace`: una celda que ya existe y pasa a ser carpeta (conserva su sitio y su color)
+  const createFolder = async (at: Cell, replace: boolean, name: string, template: string | undefined, picto: number | undefined) => {
     const root = lib.boards[lib.rootId] ?? board
     const { board: sub, cell } = await buildFolder(name, template, { rows: root.rows, cols: root.cols })
-    const folder: Cell = { ...cell, picto: picto ?? cell.picto, row, col }
-    setLib((l) =>
-      l ? { ...l, boards: { ...l.boards, [sub.id]: sub, [board.id]: { ...l.boards[board.id], cells: [...l.boards[board.id].cells, folder] } } } : l,
-    )
+    const folder: Cell = { ...cell, picto: picto ?? cell.picto, row: at.row, col: at.col }
+    if (replace) Object.assign(folder, { id: at.id, category: at.category, hidden: at.hidden })
+    setLib((l) => {
+      if (!l) return l
+      const host = l.boards[board.id]
+      const cells = replace ? host.cells.map((c) => (c.id === at.id ? folder : c)) : [...host.cells, folder]
+      return { ...l, boards: { ...l.boards, [sub.id]: sub, [board.id]: { ...host, cells } } }
+    })
     setEditTarget(null)
     setNotice(`Carpeta «${name}» creada. Pulsa sobre ella y «Abrir carpeta» para editar su contenido.`)
   }
@@ -432,11 +437,7 @@ export default function App() {
                 }
           }
           onClose={() => setEditTarget(null)}
-          onCreateFolder={
-            editTarget.isNew
-              ? (name, template, picto) => createFolder(editTarget.cell.row, editTarget.cell.col, name, template, picto)
-              : undefined
-          }
+          onCreateFolder={(name, template, picto) => createFolder(editTarget.cell, !editTarget.isNew, name, template, picto)}
           onOpenFolder={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && editTarget.cell.target && lib.boards[editTarget.cell.target]
               ? () => {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { generateLibrary, type GridSize, parseText, SAMPLE_TEXT } from '../lib/generator'
+import { buildFolder, generateLibrary, type GridSize, parseText, SAMPLE_TEXT } from '../lib/generator'
 import { gridToText, type PhotoGrid } from '../lib/photo'
 import { readBoardPhoto } from '../lib/webOcr'
 import { GRID_SIZES } from '../lib/layout'
@@ -80,6 +80,20 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
     if (!preview) return
     const board = preview.boards[tab]
     setPreview({ ...preview, boards: { ...preview.boards, [tab]: { ...board, cells: board.cells.filter((c) => c.id !== id) } } })
+    setEditing(null)
+  }
+
+  /** Una celda del resultado pasa a ser carpeta (vacía o con plantilla); se rellena después */
+  const makeFolder = async (at: Cell, name: string, template: string | undefined, picto: number | undefined) => {
+    if (!preview) return
+    const root = preview.boards[preview.rootId]
+    const { board: sub, cell } = await buildFolder(name, template, { rows: root.rows, cols: root.cols })
+    const folder: Cell = { ...cell, id: at.id, label: name, picto: picto ?? cell.picto, category: at.category, row: at.row, col: at.col }
+    setPreview((p) => {
+      if (!p) return p
+      const host = p.boards[tab]
+      return { ...p, boards: { ...p.boards, [sub.id]: sub, [tab]: { ...host, cells: host.cells.map((c) => (c.id === at.id ? folder : c)) } } }
+    })
     setEditing(null)
   }
 
@@ -219,7 +233,13 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
         </div>
       )}
       {editing && (
-        <CellEditor cell={editing} onSave={updateCell} onDelete={() => deleteCell(editing.id)} onClose={() => setEditing(null)} />
+        <CellEditor
+          cell={editing}
+          onSave={updateCell}
+          onDelete={() => deleteCell(editing.id)}
+          onClose={() => setEditing(null)}
+          onCreateFolder={(name, template, picto) => makeFolder(editing, name, template, picto)}
+        />
       )}
     </Modal>
   )

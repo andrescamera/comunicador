@@ -287,14 +287,22 @@ export function fitBoard(board: Board, rows: number, cols: number): Board {
   return { ...board, ...layoutCells(cells, { rows, cols }) }
 }
 
-/** Todos los tableros con las filas y columnas del principal. */
+/**
+ * Todos los tableros con las filas y columnas del principal. Si una carpeta no cabe (una
+ * plantilla con más palabras que casillas), crecen todos a la vez: las fichas siguen midiendo
+ * lo mismo en todas partes.
+ */
 export function normalizeLibrary<L extends Lib>(lib: L): L {
   const root = lib.boards[lib.rootId]
   if (!root) return lib
+  const all = Object.values(lib.boards)
+  const cells = all.flatMap((b) => b.cells)
+  const rows = Math.max(root.rows, ...cells.map((c) => c.row + 1))
+  const cols = Math.max(root.cols, ...cells.map((c) => c.col + 1))
   let changed = false
   const boards: Record<string, Board> = {}
   for (const [id, b] of Object.entries(lib.boards)) {
-    const fitted = id === lib.rootId ? b : fitBoard(b, root.rows, root.cols)
+    const fitted = fitBoard(b, rows, cols)
     if (fitted !== b) changed = true
     boards[id] = fitted
   }

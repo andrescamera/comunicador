@@ -13,7 +13,7 @@ interface Props {
   onDelete?: () => void
   onStartMove?: () => void
   onClose: () => void
-  /** Crear una carpeta nueva (vacía o con el vocabulario de una plantilla) */
+  /** Crear una carpeta (vacía o con el vocabulario de una plantilla), nueva o en lugar de esta celda */
   onCreateFolder?: (name: string, template: string | undefined, picto: number | undefined) => Promise<void>
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
@@ -23,7 +23,8 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [creating, setCreating] = useState(false)
-  const newFolder = isNew && draft.kind === 'folder'
+  // Carpeta nueva: una celda vacía o una palabra que se convierte en carpeta
+  const newFolder = draft.kind === 'folder' && cell.kind !== 'folder'
   const [query, setQuery] = useState(cell.label)
   const [results, setResults] = useState<PictoResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -57,14 +58,14 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
             Texto
             <input value={draft.label} onChange={(e) => setLabel(e.target.value)} autoFocus />
           </label>
-          {(draft.kind !== 'folder' || isNew) && (
+          {cell.kind !== 'folder' && (
             <div className="row">
               <label>
                 Tipo
                 <select value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as Cell['kind'] })}>
                   <option value="word">Palabra (se conjuga)</option>
                   <option value="phrase">Frase hecha</option>
-                  {isNew && <option value="folder">Carpeta (abre otro tablero)</option>}
+                  {onCreateFolder && <option value="folder">Carpeta (abre otro tablero)</option>}
                 </select>
               </label>
               {draft.kind !== 'folder' && <label>
@@ -143,7 +144,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
             } else onSave({ ...draft, label: normalizeText(draft.label) })
           }}
         >
-          {creating ? 'Creando carpeta…' : newFolder ? 'Crear carpeta' : 'Guardar'}
+          {creating ? 'Creando carpeta…' : newFolder ? (isNew ? 'Crear carpeta' : 'Convertir en carpeta') : 'Guardar'}
         </button>
       </footer>
       <p className="credit">Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA</p>

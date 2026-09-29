@@ -144,6 +144,22 @@ describe('cuadrícula común (fichas del mismo tamaño en todos los tableros)', 
     expect(n.boards.folder.cells.map((c) => [c.id, c.row, c.col])).toEqual(before)
   })
 
+  it('grows every board when a folder has more cells than the common grid', () => {
+    const l = lib()
+    const big = { ...board(['perro', 'gato'], { rows: 2, cols: 3 }), id: 'big' }
+    big.cells = big.cells.map((c, i) => ({ ...c, row: 4, col: i }))
+    const n = normalizeLibrary({ ...l, boards: { ...l.boards, big: { ...big, rows: 5 } } })
+    expect(Object.values(n.boards).map((b) => [b.rows, b.cols])).toEqual([
+      [5, 6],
+      [5, 6],
+      [5, 6],
+    ])
+    expect(n.boards.big.cells.map((c) => [c.row, c.col])).toEqual([
+      [4, 0],
+      [4, 1],
+    ])
+  })
+
   it('resizes all boards together, or none', () => {
     const n = normalizeLibrary(lib())
     const bigger = resizeLibrary(n, 4, 7)!
