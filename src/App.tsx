@@ -359,7 +359,7 @@ export default function App() {
           <div className="topbar-tools">
             {!editing && (
               <button type="button" onClick={() => setShowLibraries(true)} title="Mis tableros: cambiar, crear, compartir">
-                📚<span className="btn-text"> {cloud.active?.name ?? 'Tableros'}</span>
+                📚<span className="btn-text"> Mis tableros</span>
               </button>
             )}
             {editing && (
