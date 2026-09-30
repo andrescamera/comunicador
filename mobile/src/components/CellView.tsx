@@ -32,10 +32,24 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
         selected && styles.selected,
       ]}
     >
-      <Picto id={cell.picto} />
-      <Text style={[styles.label, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-        {cell.label}
-      </Text>
+      {cell.textOnly ? (
+        // Solo la palabra, ocupando la casilla
+        <Text
+          style={[styles.label, styles.bigText, { fontSize: Math.min(width * 0.36, height * 0.55) }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.3}
+        >
+          {cell.label}
+        </Text>
+      ) : (
+        <>
+          <Picto id={cell.picto} />
+          <Text style={[styles.label, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {cell.label}
+          </Text>
+        </>
+      )}
       {editing && cell.hidden && <Text style={styles.badge}>oculta</Text>}
     </View>
   )
@@ -64,6 +78,7 @@ const styles = StyleSheet.create({
   fired: { borderColor: colors.ok, borderWidth: 5 },
   selected: { borderColor: colors.accent, borderWidth: 5 },
   label: { fontWeight: '700', color: colors.text, marginTop: 2, textAlign: 'center' },
+  bigText: { flex: 1, marginTop: 0, fontWeight: '600', textAlignVertical: 'center', includeFontPadding: false },
   badge: {
     position: 'absolute',
     top: 4,

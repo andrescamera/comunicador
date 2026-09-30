@@ -22,6 +22,7 @@ export interface Cell {
   row: number
   col: number
   hidden?: boolean // oculta pero conservando su hueco
+  textOnly?: boolean // solo la palabra, en grande, sin pictograma (artículos, preposiciones...)
 }
 
 /**

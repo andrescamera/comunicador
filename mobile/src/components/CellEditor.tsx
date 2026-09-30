@@ -124,6 +124,12 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
               </View>
             </>
           )}
+          {draft.kind !== 'folder' && (
+            <View style={styles.switchRow}>
+              <Switch value={!!draft.textOnly} onValueChange={(v) => setDraft({ ...draft, textOnly: v || undefined })} />
+              <Text style={styles.switchText}>Solo la palabra, en grande (sin pictograma)</Text>
+            </View>
+          )}
           {!isNew && (
             <View style={styles.switchRow}>
               <Switch value={!!draft.hidden} onValueChange={(v) => setDraft({ ...draft, hidden: v })} />

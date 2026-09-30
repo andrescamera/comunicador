@@ -412,6 +412,12 @@ label.inline {
   border-top-width: 10px;
   box-shadow: 4px 4px 0 rgba(141, 110, 74, 0.35);
 }
+/* Solo texto: la palabra ocupa la casilla (se ajusta al ancho y al alto) */
+.cell-text .cell-label {
+  margin-top: 0;
+  font-size: clamp(1rem, min(34cqi, 55cqh), 6rem);
+  font-weight: 600;
+}
 .cell-phrase .cell-label {
   font-size: clamp(0.6rem, 11cqi, 1rem);
 }
@@ -943,4 +949,9 @@ label.check {
   object-fit: contain;
   background: white;
   border-radius: 8px;
+}
+
+.editor-preview-text {
+  font-size: 2.6rem;
+  margin: auto 0;
 }

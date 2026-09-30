@@ -16,10 +16,10 @@ interface Props {
 export function CellView({ cell, editing, onTap, editProps, selected }: Props) {
   const { bg, border } = cellColors(cell.category, cell.kind)
   const style: CSSProperties = { background: bg, borderColor: border, gridRow: cell.row + 1, gridColumn: cell.col + 1 }
-  const className = `cell cell-${cell.kind}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}`
+  const className = `cell cell-${cell.kind}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}`
   const body = (
     <>
-      <Picto id={cell.picto} alt={cell.label} />
+      {!cell.textOnly && <Picto id={cell.picto} alt={cell.label} />}
       <span className="cell-label">{cell.label}</span>
       {editing && cell.hidden && <span className="cell-badge">oculta</span>}
     </>

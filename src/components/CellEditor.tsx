@@ -50,8 +50,8 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
     <Modal title={isNew ? 'Nueva celda' : 'Editar celda'} onClose={onClose} wide>
       <div className="editor">
         <div className="editor-preview">
-          <Picto id={draft.picto} alt={draft.label} />
-          <span>{draft.label || '—'}</span>
+          {!draft.textOnly && <Picto id={draft.picto} alt={draft.label} />}
+          <span className={draft.textOnly ? 'editor-preview-text' : undefined}>{draft.label || '—'}</span>
         </div>
         <div className="editor-fields">
           <label>
@@ -98,6 +98,12 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
               </div>
               {template && <small className="muted">Se crea con {FOLDER_TEMPLATES[template].split(',').length} palabras que luego puedes cambiar.</small>}
             </div>
+          )}
+          {draft.kind !== 'folder' && (
+            <label className="check">
+              <input type="checkbox" checked={!!draft.textOnly} onChange={(e) => setDraft({ ...draft, textOnly: e.target.checked || undefined })} />
+              Solo la palabra, en grande (sin pictograma)
+            </label>
           )}
           {!isNew && (
             <label className="check">
