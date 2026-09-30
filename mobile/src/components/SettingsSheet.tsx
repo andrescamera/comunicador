@@ -76,10 +76,10 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
       <View style={styles.row}>
         <Btn title="Restaurar ajustes" onPress={() => onChange({ ...DEFAULT_SETTINGS })} />
         <Btn
-          title="Restaurar tableros de ejemplo"
+          title="Restaurar tablero de ejemplo"
           kind="danger"
           onPress={() =>
-            Alert.alert('Restaurar tableros', '¿Reemplazar todos los tableros por los de ejemplo?', [
+            Alert.alert('Restaurar tablero de ejemplo', '¿Reemplazar todos los tableros por el tablero de ejemplo?', [
               { text: 'Cancelar', style: 'cancel' },
               { text: 'Reemplazar', style: 'destructive', onPress: onResetBoards },
             ])

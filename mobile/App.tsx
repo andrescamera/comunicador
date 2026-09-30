@@ -18,6 +18,8 @@ import {
   classify,
   DEFAULT_SETTINGS,
   folderCell,
+  emptyLibrary,
+  starterLibrary,
   generateLibrary,
   type Library,
   moveCellTo,
@@ -29,7 +31,6 @@ import {
   relayoutBoard,
   normalizeLibrary,
   resizeLibrary,
-  SAMPLE_TEXT,
   sentenceText,
   type Settings,
   sortCells,
@@ -80,10 +81,16 @@ export default function App() {
     onReplaced: () => (setHistory([]), setSentence([])),
   })
 
-  const loadSample = useCallback(async () => {
+  // Tablero de ejemplo pequeño (primer arranque, o «Restaurar tablero de ejemplo» en Ajustes)
+  const loadStarter = useCallback(async () => {
     setLib(null)
-    const sample = await generateLibrary(parseText(SAMPLE_TEXT))
-    setLib(sample)
+    setLib(await starterLibrary())
+    setHistory([])
+    setSentence([])
+  }, [])
+  // Sin tableros (p. ej. se borraron todos desde otro dispositivo): uno vacío
+  const startEmpty = useCallback(() => {
+    setLib(emptyLibrary())
     setHistory([])
     setSentence([])
   }, [])
@@ -96,9 +103,9 @@ export default function App() {
       setLoaded(true)
       void warmUpSpeech(savedSettings)
       if (savedLib) setLib(savedLib)
-      else await loadSample()
+      else await loadStarter()
     })()
-  }, [loadSample])
+  }, [loadStarter])
 
   useEffect(() => {
     if (loaded) saveSettings(settings)
@@ -174,7 +181,7 @@ export default function App() {
       <View style={[styles.app, styles.center]}>
         <StatusBar hidden />
         <Text style={styles.muted}>No hay tableros.</Text>
-        <Btn title="Cargar el tablero de ejemplo" kind="primary" onPress={() => void loadSample()} />
+        <Btn title="Empezar con un tablero vacío" kind="primary" onPress={startEmpty} />
       </View>
     )
   }
@@ -401,6 +408,9 @@ export default function App() {
             </View>
           )}
           {!!notice && <Text style={styles.notice}>{notice}</Text>}
+          {!editing && board.cells.length === 0 && history.length === 0 && (
+            <Text style={styles.notice}>Tablero vacío. Añade fichas desde el ordenador (se sincronizan solas) o pulsa Editar.</Text>
+          )}
 
           <View style={styles.boardArea}>
             <BoardView
@@ -459,7 +469,7 @@ export default function App() {
           onChange={setSettings}
           onResetBoards={() => {
             setShowSettings(false)
-            void loadSample()
+            void loadStarter()
           }}
           onClose={() => setShowSettings(false)}
           cloud={cloud}

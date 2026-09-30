@@ -5,7 +5,7 @@ import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
-import { buildFolder, folderCell, generateLibrary, parseText, SAMPLE_TEXT, sortCells } from './lib/generator'
+import { buildFolder, emptyLibrary, folderCell, sortCells, starterLibrary } from './lib/generator'
 import { moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
@@ -21,7 +21,7 @@ import { uid } from './lib/types'
 type EditTarget = { cell: Cell; isNew: boolean } | null
 
 // Evita generar el ejemplo dos veces en paralelo (StrictMode monta los efectos dos veces)
-let sampleRequest: Promise<Library> | null = null
+let starterRequest: Promise<Library> | null = null
 
 export default function App() {
   const [lib, setLib] = useState<Library | null>(() => loadLibrary())
@@ -74,17 +74,23 @@ export default function App() {
     if (n !== lib) setLib(n)
   }, [lib])
 
-  const loadSample = useCallback(async () => {
+  // Tablero de ejemplo pequeño (primer arranque, o «Restaurar tablero de ejemplo» en Ajustes)
+  const loadStarter = useCallback(async () => {
     setLib(null)
-    sampleRequest ??= generateLibrary(parseText(SAMPLE_TEXT)).finally(() => (sampleRequest = null))
-    const sample = await sampleRequest
-    setLib(sample)
+    starterRequest ??= starterLibrary().finally(() => (starterRequest = null))
+    setLib(await starterRequest)
+    setHistory([])
+    setSentence([])
+  }, [])
+  // Sin tableros (p. ej. se borraron todos desde otro dispositivo): uno vacío
+  const startEmpty = useCallback(() => {
+    setLib(emptyLibrary())
     setHistory([])
     setSentence([])
   }, [])
 
   useEffect(() => {
-    if (!lib) void loadSample() // primer arranque
+    if (!lib) void loadStarter() // primer arranque
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Celdas que se quedaron sin pictograma (sin conexión, error de red...): se reintenta una vez por sesión
@@ -132,7 +138,7 @@ export default function App() {
     return (
       <div className="loading">
         <div className="spinner" />
-        <p>Preparando tableros de ejemplo…</p>
+        <p>Preparando el tablero de ejemplo…</p>
       </div>
     )
   }
@@ -144,8 +150,8 @@ export default function App() {
     return (
       <div className="loading">
         <p>No hay tableros.</p>
-        <button type="button" className="primary" onClick={() => void loadSample()}>
-          Cargar el tablero de ejemplo
+        <button type="button" className="primary" onClick={startEmpty}>
+          Empezar con un tablero vacío
         </button>
       </div>
     )
@@ -396,6 +402,9 @@ export default function App() {
           </div>
         )}
         {notice && <div className="notice">{notice}</div>}
+        {!editing && board.cells.length === 0 && history.length === 0 && (
+          <div className="notice">Tablero vacío. Pulsa «✎ Editar» para añadir fichas, o para crear un tablero entero a partir de un texto o de una foto (✨ Crear tablero).</div>
+        )}
 
         <main className="board-area">
           <BoardGrid
@@ -464,7 +473,7 @@ export default function App() {
           onChange={setSettings}
           onResetBoards={() => {
             setShowSettings(false)
-            void loadSample()
+            void loadStarter()
           }}
           onClose={() => setShowSettings(false)}
           cloud={cloud}

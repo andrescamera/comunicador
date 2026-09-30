@@ -251,6 +251,27 @@ agua, comida, baño, casa, colegio, parque, música, tele
 hola, adiós, sí, gracias, por favor, vale`
 
 
+/** Tamaño del tablero vacío (al vaciar los tableros; se cambia con Filas / Columnas). */
+export const EMPTY_BOARD_SIZE = { rows: 5, cols: 8 }
+
+/**
+ * Ejemplo con el que empieza un usuario nuevo: muy pequeño, solo para ver la idea (tocar
+ * fichas forma una frase que se conjuga sola, y las carpetas guardan más palabras).
+ */
+export const STARTER_TEXT = `Inicio: yo, tú, querer, ir, comer, beber, jugar, más, no, sí, ayuda, hola, gracias
+carpeta Comida: agua, leche, zumo, pan, galletas, fruta, yogur, bocadillo
+carpeta Jugar: pelota, parque, columpio, música, pintar, tablet`
+
+export function starterLibrary(): Promise<Library> {
+  return generateLibrary(parseText(STARTER_TEXT))
+}
+
+/** Biblioteca de un usuario nuevo: un único tablero vacío, listo para añadir fichas o crear uno. */
+export function emptyLibrary(): Library {
+  const board: Board = { id: uid('b'), name: 'Inicio', ...layoutCells([], EMPTY_BOARD_SIZE) }
+  return { rootId: board.id, boards: { [board.id]: board } }
+}
+
 /** Categorías para carpetas nuevas: de cada una se eligen las palabras que interesan. */
 export const FOLDER_TEMPLATES = FOLDER_CATALOG
 
