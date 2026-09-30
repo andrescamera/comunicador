@@ -120,10 +120,10 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
             type="button"
             className="danger"
             onClick={() => {
-              if (confirm('¿Reemplazar todos los tableros por el tablero de ejemplo?')) onResetBoards()
+              onResetBoards()
             }}
           >
-            Restaurar tablero de ejemplo
+            Nuevo tablero de ejemplo
           </button>
         </div>
       </section>

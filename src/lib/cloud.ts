@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_KEY, SUPABASE_URL } from './cloudConfig'
-import { emptyMeta, type SyncMeta } from './sync'
+import type { KeyValueStore } from './useCloudSync'
 
 // Web: la sesión se guarda en el navegador (localStorage). Al volver del enlace de confirmación
 // del email, la sesión viene en la dirección y se inicia sola.
@@ -8,18 +8,27 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 })
 
-const META_KEY = 'comunicador:sync:v1'
-export const loadSyncMeta = async (): Promise<SyncMeta> => {
-  try {
-    return { ...emptyMeta(), ...JSON.parse(localStorage.getItem(META_KEY) ?? '{}') }
-  } catch {
-    return emptyMeta()
-  }
-}
-export const saveSyncMeta = (m: SyncMeta) => {
-  try {
-    localStorage.setItem(META_KEY, JSON.stringify(m))
-  } catch {
-    // sin almacenamiento: se resincroniza al volver a abrir
-  }
+/** Tableros y estado de sincronización guardados en el navegador */
+export const webStore: KeyValueStore = {
+  get: async (key) => {
+    try {
+      return localStorage.getItem(key)
+    } catch {
+      return null
+    }
+  },
+  set: (key, value) => {
+    try {
+      localStorage.setItem(key, value)
+    } catch {
+      // almacenamiento lleno o bloqueado: seguimos en memoria
+    }
+  },
+  remove: (key) => {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // nada que borrar
+    }
+  },
 }

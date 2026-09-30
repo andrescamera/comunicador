@@ -77,6 +77,21 @@ describe('planSync', () => {
   })
 })
 
+describe('planSync en «solo usar»', () => {
+  it('nunca sube nada: un cambio local se sustituye por lo del servidor', () => {
+    const server = board('a', 'Servidor')
+    const edited = board('a', 'Cambiado aquí')
+    const actions = planSync(lib(edited, board('solo-aqui')), [remote(server, 'a', T1)], synced([server, T1]), Date.now(), true)
+    expect(kinds(actions)).toEqual(['pull:a', 'pullDelete:solo-aqui'])
+  })
+  it('descarga lo que no tiene y deja igual lo que ya coincide', () => {
+    const a = board('a')
+    const b = board('b')
+    const actions = planSync(lib(a), [remote(a, 'a', T1), remote(b, 'b', T2)], emptyMeta(), Date.now(), true)
+    expect(kinds(actions)).toEqual(['pull:b', 'settle:a'])
+  })
+})
+
 describe('markDirty', () => {
   it('records when a local change started, only once', () => {
     const a = board('a')

@@ -23,7 +23,6 @@ export interface SyncMeta {
   rootSynced?: string
   boards: Record<string, SyncedBoard>
   dirtySince: Record<string, number> // primer cambio local todavía sin subir
-  firstLinkDone?: boolean // ya se decidió qué hacer con los tableros de este dispositivo
 }
 
 export const emptyMeta = (): SyncMeta => ({ boards: {}, dirtySince: {} })
@@ -51,8 +50,11 @@ export function hashBoard(b: Board): string {
   return (h >>> 0).toString(36) + ':' + s.length
 }
 
-/** Decide qué hacer con cada tablero. Función pura (sin red): es la parte con tests. */
-export function planSync(local: Library, remote: RemoteBoard[], meta: SyncMeta, now = Date.now()): SyncAction[] {
+/**
+ * Decide qué hacer con cada tablero. Función pura (sin red): es la parte con tests.
+ * `readOnly` (tablero compartido para «solo usar»): nunca se sube nada; manda el servidor.
+ */
+export function planSync(local: Library, remote: RemoteBoard[], meta: SyncMeta, now = Date.now(), readOnly = false): SyncAction[] {
   const remoteById = new Map(remote.map((r) => [r.id, r]))
   const ids = new Set([...Object.keys(local.boards), ...remoteById.keys(), ...Object.keys(meta.boards)])
   const actions: SyncAction[] = []
@@ -61,6 +63,13 @@ export function planSync(local: Library, remote: RemoteBoard[], meta: SyncMeta, 
     const L = local.boards[id]
     const R = remoteById.get(id)
     const S = meta.boards[id]
+    if (readOnly) {
+      const alive = !!R && !R.deleted && !!R.data
+      if (alive && (!L || hashBoard(L) !== hashBoard(R!.data!))) actions.push({ type: 'pull', id, board: R!.data!, remoteAt: R!.updated_at })
+      else if (alive) actions.push({ type: 'settle', id, hash: hashBoard(L), remoteAt: R!.updated_at })
+      else if (L || S) actions.push({ type: 'pullDelete', id, remoteAt: R?.updated_at ?? new Date(now).toISOString() })
+      continue
+    }
     const localChanged = L ? !S || hashBoard(L) !== S.hash : !!S
     const remoteChanged = R ? !S || R.updated_at !== S.remoteAt : false
     const remoteAlive = !!R && !R.deleted && !!R.data
@@ -137,10 +146,14 @@ export interface RemoteChanges {
 
 export interface SyncIO {
   getLibrary(): Library | null
+  /** Id (uuid) del tablero abierto: el mismo en el servidor */
+  libraryId: string
+  /** Nombre con el que se crea en el servidor si aún no existe */
+  getLibraryName(): string
+  /** Compartido para «solo usar»: no se sube nada */
+  readOnly: boolean
   /** Aplicar cambios del servidor sobre el estado actual (sin pisar ediciones hechas mientras tanto). */
   applyRemote(changes: RemoteChanges): void
-  /** Sustituir la biblioteca entera (primera vez: usar la de la cuenta). */
-  replaceLibrary(lib: Library): void
   loadMeta(): Promise<SyncMeta>
   saveMeta(meta: SyncMeta): void
   onStatus(status: SyncStatus): void
@@ -189,37 +202,6 @@ export class SyncEngine {
     this.timer = setTimeout(() => void this.sync(), ms)
   }
 
-  /** Primera vez en este dispositivo con tableros en la cuenta: se usan los de la cuenta. */
-  async resolveFirstLink(choice: 'use-remote' | 'use-local'): Promise<void> {
-    const libId = this.meta.libraryId
-    const lib = this.io.getLibrary()
-    if (!libId || !lib) return
-    this.io.onStatus({ state: 'syncing' })
-    const remote = await this.fetchBoards(libId)
-    if (choice === 'use-remote') {
-      // Los tableros del dispositivo se guardan como copia en la cuenta antes de sustituirlos
-      await this.backup(libId, Object.values(lib.boards))
-      const { data: libRow } = await this.sb.from('libraries').select('root_board_id').eq('id', libId).single()
-      const boards = Object.fromEntries(remote.filter((r) => !r.deleted && r.data).map((r) => [r.id, r.data!]))
-      this.meta.boards = Object.fromEntries(remote.filter((r) => !r.deleted && r.data).map((r) => [r.id, { hash: hashBoard(r.data!), remoteAt: r.updated_at }]))
-      this.meta.dirtySince = {}
-      this.meta.rootSynced = libRow?.root_board_id ?? lib.rootId
-      this.io.replaceLibrary({ rootId: this.meta.rootSynced!, boards })
-    } else {
-      // Los de la cuenta se guardan como copia y se marcan como borrados; se suben los del dispositivo
-      await this.backup(libId, remote.filter((r) => !r.deleted && r.data).map((r) => r.data!))
-      const now = new Date().toISOString()
-      const tomb = remote.filter((r) => !lib.boards[r.id]).map((r) => ({ library_id: libId, id: r.id, data: null, deleted: true, updated_at: now }))
-      if (tomb.length) await this.check(this.sb.from('boards').upsert(tomb))
-      this.meta.boards = {}
-      this.meta.dirtySince = {}
-      this.meta.rootSynced = undefined
-    }
-    this.meta.firstLinkDone = true
-    this.io.saveMeta(this.meta)
-    this.schedule(500) // tras sustituir los tableros, dar tiempo a que la app los aplique
-  }
-
   async sync(): Promise<void> {
     if (this.stopped) return
     if (this.running) {
@@ -237,20 +219,8 @@ export class SyncEngine {
       const libId = await this.ensureLibrary(lib)
       const remote = await this.fetchBoards(libId)
 
-      // Primera vez en este dispositivo: la cuenta manda. Si ya tiene tableros, se usan esos (los que
-      // hubiera en el dispositivo se guardan como copia); si está vacía, se suben los del dispositivo.
-      const remoteAlive = remote.filter((r) => !r.deleted && r.data)
-      if (!this.meta.firstLinkDone && Object.keys(this.meta.boards).length === 0 && remoteAlive.length > 0) {
-        const localIds = Object.keys(lib.boards)
-        if (localIds.some((id) => !remoteAlive.find((r) => r.id === id))) {
-          this.running = false
-          return this.resolveFirstLink('use-remote')
-        }
-      }
-      this.meta.firstLinkDone = true
-
       markDirty(lib, this.meta)
-      const actions = planSync(lib, remote, this.meta)
+      const actions = planSync(lib, remote, this.meta, Date.now(), this.io.readOnly)
       await this.apply(libId, actions)
       await this.syncRoot(libId, lib)
       this.io.saveMeta(this.meta)
@@ -276,16 +246,22 @@ export class SyncEngine {
     return data
   }
 
+  /**
+   * La primera vez que se sincroniza este tablero en este dispositivo: si ya está en el servidor
+   * se toma su tablero principal; si no (se acaba de crear aquí), se crea con el mismo id.
+   * Uno que ya se sincronizó nunca se vuelve a crear (si desapareció, se borró o se dejó de compartir).
+   */
   private async ensureLibrary(lib: Library): Promise<string> {
-    if (this.meta.libraryId) return this.meta.libraryId
-    const rows = await this.check(this.sb.from('libraries').select('id, root_board_id').limit(1))
-    let id = (rows as { id: string }[])[0]?.id
-    if (!id) {
-      const created = await this.check(this.sb.from('libraries').insert({ root_board_id: lib.rootId }).select('id').single())
-      id = (created as { id: string }).id
-      this.meta.rootSynced = lib.rootId
+    const id = this.io.libraryId
+    if (this.meta.libraryId === id) return id
+    const rows = (await this.check(this.sb.from('libraries').select('id, root_board_id').eq('id', id))) as { root_board_id: string }[]
+    if (rows[0]) {
+      this.meta.rootSynced = rows[0].root_board_id
+    } else if (this.io.readOnly) {
+      throw new Error('Este tablero ya no está compartido contigo')
     } else {
-      this.meta.rootSynced = (rows as { root_board_id: string }[])[0].root_board_id
+      await this.check(this.sb.from('libraries').insert({ id, name: this.io.getLibraryName(), root_board_id: lib.rootId }))
+      this.meta.rootSynced = lib.rootId
     }
     this.meta.libraryId = id
     this.io.saveMeta(this.meta)
@@ -294,12 +270,6 @@ export class SyncEngine {
 
   private async fetchBoards(libId: string): Promise<RemoteBoard[]> {
     return (await this.check(this.sb.from('boards').select('id, data, updated_at, deleted').eq('library_id', libId))) as RemoteBoard[]
-  }
-
-  private async backup(libId: string, boards: Board[]): Promise<void> {
-    if (!boards.length) return
-    const now = new Date().toISOString()
-    await this.check(this.sb.from('board_backups').insert(boards.map((b) => ({ library_id: libId, board_id: b.id, data: b, updated_at: now }))))
   }
 
   private async apply(libId: string, actions: SyncAction[]): Promise<void> {
@@ -342,7 +312,11 @@ export class SyncEngine {
   private async syncRoot(libId: string, lib: Library): Promise<void> {
     const rows = (await this.check(this.sb.from('libraries').select('root_board_id').eq('id', libId))) as { root_board_id: string }[]
     const remoteRoot = rows[0]?.root_board_id
-    if (lib.rootId !== this.meta.rootSynced) {
+    if (this.io.readOnly) {
+      // Solo usar: el principal es siempre el del servidor
+      if (remoteRoot && remoteRoot !== lib.rootId) this.io.applyRemote({ upserts: [], deletes: [], rootId: remoteRoot })
+      this.meta.rootSynced = remoteRoot
+    } else if (lib.rootId !== this.meta.rootSynced) {
       await this.check(this.sb.from('libraries').update({ root_board_id: lib.rootId, updated_at: new Date().toISOString() }).eq('id', libId))
       this.meta.rootSynced = lib.rootId
     } else if (remoteRoot && remoteRoot !== this.meta.rootSynced) {

@@ -18,7 +18,6 @@ import {
   classify,
   DEFAULT_SETTINGS,
   folderCell,
-  emptyLibrary,
   starterLibrary,
   generateLibrary,
   type Library,
@@ -34,14 +33,15 @@ import {
   sentenceText,
   type Settings,
   sortCells,
-  useCloudSync,
+  STARTER_NAME,
+  useLibraries,
   uid,
   zoneOf,
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
-import { loadSyncMeta, saveSyncMeta, supabase } from './src/cloud'
+import { appStore, supabase } from './src/cloud'
 import { Btn } from './src/components/Sheet'
-import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './src/storage'
+import { loadSettings, saveSettings } from './src/storage'
 import { tapGuard } from './src/tap'
 import { colors, radius } from './src/theme'
 
@@ -52,7 +52,6 @@ export default function App() {
   const { width, height } = useWindowDimensions()
   const compact = Math.min(width, height) < 600
 
-  const [lib, setLib] = useState<Library | null>(null)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [loaded, setLoaded] = useState(false)
   const [history, setHistory] = useState<string[]>([])
@@ -71,51 +70,32 @@ export default function App() {
   settingsRef.current = settings
   tapGuard.settings = settings
 
-  // Sincronización en la nube (si hay sesión iniciada)
-  const cloud = useCloudSync({
+  // Tableros (varios por usuario) y sincronización en la nube
+  const cloud = useLibraries({
     supabase,
-    lib,
-    setLib,
-    loadMeta: loadSyncMeta,
-    saveMeta: saveSyncMeta,
-    onReplaced: () => (setHistory([]), setSentence([])),
+    store: appStore,
+    makeStarter: starterLibrary,
+    onOpened: () => (setHistory([]), setSentence([]), setEditing(false)),
   })
+  const { lib, setLib, readOnly } = cloud
+  const newStarter = async () => cloud.create(await starterLibrary(), STARTER_NAME)
 
-  // Tablero de ejemplo pequeño (primer arranque, o «Restaurar tablero de ejemplo» en Ajustes)
-  const loadStarter = useCallback(async () => {
-    setLib(null)
-    setLib(await starterLibrary())
-    setHistory([])
-    setSentence([])
-  }, [])
-  // Sin tableros (p. ej. se borraron todos desde otro dispositivo): uno vacío
-  const startEmpty = useCallback(() => {
-    setLib(emptyLibrary())
-    setHistory([])
-    setSentence([])
-  }, [])
-
-  // Arranque: ajustes + tableros guardados (o el ejemplo) + motor de voz listo
+  // Arranque: ajustes + motor de voz listo (los tableros los carga useLibraries)
   useEffect(() => {
     void (async () => {
-      const [savedLib, savedSettings] = await Promise.all([loadLibrary(), loadSettings()])
+      const savedSettings = await loadSettings()
       setSettings(savedSettings)
       setLoaded(true)
       void warmUpSpeech(savedSettings)
-      if (savedLib) setLib(savedLib)
-      else await loadStarter()
     })()
-  }, [loadStarter])
+  }, [])
 
   useEffect(() => {
     if (loaded) saveSettings(settings)
   }, [settings, loaded])
-  useEffect(() => {
-    if (lib) saveLibrary(lib)
-  }, [lib])
   // Todos los tableros con la cuadrícula del principal (también los que llegan de otro dispositivo)
   useEffect(() => {
-    if (!lib) return
+    if (!lib || readOnly || cloud.downloading) return
     const n = normalizeLibrary(lib)
     if (n !== lib) setLib(n)
   }, [lib])
@@ -138,10 +118,10 @@ export default function App() {
   }, [lib])
 
   // Reintento de pictogramas que faltaron (sin conexión, error de red...), una vez por sesión
-  const repaired = useRef(false)
+  const repaired = useRef<string | null>(null)
   useEffect(() => {
-    if (!lib || repaired.current) return
-    repaired.current = true
+    if (!lib || readOnly || cloud.downloading || repaired.current === cloud.activeId) return
+    repaired.current = cloud.activeId
     const missing = Object.values(lib.boards).flatMap((b) => b.cells.filter((c) => !c.picto))
     if (!missing.length) return
     void (async () => {
@@ -163,12 +143,12 @@ export default function App() {
     })()
   }, [lib])
 
-  if (!lib) {
+  if (!lib || cloud.downloading) {
     return (
       <View style={[styles.app, styles.center]}>
         <StatusBar hidden />
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={styles.muted}>Preparando tableros…</Text>
+        <Text style={styles.muted}>{cloud.downloading ? `Descargando «${cloud.active?.name ?? 'tablero'}»…` : 'Preparando tableros…'}</Text>
       </View>
     )
   }
@@ -180,8 +160,8 @@ export default function App() {
     return (
       <View style={[styles.app, styles.center]}>
         <StatusBar hidden />
-        <Text style={styles.muted}>No hay tableros.</Text>
-        <Btn title="Empezar con un tablero vacío" kind="primary" onPress={startEmpty} />
+        <Text style={styles.muted}>Este tablero está vacío.</Text>
+        <Btn title="Crear un tablero de ejemplo" kind="primary" onPress={() => void newStarter()} />
       </View>
     )
   }
@@ -375,7 +355,7 @@ export default function App() {
                   clearingKey={clearing}
                 />
                 <View style={[styles.tools, { width: cellW, gap }]}>
-                  <ToolBtn text="✎" onPress={() => (setEditing(true), cancelAutoClear())} small />
+                  {!readOnly && <ToolBtn text="✎" onPress={() => (setEditing(true), cancelAutoClear())} small />}
                   <ToolBtn text="⚙︎" onPress={() => setShowSettings(true)} small />
                 </View>
               </View>
@@ -469,7 +449,7 @@ export default function App() {
           onChange={setSettings}
           onResetBoards={() => {
             setShowSettings(false)
-            void loadStarter()
+            void newStarter()
           }}
           onClose={() => setShowSettings(false)}
           cloud={cloud}

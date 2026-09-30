@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
 import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
-import { buildFolder, emptyLibrary, folderCell, sortCells, starterLibrary } from './lib/generator'
+import { LibrariesPanel } from './components/LibrariesPanel'
+import { buildFolder, folderCell, sortCells, starterLibrary } from './lib/generator'
 import { moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
-import { loadSyncMeta, saveSyncMeta, supabase } from './lib/cloud'
-import { useCloudSync } from './lib/useCloudSync'
+import { supabase, webStore } from './lib/cloud'
+import { STARTER_NAME, useLibraries } from './lib/useCloudSync'
 import { speak } from './lib/speech'
-import { clearLibrary, loadLibrary, loadSettings, saveLibrary, saveSettings } from './lib/storage'
+import { loadSettings, saveSettings } from './lib/storage'
 import { LoginScreen } from './components/LoginScreen'
 import { tapManager, tapRef } from './lib/tap'
 import type { Board, Cell, Library, Settings } from './lib/types'
@@ -20,11 +21,7 @@ import { uid } from './lib/types'
 
 type EditTarget = { cell: Cell; isNew: boolean } | null
 
-// Evita generar el ejemplo dos veces en paralelo (StrictMode monta los efectos dos veces)
-let starterRequest: Promise<Library> | null = null
-
 export default function App() {
-  const [lib, setLib] = useState<Library | null>(() => loadLibrary())
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
   const [history, setHistory] = useState<string[]>([])
   const [sentence, setSentence] = useState<Cell[]>([])
@@ -32,6 +29,7 @@ export default function App() {
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showLibraries, setShowLibraries] = useState(false)
   const [movingId, setMovingId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
@@ -46,58 +44,37 @@ export default function App() {
 
   tapManager.settings = settings
 
-  // Sincronización en la nube (si hay sesión iniciada)
-  const cloud = useCloudSync({
+  // Tableros (varios por usuario) y sincronización en la nube
+  const cloud = useLibraries({
     supabase,
-    lib,
-    setLib,
-    loadMeta: loadSyncMeta,
-    saveMeta: saveSyncMeta,
-    onReplaced: () => (setHistory([]), setSentence([])),
+    store: webStore,
+    makeStarter: starterLibrary,
+    onOpened: () => (setHistory([]), setSentence([]), setEditing(false)),
     // Privacidad en ordenadores compartidos: al salir no quedan tableros en el navegador
     onSignedOut: () => {
-      clearLibrary()
+      cloud.wipeLocal()
       window.location.reload()
     },
   })
+  const { lib, setLib, readOnly } = cloud
   const settingsRef = useRef(settings)
   settingsRef.current = settings
 
   useEffect(() => saveSettings(settings), [settings])
-  useEffect(() => {
-    if (lib) saveLibrary(lib)
-  }, [lib])
   // Todos los tableros con la cuadrícula del principal (también los que llegan de otro dispositivo)
   useEffect(() => {
-    if (!lib) return
+    if (!lib || readOnly || cloud.downloading) return
     const n = normalizeLibrary(lib)
     if (n !== lib) setLib(n)
   }, [lib])
 
-  // Tablero de ejemplo pequeño (primer arranque, o «Restaurar tablero de ejemplo» en Ajustes)
-  const loadStarter = useCallback(async () => {
-    setLib(null)
-    starterRequest ??= starterLibrary().finally(() => (starterRequest = null))
-    setLib(await starterRequest)
-    setHistory([])
-    setSentence([])
-  }, [])
-  // Sin tableros (p. ej. se borraron todos desde otro dispositivo): uno vacío
-  const startEmpty = useCallback(() => {
-    setLib(emptyLibrary())
-    setHistory([])
-    setSentence([])
-  }, [])
-
-  useEffect(() => {
-    if (!lib) void loadStarter() // primer arranque
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const newStarter = async () => cloud.create(await starterLibrary(), STARTER_NAME)
 
   // Celdas que se quedaron sin pictograma (sin conexión, error de red...): se reintenta una vez por sesión
-  const repaired = useRef(false)
+  const repaired = useRef<string | null>(null)
   useEffect(() => {
-    if (!lib || repaired.current) return
-    repaired.current = true
+    if (!lib || readOnly || cloud.downloading || repaired.current === cloud.activeId) return
+    repaired.current = cloud.activeId
     const missing = Object.values(lib.boards).flatMap((b) => b.cells.filter((c) => !c.picto).map((c) => ({ board: b.id, cell: c })))
     if (!missing.length) return
     void (async () => {
@@ -134,11 +111,11 @@ export default function App() {
   const devBypass = import.meta.env.DEV && new URLSearchParams(window.location.search).has('local')
   if (!cloud.email && !devBypass) return <LoginScreen cloud={cloud} />
 
-  if (!lib) {
+  if (!lib || cloud.downloading) {
     return (
       <div className="loading">
         <div className="spinner" />
-        <p>Preparando el tablero de ejemplo…</p>
+        <p>{cloud.downloading ? `Descargando «${cloud.active?.name ?? 'tablero'}»…` : 'Preparando el tablero…'}</p>
       </div>
     )
   }
@@ -149,9 +126,12 @@ export default function App() {
   if (!board) {
     return (
       <div className="loading">
-        <p>No hay tableros.</p>
-        <button type="button" className="primary" onClick={startEmpty}>
-          Empezar con un tablero vacío
+        <p>Este tablero está vacío.</p>
+        <button type="button" className="primary" onClick={() => void newStarter()}>
+          Crear un tablero de ejemplo
+        </button>
+        <button type="button" onClick={() => setShowLibraries(true)}>
+          Ver mis tableros
         </button>
       </div>
     )
@@ -349,12 +329,17 @@ export default function App() {
             </div>
           )}
           <div className="topbar-tools">
+            {!editing && (
+              <button type="button" onClick={() => setShowLibraries(true)} title="Mis tableros: cambiar, crear, compartir">
+                📚<span className="btn-text"> {cloud.active?.name ?? 'Tableros'}</span>
+              </button>
+            )}
             {editing && (
               <button type="button" onClick={() => setShowCreator(true)}>
                 ✨<span className="btn-text"> Crear tablero</span>
               </button>
             )}
-            <button
+            {!readOnly && <button
               type="button"
               className={editing ? 'primary' : ''}
               onClick={() => {
@@ -365,7 +350,7 @@ export default function App() {
             >
               {editing ? '✓' : '✎'}
               <span className="btn-text">{editing ? ' Terminar' : ' Editar'}</span>
-            </button>
+            </button>}
             {!editing && (
               <button type="button" onClick={() => setShowSettings(true)} aria-label="Ajustes">⚙︎</button>
             )}
@@ -462,9 +447,26 @@ export default function App() {
         <Creator
           currentBoardName={board.name}
           onReplace={replaceLibrary}
+          onCreateNew={(next) => {
+            const name = prompt('Nombre del tablero nuevo', next.boards[next.rootId]?.name && next.boards[next.rootId].name !== 'Inicio' ? next.boards[next.rootId].name : 'Nuevo tablero')
+            if (name === null) return
+            void cloud.create(next, name)
+            setShowCreator(false)
+          }}
           onAddToCurrent={addToCurrent}
           onAddAsFolder={addAsFolder}
           onClose={() => setShowCreator(false)}
+        />
+      )}
+      {showLibraries && (
+        <LibrariesPanel
+          cloud={cloud}
+          onClose={() => setShowLibraries(false)}
+          onCreateFromText={() => {
+            setShowLibraries(false)
+            setEditing(true)
+            setShowCreator(true)
+          }}
         />
       )}
       {showSettings && (
@@ -473,7 +475,7 @@ export default function App() {
           onChange={setSettings}
           onResetBoards={() => {
             setShowSettings(false)
-            void loadStarter()
+            void newStarter()
           }}
           onClose={() => setShowSettings(false)}
           cloud={cloud}

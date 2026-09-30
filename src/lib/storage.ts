@@ -1,8 +1,6 @@
-import { layoutCells } from './layout'
-import type { Board, Library, Settings } from './types'
+import type { Settings } from './types'
 import { DEFAULT_SETTINGS } from './types'
 
-const LIB_KEY = 'comunicador:library:v3'
 const SETTINGS_KEY = 'comunicador:settings:v1'
 
 function read<T>(key: string): T | null {
@@ -22,29 +20,5 @@ function write(key: string, value: unknown): void {
   }
 }
 
-/** Tableros de versiones anteriores (sin posiciones fijas): se colocan una vez y ya no se mueven. */
-function migrate(lib: Library): Library {
-  const boards: Record<string, Board> = {}
-  for (const [id, b] of Object.entries(lib.boards)) {
-    const cells = b.cells.map((c) => ({ ...c, label: c.label.normalize('NFC') }))
-    const ok = b.rows && b.zones && cells.every((c) => Number.isInteger(c.row) && Number.isInteger(c.col))
-    boards[id] = ok ? { ...b, cells } : { id: b.id, name: b.name, ...layoutCells(cells) }
-  }
-  return { ...lib, boards }
-}
-
-export const loadLibrary = () => {
-  const lib = read<Library>(LIB_KEY)
-  return lib ? migrate(lib) : null
-}
-export const saveLibrary = (lib: Library) => write(LIB_KEY, lib)
-/** Borra los tableros guardados en este navegador (al cerrar sesión en un ordenador compartido) */
-export const clearLibrary = () => {
-  try {
-    localStorage.removeItem(LIB_KEY)
-  } catch {
-    // nada que borrar
-  }
-}
 export const loadSettings = (): Settings => ({ ...DEFAULT_SETTINGS, ...(read<Partial<Settings>>(SETTINGS_KEY) ?? {}) })
 export const saveSettings = (s: Settings) => write(SETTINGS_KEY, s)

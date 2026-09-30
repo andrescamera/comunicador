@@ -2,7 +2,7 @@ import 'react-native-url-polyfill/auto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
 import { AppState } from 'react-native'
-import { emptyMeta, SUPABASE_KEY, SUPABASE_URL, type SyncMeta } from './shared'
+import { type KeyValueStore, SUPABASE_KEY, SUPABASE_URL } from './shared'
 
 // Tablet: la sesión se guarda en el almacenamiento de la app
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -15,12 +15,9 @@ AppState.addEventListener('change', (state) => {
   else void supabase.auth.stopAutoRefresh()
 })
 
-const META_KEY = 'comunicador:sync:v1'
-export const loadSyncMeta = async (): Promise<SyncMeta> => {
-  try {
-    return { ...emptyMeta(), ...JSON.parse((await AsyncStorage.getItem(META_KEY)) ?? '{}') }
-  } catch {
-    return emptyMeta()
-  }
+/** Tableros y estado de sincronización guardados en la tablet */
+export const appStore: KeyValueStore = {
+  get: (key) => AsyncStorage.getItem(key).catch(() => null),
+  set: (key, value) => void AsyncStorage.setItem(key, value).catch(() => {}),
+  remove: (key) => void AsyncStorage.removeItem(key).catch(() => {}),
 }
-export const saveSyncMeta = (m: SyncMeta) => void AsyncStorage.setItem(META_KEY, JSON.stringify(m)).catch(() => {})

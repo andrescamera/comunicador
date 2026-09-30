@@ -17,13 +17,15 @@ const EXAMPLES: { name: string; text: string }[] = [
 
 interface Props {
   onReplace: (lib: Library) => void
+  /** Guardarlo como un tablero nuevo (aparte del abierto) */
+  onCreateNew?: (lib: Library) => void
   onAddToCurrent: (lib: Library) => void
   onAddAsFolder: (lib: Library) => void
   currentBoardName: string
   onClose: () => void
 }
 
-export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoardName, onClose }: Props) {
+export function Creator({ onReplace, onCreateNew, onAddToCurrent, onAddAsFolder, currentBoardName, onClose }: Props) {
   const [text, setText] = useState('')
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [preview, setPreview] = useState<Library | null>(null)
@@ -228,7 +230,8 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
             <span className="spacer" />
             <button type="button" onClick={() => onAddAsFolder(preview)}>Como carpeta en «{currentBoardName}»</button>
             <button type="button" onClick={() => onAddToCurrent(preview)}>Añadir a «{currentBoardName}»</button>
-            <button type="button" className="primary" onClick={() => onReplace(preview)}>Usar como tablero principal</button>
+            {onCreateNew && <button type="button" onClick={() => onCreateNew(preview)}>Como tablero nuevo</button>}
+            <button type="button" className="primary" onClick={() => onReplace(preview)}>Sustituir el tablero abierto</button>
           </footer>
         </div>
       )}

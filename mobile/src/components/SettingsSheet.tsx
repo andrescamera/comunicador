@@ -25,6 +25,20 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
 
   return (
     <Sheet title="Ajustes" onClose={onClose}>
+      <Text style={styles.h}>Tableros</Text>
+      <Text style={styles.help}>Toca uno para abrirlo. Se crean, renombran y comparten desde el ordenador.</Text>
+      <Choice
+        options={Object.values(cloud.registry?.items ?? {}).map((i) => [
+          i.id,
+          i.role === 'owner' ? i.name : `${i.name} (de ${i.ownerEmail ?? 'otra persona'}${i.role === 'viewer' ? ', solo usar' : ''})`,
+        ])}
+        value={cloud.activeId ?? ''}
+        onChange={(id) => {
+          void cloud.open(id)
+          onClose()
+        }}
+      />
+
       <Text style={styles.h}>Cuenta y sincronización</Text>
       <AccountSection cloud={cloud} />
 
@@ -75,16 +89,7 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
       <TapLog />
       <View style={styles.row}>
         <Btn title="Restaurar ajustes" onPress={() => onChange({ ...DEFAULT_SETTINGS })} />
-        <Btn
-          title="Restaurar tablero de ejemplo"
-          kind="danger"
-          onPress={() =>
-            Alert.alert('Restaurar tablero de ejemplo', '¿Reemplazar todos los tableros por el tablero de ejemplo?', [
-              { text: 'Cancelar', style: 'cancel' },
-              { text: 'Reemplazar', style: 'destructive', onPress: onResetBoards },
-            ])
-          }
-        />
+        <Btn title="Nuevo tablero de ejemplo" onPress={onResetBoards} />
       </View>
     </Sheet>
   )
