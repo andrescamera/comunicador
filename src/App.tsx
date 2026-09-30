@@ -5,7 +5,7 @@ import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
-import { LibrariesPanel } from './components/LibrariesPanel'
+import { LibrariesPage } from './components/LibrariesPage'
 import { buildFolder, folderCell, sortCells, starterLibrary } from './lib/generator'
 import { moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText } from './lib/grammar'
@@ -29,7 +29,21 @@ export default function App() {
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [showLibraries, setShowLibraries] = useState(false)
+  // «Mis tableros» es otra página (con dirección propia: #tableros, y el botón Atrás del navegador vuelve)
+  const [showLibraries, setShowLibrariesState] = useState(() => window.location.hash === '#tableros')
+  useEffect(() => {
+    const onHash = () => setShowLibrariesState(window.location.hash === '#tableros')
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  const setShowLibraries = (show: boolean) => {
+    if (show === (window.location.hash === '#tableros')) return
+    if (show) window.location.hash = 'tableros'
+    else {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+      setShowLibrariesState(false)
+    }
+  }
   const [movingId, setMovingId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
@@ -110,6 +124,20 @@ export default function App() {
   // Solo en desarrollo (localhost): «?local» permite probar sin cuenta. No existe en la versión publicada.
   const devBypass = import.meta.env.DEV && new URLSearchParams(window.location.search).has('local')
   if (!cloud.email && !devBypass) return <LoginScreen cloud={cloud} />
+
+  if (showLibraries) {
+    return (
+      <LibrariesPage
+        cloud={cloud}
+        onBack={() => setShowLibraries(false)}
+        onCreateFromText={() => {
+          setShowLibraries(false)
+          setEditing(true)
+          setShowCreator(true)
+        }}
+      />
+    )
+  }
 
   if (!lib || cloud.downloading) {
     return (
@@ -456,17 +484,6 @@ export default function App() {
           onAddToCurrent={addToCurrent}
           onAddAsFolder={addAsFolder}
           onClose={() => setShowCreator(false)}
-        />
-      )}
-      {showLibraries && (
-        <LibrariesPanel
-          cloud={cloud}
-          onClose={() => setShowLibraries(false)}
-          onCreateFromText={() => {
-            setShowLibraries(false)
-            setEditing(true)
-            setShowCreator(true)
-          }}
         />
       )}
       {showSettings && (

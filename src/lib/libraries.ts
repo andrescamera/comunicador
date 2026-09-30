@@ -116,3 +116,9 @@ export const shareLibrary = (sb: SupabaseClient, id: string, email: string, role
 export const unshareLibrary = (sb: SupabaseClient, id: string, email: string) => check(sb.rpc('unshare_library', { p_library: id, p_email: email }))
 export const libraryAccess = async (sb: SupabaseClient, id: string) =>
   ((await check(sb.rpc('library_access', { p_library: id }))) ?? []) as { email: string; role: Exclude<Role, 'owner'> }[]
+
+/** Tablero principal de un tablero guardado en la cuenta (para la vista previa, sin descargarlo entero) */
+export async function fetchRootBoard(sb: SupabaseClient, libraryId: string, rootId: string): Promise<Board | null> {
+  const rows = (await check(sb.from('boards').select('data').eq('library_id', libraryId).eq('id', rootId).eq('deleted', false))) as { data: Board | null }[]
+  return rows[0]?.data ?? null
+}

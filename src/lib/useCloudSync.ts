@@ -4,6 +4,7 @@ import {
   claimInvites,
   deleteRemote,
   fetchMyLibraries,
+  fetchRootBoard,
   leaveRemote,
   type LibraryInfo,
   libraryAccess,
@@ -17,7 +18,7 @@ import {
   unshareLibrary,
 } from './libraries'
 import { emptyMeta, type RemoteChanges, SyncEngine, type SyncMeta, type SyncStatus } from './sync'
-import type { Library } from './types'
+import type { Board, Library } from './types'
 
 /** Almacenamiento clave-valor del dispositivo (localStorage en la web, AsyncStorage en la tablet). */
 export interface KeyValueStore {
@@ -392,6 +393,18 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
     unshare: async (id: string, address: string) => {
       requireOnline()
       await unshareLibrary(supabase, id, address)
+    },
+    /** Tablero principal para la vista previa: del dispositivo o, si no está, de la cuenta */
+    preview: async (id: string): Promise<Board | null> => {
+      const lib = id === curRef.current?.id ? curRef.current.lib : await readJson<Library>(store, libKey(id))
+      if (lib?.boards[lib.rootId]) return lib.boards[lib.rootId]
+      const info = regRef.current?.items[id]
+      if (!info?.synced || !info.rootBoardId || !userId) return null
+      try {
+        return await fetchRootBoard(supabase, id, info.rootBoardId)
+      } catch {
+        return null
+      }
     },
     access: async (id: string) => (regRef.current?.items[id]?.synced ? libraryAccess(supabase, id) : []),
   }

@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react'
+import { pictoUrl } from '../lib/arasaac'
+import { cellColors } from '../lib/colors'
 import { emptyLibrary, starterLibrary } from '../lib/generator'
 import type { LibraryInfo, Role } from '../lib/libraries'
+import type { Board, Library } from '../lib/types'
 import { type CloudSync, STARTER_NAME } from '../lib/useCloudSync'
 import { Modal } from './Modal'
 
 interface Props {
   cloud: CloudSync
-  onClose: () => void
+  /** Volver al tablero abierto */
+  onBack: () => void
   /** Crear un tablero nuevo desde texto o foto (se abre el creador sobre un tablero vacío) */
   onCreateFromText: () => void
 }
 
 const ROLE_TEXT: Record<Exclude<Role, 'owner'>, string> = { editor: 'puede editar', viewer: 'solo usar' }
 
-/** Mis tableros: los propios y los que me han compartido. Abrir, crear, renombrar, compartir... */
-export function LibrariesPanel({ cloud, onClose, onCreateFromText }: Props) {
+/**
+ * Página «Mis tableros»: los propios y los compartidos conmigo, cada uno con una vista previa de
+ * su tablero principal. Abrir, crear, renombrar, duplicar, compartir, borrar.
+ */
+export function LibrariesPage({ cloud, onBack, onCreateFromText }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [sharing, setSharing] = useState<LibraryInfo | null>(null)
@@ -37,14 +44,19 @@ export function LibrariesPanel({ cloud, onClose, onCreateFromText }: Props) {
       setBusy(false)
     }
   }
-  const openAndClose = (id: string) => run(async () => (await cloud.open(id), onClose()))
-
-  if (sharing) return <SharePanel cloud={cloud} info={sharing} onBack={() => setSharing(null)} onClose={onClose} />
+  const openAndBack = (id: string) => run(async () => (await cloud.open(id), onBack()))
+  const create = (lib: () => Promise<Library> | Library, defaultName: string, then: () => void = onBack) => {
+    const name = defaultName === STARTER_NAME ? defaultName : prompt('Nombre del tablero nuevo', defaultName)
+    if (name !== null) void run(async () => (await cloud.create(await lib(), name), then()))
+  }
 
   const card = (info: LibraryInfo) => {
     const active = info.id === cloud.activeId
     return (
       <li key={info.id} className={`library-card ${active ? 'active' : ''}`}>
+        <button type="button" className="library-thumb" onClick={() => void openAndBack(info.id)} disabled={busy} aria-label={`Abrir ${info.name}`}>
+          <BoardThumb id={info.id} cloud={cloud} />
+        </button>
         <div className="library-info">
           <strong>{info.name}</strong>
           <small className="muted">
@@ -52,7 +64,11 @@ export function LibrariesPanel({ cloud, onClose, onCreateFromText }: Props) {
           </small>
         </div>
         <div className="library-actions">
-          {active ? <span className="badge">Abierto</span> : <button type="button" className="primary" disabled={busy} onClick={() => void openAndClose(info.id)}>Abrir</button>}
+          {active ? (
+            <button type="button" className="primary" onClick={onBack}>Abierto · volver</button>
+          ) : (
+            <button type="button" className="primary" disabled={busy} onClick={() => void openAndBack(info.id)}>Abrir</button>
+          )}
           {info.role === 'owner' && (
             <button
               type="button"
@@ -65,7 +81,7 @@ export function LibrariesPanel({ cloud, onClose, onCreateFromText }: Props) {
               Renombrar
             </button>
           )}
-          <button type="button" disabled={busy} onClick={() => void run(() => cloud.duplicate(info.id).then(onClose))}>Duplicar</button>
+          <button type="button" disabled={busy} onClick={() => void run(() => cloud.duplicate(info.id))}>Duplicar</button>
           {info.role === 'owner' && (
             <button type="button" disabled={busy || !cloud.email} title={cloud.email ? undefined : 'Inicia sesión para compartir'} onClick={() => setSharing(info)}>
               Compartir
@@ -91,52 +107,69 @@ export function LibrariesPanel({ cloud, onClose, onCreateFromText }: Props) {
   }
 
   return (
-    <Modal title="Mis tableros" onClose={onClose} wide>
-      <div className="libraries">
-        <section className="library-new">
-          <strong>Nuevo tablero</strong>
-          <div className="row">
-            <button type="button" disabled={busy} onClick={() => void run(async () => (await cloud.create(await starterLibrary(), STARTER_NAME), onClose()))}>
-              De ejemplo
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                const name = prompt('Nombre del tablero nuevo', 'Nuevo tablero')
-                if (name !== null) void run(async () => (await cloud.create(emptyLibrary(), name), onClose()))
-              }}
-            >
-              Vacío
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                const name = prompt('Nombre del tablero nuevo', 'Nuevo tablero')
-                if (name !== null) void run(async () => (await cloud.create(emptyLibrary(), name), onCreateFromText()))
-              }}
-            >
-              ✨ Desde texto o foto
-            </button>
-          </div>
-        </section>
+    <div className="libraries-page">
+      <header className="libraries-header">
+        <button type="button" onClick={onBack}>◀ Volver al tablero</button>
+        <h1>Mis tableros</h1>
+        <span className="spacer" />
+        <div className="library-new">
+          <span className="muted">Nuevo:</span>
+          <button type="button" disabled={busy} onClick={() => create(starterLibrary, STARTER_NAME)}>De ejemplo</button>
+          <button type="button" disabled={busy} onClick={() => create(emptyLibrary, 'Nuevo tablero')}>Vacío</button>
+          <button type="button" className="primary" disabled={busy} onClick={() => create(emptyLibrary, 'Nuevo tablero', onCreateFromText)}>
+            ✨ Desde texto o foto
+          </button>
+        </div>
+      </header>
+      <main className="libraries-body">
         {error && <p className="error">{error}</p>}
-        <ul className="library-list">{mine.map(card)}</ul>
+        <ul className="library-grid">{mine.map(card)}</ul>
         {shared.length > 0 && (
           <>
-            <h3>Compartidos conmigo</h3>
-            <ul className="library-list">{shared.map(card)}</ul>
+            <h2>Compartidos conmigo</h2>
+            <ul className="library-grid">{shared.map(card)}</ul>
           </>
         )}
         {!cloud.email && <p className="muted">Sin sesión iniciada: los tableros solo están en este dispositivo.</p>}
-      </div>
-    </Modal>
+      </main>
+      {sharing && <SharePanel cloud={cloud} info={sharing} onClose={() => setSharing(null)} />}
+    </div>
+  )
+}
+
+/** Miniatura del tablero principal: la misma cuadrícula, con sus colores y pictogramas */
+function BoardThumb({ id, cloud }: { id: string; cloud: CloudSync }) {
+  const [board, setBoard] = useState<Board | null | undefined>(undefined)
+  // Si se edita el tablero abierto, la miniatura se actualiza
+  const version = id === cloud.activeId ? cloud.lib : null
+  useEffect(() => {
+    let cancelled = false
+    void cloud.preview(id).then((b) => !cancelled && setBoard(b))
+    return () => {
+      cancelled = true
+    }
+  }, [id, version]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (board === undefined) return <div className="thumb thumb-empty">Cargando…</div>
+  if (!board) return <div className="thumb thumb-empty">Sin vista previa</div>
+  return (
+    <div className="thumb" style={{ gridTemplateColumns: `repeat(${board.cols}, 1fr)`, gridTemplateRows: `repeat(${board.rows}, 1fr)`, aspectRatio: `${board.cols} / ${board.rows}` }}>
+      {board.cells
+        .filter((c) => !c.hidden)
+        .map((c) => {
+          const { bg, border } = cellColors(c.category, c.kind)
+          return (
+            <div key={c.id} className="thumb-cell" style={{ gridRow: c.row + 1, gridColumn: c.col + 1, background: bg, borderColor: border }} title={c.label}>
+              {c.textOnly || !c.picto ? <span>{c.label}</span> : <img src={pictoUrl(c.picto)} alt="" loading="lazy" draggable={false} />}
+            </div>
+          )
+        })}
+    </div>
   )
 }
 
 /** Compartir un tablero por email, con permiso de editar o solo usar */
-function SharePanel({ cloud, info, onBack, onClose }: { cloud: CloudSync; info: LibraryInfo; onBack: () => void; onClose: () => void }) {
+function SharePanel({ cloud, info, onClose }: { cloud: CloudSync; info: LibraryInfo; onClose: () => void }) {
   const [address, setAddress] = useState('')
   const [role, setRole] = useState<Exclude<Role, 'owner'>>('editor')
   const [people, setPeople] = useState<{ email: string; role: Exclude<Role, 'owner'> }[] | null>(null)
@@ -231,8 +264,9 @@ function SharePanel({ cloud, info, onBack, onClose }: { cloud: CloudSync; info: 
         </ul>
       )}
       <footer className="modal-footer">
-        <button type="button" onClick={onBack}>
-          ◀ Volver a mis tableros
+        <span className="spacer" />
+        <button type="button" onClick={onClose}>
+          Listo
         </button>
       </footer>
     </Modal>
