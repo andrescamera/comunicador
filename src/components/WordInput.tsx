@@ -39,7 +39,6 @@ export function WordInput({ value, onChange, onPick, exclude, ...rest }: Props) 
           setOpen(true)
           setActive(-1)
         }}
-        onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         onKeyDown={(e) => {
           if (!suggestions.length) {

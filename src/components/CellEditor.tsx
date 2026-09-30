@@ -117,12 +117,10 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
               Ocultar (conserva su sitio; para introducir vocabulario poco a poco)
             </label>
           )}
-          <label>
-            Buscar pictograma
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="p. ej. galletas" />
-          </label>
         </div>
       </div>
+      {/* Los pictogramas siguen a lo escrito en «Texto» */}
+      {query.trim() && <strong className="picto-results-title">Pictograma</strong>}
       <div className="picto-results">
         {loading && <p className="muted">Buscando…</p>}
         {!loading && results.length === 0 && query.trim() && <p className="muted">Sin resultados en ARASAAC.</p>}

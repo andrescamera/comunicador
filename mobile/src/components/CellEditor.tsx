@@ -199,8 +199,8 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           )}
         </View>
       </View>
-      <Text style={styles.label}>Buscar pictograma</Text>
-      <TextInput style={styles.input} value={query} onChangeText={setQuery} placeholder="p. ej. galletas" />
+      {/* Los pictogramas siguen a lo escrito en «Texto» */}
+      {!!query.trim() && <Text style={styles.label}>Pictograma</Text>}
       {loading && <Text style={styles.muted}>Buscando…</Text>}
       {!loading && results.length === 0 && !!query.trim() && <Text style={styles.muted}>Sin resultados en ARASAAC.</Text>}
       <View style={styles.results}>

@@ -1042,3 +1042,7 @@ label.check {
   opacity: 1;
   font-weight: 700;
 }
+
+.picto-results-title {
+  font-size: 0.92rem;
+}
