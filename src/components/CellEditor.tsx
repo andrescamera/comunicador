@@ -6,7 +6,7 @@ import { CATEGORY_LABELS, type Category, type Cell } from '../lib/types'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
 import { WordInput } from './WordInput'
-import { WordPicker } from './WordPicker'
+import { WordPicker, WordSuggestions } from './WordPicker'
 
 interface Props {
   cell: Cell
@@ -19,11 +19,13 @@ interface Props {
   onCreateFolder?: (name: string, words: string[], picto: number | undefined) => Promise<void>
   /** Casillas de cada tablero (para avisar si las palabras elegidas no caben en la carpeta) */
   capacity?: number
+  /** Ficha nueva dentro de una carpeta: palabras de su categoría que aún no están */
+  suggestions?: { category: string; words: string[] }
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
@@ -53,6 +55,17 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
 
   return (
     <Modal title={isNew ? 'Nueva celda' : 'Editar celda'} onClose={onClose} wide>
+      {isNew && suggestions && draft.kind !== 'folder' && (
+        <WordSuggestions
+          title={`${suggestions.category}: toca una para añadirla`}
+          words={suggestions.words}
+          selected={draft.label}
+          onPick={(w, picto) => {
+            setLabel(w)
+            if (picto) setDraft((d) => ({ ...d, label: w, picto }))
+          }}
+        />
+      )}
       <div className="editor">
         <div className="editor-preview">
           {!draft.textOnly && <Picto id={draft.picto} alt={draft.label} />}

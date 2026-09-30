@@ -65,7 +65,7 @@ export function WordPicker({ words, picked, onChange, capacity }: Props) {
 }
 
 /** Pictogramas de una lista de palabras, pedidos de pocos en pocos para no saturar ARASAAC. */
-function usePictos(words: string[]): Record<string, number | undefined> {
+export function usePictos(words: string[]): Record<string, number | undefined> {
   const [found, setFound] = useState<Record<string, number | undefined>>({})
   const key = words.join('|')
   useEffect(() => {
@@ -83,4 +83,23 @@ function usePictos(words: string[]): Record<string, number | undefined> {
     }
   }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
   return found
+}
+
+/** Palabras propuestas para una ficha nueva (p. ej. los animales que faltan en la carpeta «Animales») */
+export function WordSuggestions({ title, words, selected, onPick }: { title: string; words: string[]; selected?: string; onPick: (word: string, picto: number | undefined) => void }) {
+  const pictos = usePictos(words)
+  if (!words.length) return null
+  return (
+    <div className="word-picker">
+      <strong>{title}</strong>
+      <div className="word-grid">
+        {words.map((w) => (
+          <button key={w} type="button" className={`word-option ${selected === w ? 'selected' : 'suggested'}`} onClick={() => onPick(w, pictos[w])}>
+            <Picto id={pictos[w]} alt={w} />
+            <span>{w}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }

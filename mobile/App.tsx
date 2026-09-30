@@ -37,6 +37,8 @@ import {
   useLibraries,
   uid,
   verbFormFor,
+  categoryFor,
+  missingWords,
   zoneOf,
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
@@ -47,6 +49,16 @@ import { tapGuard } from './src/tap'
 import { colors, radius } from './src/theme'
 
 type EditTarget = { cell: Cell; isNew: boolean } | null
+
+/** Dentro de una carpeta: palabras de su categoría del catálogo que aún no están */
+function folderSuggestions(board: Board, lib: Library): { category: string; words: string[] } | undefined {
+  if (board.id === lib.rootId) return undefined
+  const labels = board.cells.map((c) => c.label)
+  const category = categoryFor(board.name, labels)
+  if (!category) return undefined
+  const words = missingWords(category, labels)
+  return words.length ? { category, words } : undefined
+}
 
 export default function App() {
   useKeepAwake() // la pantalla no se apaga mientras se usa el comunicador
@@ -425,6 +437,7 @@ export default function App() {
           onStartMove={editTarget.isNew ? undefined : () => (setMovingId(editTarget.cell.id), setEditTarget(null))}
           onClose={() => setEditTarget(null)}
           onCreateFolder={(name, words, picto) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto)}
+          suggestions={editTarget.isNew ? folderSuggestions(board, lib) : undefined}
           capacity={(lib.boards[lib.rootId] ?? board).rows * (lib.boards[lib.rootId] ?? board).cols}
           onOpenFolder={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && editTarget.cell.target && lib.boards[editTarget.cell.target]

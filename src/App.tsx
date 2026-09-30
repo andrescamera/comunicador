@@ -12,6 +12,7 @@ import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
 import { STARTER_NAME, useLibraries } from './lib/useCloudSync'
+import { categoryFor, missingWords } from './lib/catalog'
 import { speak } from './lib/speech'
 import { loadSettings, saveSettings } from './lib/storage'
 import { LoginScreen } from './components/LoginScreen'
@@ -20,6 +21,16 @@ import type { Board, Cell, Library, Settings } from './lib/types'
 import { uid } from './lib/types'
 
 type EditTarget = { cell: Cell; isNew: boolean } | null
+
+/** Dentro de una carpeta: palabras de su categoría del catálogo que aún no están */
+function folderSuggestions(board: Board, lib: Library): { category: string; words: string[] } | undefined {
+  if (board.id === lib.rootId) return undefined
+  const labels = board.cells.map((c) => c.label)
+  const category = categoryFor(board.name, labels)
+  if (!category) return undefined
+  const words = missingWords(category, labels)
+  return words.length ? { category, words } : undefined
+}
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
@@ -461,6 +472,7 @@ export default function App() {
           }
           onClose={() => setEditTarget(null)}
           onCreateFolder={(name, words, picto) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto)}
+          suggestions={editTarget.isNew ? folderSuggestions(board, lib) : undefined}
           capacity={(lib.boards[lib.rootId] ?? board).rows * (lib.boards[lib.rootId] ?? board).cols}
           onOpenFolder={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && editTarget.cell.target && lib.boards[editTarget.cell.target]

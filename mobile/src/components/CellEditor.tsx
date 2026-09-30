@@ -16,11 +16,13 @@ interface Props {
   onCreateFolder?: (name: string, words: string[], picto: number | undefined) => Promise<void>
   /** Casillas de cada tablero (para avisar si las palabras elegidas no caben) */
   capacity?: number
+  /** Ficha nueva dentro de una carpeta: palabras de su categoría que aún no están */
+  suggestions?: { category: string; words: string[] }
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
@@ -90,6 +92,12 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         </>
       }
     >
+      {isNew && suggestions && draft.kind !== 'folder' && (
+        <>
+          <Text style={styles.label}>{suggestions.category}: toca una para añadirla</Text>
+          <Suggestions words={suggestions.words} onPick={setLabel} />
+        </>
+      )}
       <View style={styles.top}>
         <View style={[styles.preview, { backgroundColor: bg, borderColor: border }]}>
           <Picto id={draft.picto} />

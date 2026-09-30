@@ -1200,3 +1200,7 @@ p.ok {
   color: var(--ok);
   margin: 0;
 }
+
+.word-option.suggested {
+  opacity: 1;
+}

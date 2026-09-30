@@ -131,3 +131,35 @@ export const FOLDER_CATALOG: Record<string, string[]> = {
 
 /** Todas las palabras del catálogo (sin repetir), para priorizarlas en las sugerencias. */
 export const CATALOG_WORDS: string[] = [...new Set(Object.values(FOLDER_CATALOG).flat())]
+
+const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+
+/**
+ * Categoría del catálogo que corresponde a una carpeta: por su nombre («Animales», «comida»…)
+ * o, si no, por las palabras que ya tiene (al menos 2 en común). null si no se parece a ninguna.
+ */
+export function categoryFor(folderName: string, labels: string[]): string | null {
+  const name = fold(folderName)
+  const keys = Object.keys(FOLDER_CATALOG)
+  const byName =
+    keys.find((k) => fold(k) === name) ??
+    keys.find((k) => {
+      const key = fold(k)
+      // «comida» ~ «Comidas», «animal» ~ «Animales», «ropa y zapatos» ~ «Ropa»
+      return key.startsWith(name) || name.startsWith(key) || key.split(/\s+/)[0] === name.split(/\s+/)[0]
+    })
+  if (byName) return byName
+  const have = new Set(labels.map(fold))
+  let best: { key: string; n: number } | null = null
+  for (const k of keys) {
+    const n = FOLDER_CATALOG[k].filter((w) => have.has(fold(w))).length
+    if (n >= 2 && (!best || n > best.n)) best = { key: k, n }
+  }
+  return best?.key ?? null
+}
+
+/** Palabras de la categoría que aún no están en la carpeta */
+export function missingWords(category: string, labels: string[]): string[] {
+  const have = new Set(labels.map(fold))
+  return (FOLDER_CATALOG[category] ?? []).filter((w) => !have.has(fold(w)))
+}
