@@ -86,6 +86,10 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
           <input type="checkbox" checked={settings.returnHome} onChange={(e) => set('returnHome', e.target.checked)} />
           Volver al tablero principal después de elegir una ficha dentro de una carpeta
         </label>
+        <label className="check">
+          <input type="checkbox" checked={settings.conjugateLabels} onChange={(e) => set('conjugateLabels', e.target.checked)} />
+          Ver los verbos conjugados según la persona elegida (tras «yo», querer se ve «quiero»)
+        </label>
 
         <h3>Voz</h3>
         <label className="check">

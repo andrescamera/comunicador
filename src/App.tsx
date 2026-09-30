@@ -8,7 +8,7 @@ import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
 import { buildFolder, folderCell, sortCells, starterLibrary } from './lib/generator'
 import { moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
-import { classify, realize, sentenceText } from './lib/grammar'
+import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
 import { STARTER_NAME, useLibraries } from './lib/useCloudSync'
@@ -424,6 +424,7 @@ export default function App() {
             board={board}
             editing={editing}
             onTap={onCellTap}
+            labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
             onAddAt={(row, col) =>
               setEditTarget({ cell: { id: uid('c'), kind: 'word', label: '', category: 'noun', row, col }, isNew: true })

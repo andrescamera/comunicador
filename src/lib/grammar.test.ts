@@ -142,3 +142,27 @@ describe('pluralize', () => {
     expect(sentenceText([w('yo'), w('gustar'), w(pluralize('galleta'), 'noun')])).toBe('a mí me gustan galletas')
   })
 })
+
+describe('verbos conjugados en las fichas', async () => {
+  const { verbFormFor } = await import('./grammar')
+  const w = (label: string, category: 'pronoun' | 'person' | 'verb' | 'noun') => ({ label, category, kind: 'word' as const })
+  const querer = w('querer', 'verb')
+
+  it('sin sujeto se ve el infinitivo', () => {
+    expect(verbFormFor([], querer)).toBeNull()
+    expect(verbFormFor([w('agua', 'noun')], querer)).toBeNull()
+  })
+  it('tras elegir la persona, la forma con la que se dirá', () => {
+    expect(verbFormFor([w('yo', 'pronoun')], querer)).toBe('quiero')
+    expect(verbFormFor([w('tú', 'pronoun')], querer)).toBe('quieres')
+    expect(verbFormFor([w('nosotros', 'pronoun')], w('ir', 'verb'))).toBe('vamos')
+    expect(verbFormFor([w('mamá', 'person')], querer)).toBe('quiere')
+    expect(verbFormFor([w('yo', 'pronoun')], w('gustar', 'verb'))).toBe('me gusta')
+  })
+  it('con un verbo ya en la frase, el siguiente sigue en infinitivo', () => {
+    expect(verbFormFor([w('yo', 'pronoun'), querer], w('comer', 'verb'))).toBeNull()
+  })
+  it('solo cambia los verbos', () => {
+    expect(verbFormFor([w('yo', 'pronoun')], w('pelota', 'noun'))).toBeNull()
+  })
+})

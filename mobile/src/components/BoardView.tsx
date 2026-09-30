@@ -17,9 +17,11 @@ interface Props {
   movingId?: string | null
   onRenameZone?: (zone: Zone, name: string | null) => void
   gap?: number
+  /** Texto que se ve en una celda, si no es su etiqueta (verbos conjugados) */
+  labelFor?: (cell: Cell) => string | null
 }
 
-export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8 }: Props) {
+export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor }: Props) {
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const [pressedKey, setPressedKey] = useState<string | null>(null)
   const [firedKey, setFiredKey] = useState<string | null>(null)
@@ -121,6 +123,7 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
                   fired={firedKey === key}
                   editing={editing}
                   selected={movingId === cell.id}
+                  displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}
                 />
               )
             })}

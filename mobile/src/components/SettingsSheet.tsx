@@ -72,6 +72,11 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
         value={settings.returnHome}
         onChange={(v) => set('returnHome', v)}
       />
+      <Toggle
+        label="Ver los verbos conjugados según la persona elegida (tras «yo», querer se ve «quiero»)"
+        value={settings.conjugateLabels}
+        onChange={(v) => set('conjugateLabels', v)}
+      />
 
       <Text style={styles.h}>Voz</Text>
       <Toggle label="Decir cada palabra al tocarla" value={settings.speakOnTap} onChange={(v) => set('speakOnTap', v)} />

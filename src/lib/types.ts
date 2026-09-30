@@ -57,6 +57,7 @@ export interface Settings {
   rate: number
   voiceURI: string
   showTapLog: boolean
+  conjugateLabels: boolean // los verbos se ven conjugados según la persona elegida en la frase
   clearAfterSpeak: boolean // al decir la frase entera (tocando la barra), borrarla en cuanto termina
   autoClear: boolean // borrar la frase tras autoClearSeconds sin tocar nada
   autoClearSeconds: number
@@ -72,6 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rate: 1,
   voiceURI: '',
   showTapLog: true,
+  conjugateLabels: true,
   clearAfterSpeak: true,
   autoClear: true,
   autoClearSeconds: 3,

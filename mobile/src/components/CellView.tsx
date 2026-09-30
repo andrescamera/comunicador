@@ -14,9 +14,12 @@ interface Props {
   fired: boolean
   editing: boolean
   selected: boolean
+  /** Texto que se ve, si no es la etiqueta (verbos conjugados según la frase) */
+  displayLabel?: string
 }
 
-function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected }: Props) {
+function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel }: Props) {
+  const label = displayLabel ?? cell.label
   const { bg, border } = cellColors(cell.category, cell.kind)
   const fontSize = Math.max(10, Math.min(22, width * 0.15, height * 0.16))
   return (
@@ -40,13 +43,13 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
           adjustsFontSizeToFit
           minimumFontScale={0.3}
         >
-          {cell.label}
+          {label}
         </Text>
       ) : (
         <>
           <Picto id={cell.picto} />
           <Text style={[styles.label, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-            {cell.label}
+            {label}
           </Text>
         </>
       )}

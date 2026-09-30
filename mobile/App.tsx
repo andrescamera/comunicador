@@ -36,6 +36,7 @@ import {
   STARTER_NAME,
   useLibraries,
   uid,
+  verbFormFor,
   zoneOf,
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
@@ -397,6 +398,7 @@ export default function App() {
               board={board}
               editing={editing}
               gap={gap}
+              labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
               onTapCell={onCellTap}
               onTapSlot={onTapSlot}
               movingId={movingId}

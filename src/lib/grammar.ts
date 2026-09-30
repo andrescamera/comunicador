@@ -237,6 +237,21 @@ export function realize(tokens: Pick<Cell, 'label' | 'category' | 'kind'>[]): st
   return out
 }
 
+/**
+ * Texto de una ficha de verbo según la frase en curso: si ya hay sujeto («yo», «tú», «mamá»…),
+ * la forma con la que se va a decir («quiero», «me gusta»); si no, null (se ve el infinitivo).
+ * Usa la misma conjugación que la frase: lo que se ve es lo que se oye.
+ */
+export function verbFormFor(sentence: Pick<Cell, 'label' | 'category' | 'kind'>[], cell: Pick<Cell, 'label' | 'category' | 'kind'>): string | null {
+  if (cell.kind !== 'word' || cell.category !== 'verb') return null
+  const hasSubject = sentence.some(
+    (t) => t.kind === 'word' && ((t.category === 'pronoun' && t.label.toLowerCase().trim() in PRONOUNS) || t.category === 'person'),
+  )
+  if (!hasSubject) return null
+  const form = realize([...sentence, cell]).at(-1)
+  return form && form !== cell.label ? form : null
+}
+
 export function sentenceText(tokens: Pick<Cell, 'label' | 'category' | 'kind'>[]): string {
   return realize(tokens).filter(Boolean).join(' ')
 }
