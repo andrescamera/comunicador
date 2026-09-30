@@ -182,9 +182,9 @@ export default function App() {
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
   // `replace`: una celda que ya existe y pasa a ser carpeta (conserva su sitio y su color)
-  const createFolder = async (at: Cell, replace: boolean, name: string, template: string | undefined, picto: number | undefined) => {
+  const createFolder = async (at: Cell, replace: boolean, name: string, words: string[], picto: number | undefined) => {
     const root = lib.boards[lib.rootId] ?? board
-    const { board: sub, cell } = await buildFolder(name, template, { rows: root.rows, cols: root.cols })
+    const { board: sub, cell } = await buildFolder(name, words, { rows: root.rows, cols: root.cols })
     const folder: Cell = { ...cell, picto: picto ?? cell.picto, row: at.row, col: at.col }
     if (replace) Object.assign(folder, { id: at.id, category: at.category, hidden: at.hidden })
     setLib((l) => {
@@ -437,7 +437,8 @@ export default function App() {
                 }
           }
           onClose={() => setEditTarget(null)}
-          onCreateFolder={(name, template, picto) => createFolder(editTarget.cell, !editTarget.isNew, name, template, picto)}
+          onCreateFolder={(name, words, picto) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto)}
+          capacity={(lib.boards[lib.rootId] ?? board).rows * (lib.boards[lib.rootId] ?? board).cols}
           onOpenFolder={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && editTarget.cell.target && lib.boards[editTarget.cell.target]
               ? () => {

@@ -84,10 +84,10 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
   }
 
   /** Una celda del resultado pasa a ser carpeta (vacía o con plantilla); se rellena después */
-  const makeFolder = async (at: Cell, name: string, template: string | undefined, picto: number | undefined) => {
+  const makeFolder = async (at: Cell, name: string, words: string[], picto: number | undefined) => {
     if (!preview) return
     const root = preview.boards[preview.rootId]
-    const { board: sub, cell } = await buildFolder(name, template, { rows: root.rows, cols: root.cols })
+    const { board: sub, cell } = await buildFolder(name, words, { rows: root.rows, cols: root.cols })
     const folder: Cell = { ...cell, id: at.id, label: name, picto: picto ?? cell.picto, category: at.category, row: at.row, col: at.col }
     setPreview((p) => {
       if (!p) return p
@@ -238,7 +238,8 @@ export function Creator({ onReplace, onAddToCurrent, onAddAsFolder, currentBoard
           onSave={updateCell}
           onDelete={() => deleteCell(editing.id)}
           onClose={() => setEditing(null)}
-          onCreateFolder={(name, template, picto) => makeFolder(editing, name, template, picto)}
+          onCreateFolder={(name, words, picto) => makeFolder(editing, name, words, picto)}
+          capacity={preview ? preview.boards[preview.rootId].rows * preview.boards[preview.rootId].cols : undefined}
         />
       )}
     </Modal>

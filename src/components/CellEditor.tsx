@@ -5,6 +5,8 @@ import { classify, normalizeText } from '../lib/grammar'
 import { CATEGORY_LABELS, type Category, type Cell } from '../lib/types'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
+import { WordInput } from './WordInput'
+import { WordPicker } from './WordPicker'
 
 interface Props {
   cell: Cell
@@ -14,14 +16,17 @@ interface Props {
   onStartMove?: () => void
   onClose: () => void
   /** Crear una carpeta (vacía o con el vocabulario de una plantilla), nueva o en lugar de esta celda */
-  onCreateFolder?: (name: string, template: string | undefined, picto: number | undefined) => Promise<void>
+  onCreateFolder?: (name: string, words: string[], picto: number | undefined) => Promise<void>
+  /** Casillas de cada tablero (para avisar si las palabras elegidas no caben en la carpeta) */
+  capacity?: number
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
+  const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
   const [creating, setCreating] = useState(false)
   // Carpeta nueva: una celda vacía o una palabra que se convierte en carpeta
   const newFolder = draft.kind === 'folder' && cell.kind !== 'folder'
@@ -56,7 +61,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         <div className="editor-fields">
           <label>
             Texto
-            <input value={draft.label} onChange={(e) => setLabel(e.target.value)} autoFocus />
+            <WordInput value={draft.label} onChange={setLabel} autoFocus placeholder="Escribe y elige una sugerencia" />
           </label>
           {cell.kind !== 'folder' && (
             <div className="row">
@@ -80,7 +85,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           )}
           {newFolder && (
             <div className="folder-templates">
-              <span>Contenido de la carpeta</span>
+              <span>Categoría (luego eliges las palabras)</span>
               <div className="examples">
                 {[undefined, ...Object.keys(FOLDER_TEMPLATES)].map((t) => (
                   <button
@@ -89,14 +94,15 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                     className={template === t ? 'selected' : ''}
                     onClick={() => {
                       setTemplate(t)
-                      if (t && !draft.label.trim()) setLabel(t)
+                      setPicked([])
+                      if (t && (!draft.label.trim() || (template && draft.label === template))) setLabel(t)
                     }}
                   >
                     {t ?? 'Vacía'}
                   </button>
                 ))}
               </div>
-              {template && <small className="muted">Se crea con {FOLDER_TEMPLATES[template].split(',').length} palabras que luego puedes cambiar.</small>}
+              <WordPicker key={template ?? ''} words={template ? FOLDER_TEMPLATES[template] : []} picked={picked} onChange={setPicked} capacity={capacity} />
             </div>
           )}
           {draft.kind !== 'folder' && (
@@ -145,7 +151,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           onClick={async () => {
             if (newFolder && onCreateFolder) {
               setCreating(true)
-              await onCreateFolder(normalizeText(draft.label), template, draft.picto)
+              await onCreateFolder(normalizeText(draft.label), picked, draft.picto)
               setCreating(false)
             } else onSave({ ...draft, label: normalizeText(draft.label) })
           }}

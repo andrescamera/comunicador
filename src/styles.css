@@ -912,7 +912,7 @@ label.check {
   font-weight: 600;
   font-size: 0.92rem;
 }
-.folder-templates button.selected {
+.folder-templates .examples button.selected {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
@@ -954,4 +954,91 @@ label.check {
 .editor-preview-text {
   font-size: 2.6rem;
   margin: auto 0;
+}
+
+/* Autocompletado de palabras */
+.word-input {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.word-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 2px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 260px;
+  overflow-y: auto;
+  font-weight: 400;
+}
+.word-suggestions li {
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.word-suggestions li:hover,
+.word-suggestions li.active {
+  background: var(--accent-soft);
+}
+
+/* Elegir las palabras de una carpeta */
+.word-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 400;
+}
+.word-picker .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.word-picker .warn {
+  color: var(--bad);
+}
+.word-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.word-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 92px;
+  padding: 4px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  opacity: 0.55;
+  font-size: 0.78rem;
+}
+.word-option .picto {
+  flex: 1;
+  min-height: 0;
+}
+.word-option span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.word-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  opacity: 1;
+  font-weight: 700;
 }

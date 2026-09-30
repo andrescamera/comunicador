@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
-import { type Category, CATEGORY_LABELS, type Cell, cellColors, classify, FOLDER_TEMPLATES, normalizeText, type PictoResult, searchPictos } from '../shared'
+import { type Category, CATEGORY_LABELS, type Cell, cellColors, classify, FOLDER_TEMPLATES, fold, loadWords, normalizeText, type PictoResult, searchPictos, suggestWords } from '../shared'
 import { colors } from '../theme'
 import { Picto } from './Picto'
 import { Btn, Sheet } from './Sheet'
@@ -12,17 +12,36 @@ interface Props {
   onDelete?: () => void
   onStartMove?: () => void
   onClose: () => void
-  /** Crear una carpeta nueva (vacía o con el vocabulario de una plantilla) */
-  onCreateFolder?: (name: string, template: string | undefined, picto: number | undefined) => Promise<void>
+  /** Crear una carpeta (vacía o con las palabras elegidas), nueva o en lugar de esta celda */
+  onCreateFolder?: (name: string, words: string[], picto: number | undefined) => Promise<void>
+  /** Casillas de cada tablero (para avisar si las palabras elegidas no caben) */
+  capacity?: number
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
+  const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
+  const [extra, setExtra] = useState('') // palabra que se escribe para añadir a la carpeta
   const [creating, setCreating] = useState(false)
-  const newFolder = !!isNew && draft.kind === 'folder'
+  // Carpeta nueva: una celda vacía o una palabra que se convierte en carpeta
+  const newFolder = draft.kind === 'folder' && cell.kind !== 'folder'
+  const [typing, setTyping] = useState(false) // mostrar sugerencias solo mientras se escribe
+  const [, setReady] = useState(0)
+
+  useEffect(() => {
+    void loadWords().then(() => setReady((n) => n + 1))
+  }, [])
+
+  const options = [...(template ? FOLDER_TEMPLATES[template] : []), ...picked.filter((w) => !(template ? FOLDER_TEMPLATES[template] : []).includes(w))]
+  const togglePick = (w: string) => setPicked((p) => (p.includes(w) ? p.filter((x) => x !== w) : [...p, w]))
+  const addExtra = (w: string) => {
+    const word = w.trim()
+    if (word && !picked.some((x) => fold(x) === fold(word))) setPicked((p) => [...p, word])
+    setExtra('')
+  }
   const [query, setQuery] = useState(cell.label)
   const [results, setResults] = useState<PictoResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -57,13 +76,13 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           <View style={{ flex: 1 }} />
           <Btn title="Cancelar" onPress={onClose} />
           <Btn
-            title={creating ? 'Creando carpeta…' : newFolder ? 'Crear carpeta' : 'Guardar'}
+            title={creating ? 'Creando carpeta…' : newFolder ? (isNew ? 'Crear carpeta' : 'Convertir en carpeta') : 'Guardar'}
             kind="primary"
             disabled={!draft.label.trim() || creating}
             onPress={async () => {
               if (newFolder && onCreateFolder) {
                 setCreating(true)
-                await onCreateFolder(normalizeText(draft.label), template, draft.picto)
+                await onCreateFolder(normalizeText(draft.label), options.filter((w) => picked.includes(w)), draft.picto)
                 setCreating(false)
               } else onSave({ ...draft, label: normalizeText(draft.label) })
             }}
@@ -80,12 +99,30 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         </View>
         <View style={styles.fields}>
           <Text style={styles.label}>Texto</Text>
-          <TextInput style={styles.input} value={draft.label} onChangeText={setLabel} autoFocus={isNew} />
-          {(draft.kind !== 'folder' || isNew) && (
+          <TextInput
+            style={styles.input}
+            value={draft.label}
+            onChangeText={(t) => {
+              setLabel(t)
+              setTyping(true)
+            }}
+            autoFocus={isNew}
+            autoCorrect={false}
+          />
+          {typing && (
+            <Suggestions
+              words={suggestWords(draft.label, 8)}
+              onPick={(w) => {
+                setLabel(w)
+                setTyping(false)
+              }}
+            />
+          )}
+          {cell.kind !== 'folder' && (
             <>
               <Text style={styles.label}>Tipo</Text>
               <View style={styles.chips}>
-                {(isNew ? (['word', 'phrase', 'folder'] as const) : (['word', 'phrase'] as const)).map((k) => (
+                {(onCreateFolder ? (['word', 'phrase', 'folder'] as const) : (['word', 'phrase'] as const)).map((k) => (
                   <Chip
                     key={k}
                     active={draft.kind === k}
@@ -98,7 +135,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           )}
           {newFolder && (
             <>
-              <Text style={styles.label}>Contenido de la carpeta</Text>
+              <Text style={styles.label}>Categoría (luego eliges las palabras)</Text>
               <View style={styles.chips}>
                 {[undefined, ...Object.keys(FOLDER_TEMPLATES)].map((t) => (
                   <Chip
@@ -106,12 +143,36 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                     active={template === t}
                     onPress={() => {
                       setTemplate(t)
-                      if (t && !draft.label.trim()) setLabel(t)
+                      setPicked([])
+                      if (t && (!draft.label.trim() || (template && draft.label === template))) setLabel(t)
                     }}
                     text={t ?? 'Vacía'}
                   />
                 ))}
               </View>
+              <View style={[styles.chips, { alignItems: 'center' }]}>
+                <Text style={styles.muted}>
+                  {picked.length} elegida{picked.length === 1 ? '' : 's'}
+                  {capacity !== undefined && picked.length > capacity ? ` · no caben en ${capacity} casillas: crecerán todos los tableros` : ''}
+                </Text>
+                <Chip text="Todas" active={false} onPress={() => setPicked(options)} />
+                <Chip text="Ninguna" active={false} onPress={() => setPicked([])} />
+              </View>
+              <View style={styles.chips}>
+                {options.map((w) => (
+                  <Chip key={w} text={w} active={picked.includes(w)} color={picked.includes(w) ? colors.accentSoft : undefined} onPress={() => togglePick(w)} />
+                ))}
+              </View>
+              <TextInput
+                style={styles.input}
+                value={extra}
+                onChangeText={setExtra}
+                onSubmitEditing={() => addExtra(extra)}
+                placeholder="Añadir otra palabra…"
+                autoCorrect={false}
+                returnKeyType="done"
+              />
+              {!!extra.trim() && <Suggestions words={suggestWords(extra, 8, options)} onPick={addExtra} />}
             </>
           )}
           {draft.kind !== 'folder' && (
@@ -151,6 +212,18 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
       </View>
       <Text style={styles.credit}>Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA</Text>
     </Sheet>
+  )
+}
+
+/** Sugerencias de palabras (con pictograma en ARASAAC) mientras se escribe */
+function Suggestions({ words, onPick }: { words: string[]; onPick: (w: string) => void }) {
+  if (!words.length) return null
+  return (
+    <View style={styles.chips}>
+      {words.map((w) => (
+        <Chip key={w} text={w} active={false} onPress={() => onPick(w)} />
+      ))}
+    </View>
   )
 }
 

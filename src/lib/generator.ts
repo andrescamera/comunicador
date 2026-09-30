@@ -1,4 +1,5 @@
 import { bestPicto } from './arasaac'
+import { FOLDER_CATALOG } from './catalog'
 import { CATEGORY_ORDER, classify, isKnownWord, lemmatize } from './grammar'
 import { layoutAt, layoutCells, type NewCell, ZONE_ORDER, zoneOf } from './layout'
 import type { Board, Cell, CellKind, Library } from './types'
@@ -250,29 +251,23 @@ agua, comida, baño, casa, colegio, parque, música, tele
 hola, adiós, sí, gracias, por favor, vale`
 
 
-/** Vocabulario de partida para carpetas nuevas (se puede editar después como cualquier tablero). */
-export const FOLDER_TEMPLATES: Record<string, string> = {
-  Animales:
-    'perro, gato, pájaro, pez, caballo, vaca, cerdo, oveja, gallina, pato, conejo, ratón, león, elefante, jirafa, mono, oso, tortuga, serpiente, mariposa',
-  Comidas:
-    'agua, leche, zumo, pan, galletas, fruta, manzana, plátano, naranja, fresa, yogur, queso, huevo, pasta, arroz, pizza, patatas, pollo, pescado, verdura, helado, bocadillo',
-  Colores: 'rojo, azul, amarillo, verde, naranja, rosa, morado, marrón, negro, blanco, gris',
-  Juguetes: 'pelota, muñeca, coche, puzle, bloques, peluche, tren, globo, pinturas, libro, columpio, tobogán, tablet, música',
-}
+/** Categorías para carpetas nuevas: de cada una se eligen las palabras que interesan. */
+export const FOLDER_TEMPLATES = FOLDER_CATALOG
 
 /**
- * Crea el tablero de una carpeta nueva: vacío o con el vocabulario de una plantilla.
+ * Crea el tablero de una carpeta nueva: vacío o con las palabras elegidas.
  * Devuelve el tablero y la celda-carpeta que lo abre (sin posición: la pone quien la coloca).
  */
 export async function buildFolder(
   name: string,
-  template: string | undefined,
+  words: string[],
   size: { rows: number; cols: number }, // la cuadrícula común (la del tablero principal)
 ): Promise<{ board: Board; cell: NewCell }> {
-  const words = template ? FOLDER_TEMPLATES[template] : ''
   let board: Board
-  if (words) {
-    const lib = await generateLibrary(parseText(`${name}: ${words}`), undefined, size)
+  if (words.length) {
+    // Entre comillas, lo de 3 palabras o más es una sola ficha («lavarse los dientes»)
+    const list = words.map((w) => (w.trim().split(/\s+/).length >= 3 ? `"${w.trim()}"` : w.trim())).join(', ')
+    const lib = await generateLibrary(parseText(`${name}: ${list}`), undefined, size)
     board = { ...lib.boards[lib.rootId], name }
   } else {
     board = { id: uid('b'), name, ...layoutCells([], size) }
