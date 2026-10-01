@@ -278,6 +278,31 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
     return () => void supabase.removeChannel(channel)
   }, [linked, userId, supabase])
 
+  const renameLibrary = useCallback(
+    async (id: string, name: string) => {
+      const info = regRef.current?.items[id]
+      const clean = name.trim()
+      if (!info || !clean || info.role === 'viewer' || info.name === clean) return
+      saveRegistry({ ...regRef.current!, items: { ...regRef.current!.items, [id]: { ...info, name: clean } } })
+      if (info.synced) await renameRemote(supabase, id, clean)
+    },
+    [supabase, saveRegistry],
+  )
+
+  // Un solo nombre: si se cambia el de la pantalla principal (en modo edición), el tablero
+  // pasa a llamarse igual en «Mis tableros» y al compartir
+  const rootName = current?.lib?.boards[current.lib.rootId]?.name
+  const lastRoot = useRef<{ id: string; name?: string } | null>(null)
+  useEffect(() => {
+    if (!current) return
+    const prev = lastRoot.current
+    lastRoot.current = { id: current.id, name: rootName }
+    if (!prev || prev.id !== current.id || !prev.name || !rootName || prev.name === rootName) return
+    const id = current.id
+    const t = setTimeout(() => void renameLibrary(id, rootName).catch(() => {}), 800)
+    return () => clearTimeout(t)
+  }, [current?.id, rootName]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const setLib = useCallback((update: LibUpdate) => {
     setCurrent((c) => {
       if (!c) return c
@@ -358,11 +383,12 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
       await openLocal(regRef.current!.activeId)
     },
     rename: async (id: string, name: string) => {
-      const info = regRef.current?.items[id]
+      await renameLibrary(id, name)
+      // Si es el abierto, su pantalla principal se llama igual (es el título que se ve arriba)
       const clean = name.trim()
-      if (!info || !clean || info.role === 'viewer') return
-      if (info.synced) await renameRemote(supabase, id, clean)
-      saveRegistry({ ...regRef.current!, items: { ...regRef.current!.items, [id]: { ...info, name: clean } } })
+      if (clean && id === curRef.current?.id) {
+        setLib((l) => (l && l.boards[l.rootId] ? { ...l, boards: { ...l.boards, [l.rootId]: { ...l.boards[l.rootId], name: clean } } } : l))
+      }
     },
     /** Borrar (si es mío) o dejar de ver (si me lo compartieron) */
     remove: async (id: string) => {
