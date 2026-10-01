@@ -40,6 +40,14 @@ export interface Board {
   zones: Zones
   zoneLabels?: Partial<Record<Zone, string>> // nombres personalizados de los grupos de columnas
   cells: Cell[]
+  dynamic?: DynamicConfig // solo el tablero principal: modo dinámico (por momentos de la frase)
+}
+
+/** Modo dinámico: el tablero principal muestra en cada momento de la frase solo lo que encaja */
+export interface DynamicConfig {
+  enabled: boolean
+  fixed: string[] // palabras de la columna fija (siempre visibles): no, sí, más, ayuda
+  chainVerbs: string[] // verbos que pueden llevar otro detrás: «quiero» comer, «puedo» jugar
 }
 
 export interface Library {

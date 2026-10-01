@@ -1204,3 +1204,31 @@ p.ok {
 .word-option.suggested {
   opacity: 1;
 }
+
+/* Modo dinámico (barra de edición) */
+.dyn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.dyn-switch button.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.library-thumb {
+  position: relative;
+}
+.thumb-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+}

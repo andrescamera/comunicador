@@ -37,6 +37,12 @@ import {
   useLibraries,
   uid,
   verbFormFor,
+  DEFAULT_DYNAMIC,
+  dynamicView,
+  NEXT_PAGE,
+  PREV_PAGE,
+  sentenceStage,
+  wantsVerb,
   categoryFor,
   missingWords,
   zoneOf,
@@ -74,6 +80,7 @@ export default function App() {
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [movingId, setMovingId] = useState<string | null>(null)
+  const [dynPage, setDynPage] = useState(0) // modo dinámico: página del momento actual
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0)
   const [area, setArea] = useState({ w: 0, h: 0 }) // espacio útil (sin márgenes) para barra + tablero
@@ -112,6 +119,8 @@ export default function App() {
     const n = normalizeLibrary(lib)
     if (n !== lib) setLib(n)
   }, [lib])
+  const stageNow = sentenceStage(sentence)
+  useEffect(() => setDynPage(0), [stageNow])
   useEffect(() => {
     if (!notice) return
     const t = setTimeout(() => setNotice(''), 8000)
@@ -225,7 +234,19 @@ export default function App() {
     setNotice(`Carpeta «${name}» creada. Tócala y pulsa «Abrir carpeta» para editar su contenido.`)
   }
 
+  // Modo dinámico (solo el tablero principal y fuera de edición): lo que encaja en el momento de la frase
+  const root = lib.boards[lib.rootId]
+  const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
+  const view =
+    dynCfg && board.id === lib.rootId && !editing
+      ? dynamicView(board, dynCfg, sentenceStage(sentence), dynPage, area.h > 0 ? area.w / area.h : 1.6, wantsVerb(sentence, dynCfg)).board
+      : null
+
   const onCellTap = (cell: Cell) => {
+    if (cell.id === NEXT_PAGE || cell.id === PREV_PAGE) {
+      setDynPage((p) => p + (cell.id === NEXT_PAGE ? 1 : -1))
+      return
+    }
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length)
@@ -385,6 +406,13 @@ export default function App() {
                 <Text style={styles.count}>{board.cols}</Text>
                 <ToolBtn text="+" onPress={() => resize(board.rows, Math.min(16, board.cols + 1))} />
                 <ToolBtn text={compact ? '⇅' : '⇅ Reordenar'} onPress={reorganize} />
+                {board.id === lib.rootId && (
+                  <ToolBtn
+                    text={board.dynamic?.enabled ? '✓ Dinámico' : 'Dinámico'}
+                    primary={!!board.dynamic?.enabled}
+                    onPress={() => updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))}
+                  />
+                )}
                 <ToolBtn text={compact ? '✨' : '✨ Crear tablero'} onPress={() => setShowCreator(true)} />
                 <ToolBtn text="✓ Terminar" primary onPress={() => (setEditing(false), setMovingId(null))} />
               </View>
@@ -407,7 +435,7 @@ export default function App() {
 
           <View style={styles.boardArea}>
             <BoardView
-              board={board}
+              board={view ?? board}
               editing={editing}
               gap={gap}
               labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}

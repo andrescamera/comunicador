@@ -13,6 +13,8 @@ import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
 import { STARTER_NAME, useLibraries } from './lib/useCloudSync'
 import { categoryFor, missingWords } from './lib/catalog'
+import { DEFAULT_DYNAMIC, dynamicView, NEXT_PAGE, PREV_PAGE, sentenceStage, type Stage, wantsVerb } from './lib/dynamic'
+import { DynamicConfigPanel } from './components/DynamicConfigPanel'
 import { speak } from './lib/speech'
 import { loadSettings, saveSettings } from './lib/storage'
 import { LoginScreen } from './components/LoginScreen'
@@ -56,6 +58,10 @@ export default function App() {
     }
   }
   const [movingId, setMovingId] = useState<string | null>(null)
+  // Modo dinámico: página del momento actual y, en edición, vista previa de un momento
+  const [dynPage, setDynPage] = useState(0)
+  const [previewStage, setPreviewStage] = useState<Stage | null>(null)
+  const [showDynConfig, setShowDynConfig] = useState(false)
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
   const clearTimer = useRef<number | undefined>(undefined)
@@ -86,6 +92,9 @@ export default function App() {
   settingsRef.current = settings
 
   useEffect(() => saveSettings(settings), [settings])
+  // Otro momento de la frase: se empieza por su primera página
+  const sentenceStageNow = sentenceStage(sentence)
+  useEffect(() => setDynPage(0), [sentenceStageNow])
   // Todos los tableros con la cuadrícula del principal (también los que llegan de otro dispositivo)
   useEffect(() => {
     if (!lib || readOnly || cloud.downloading) return
@@ -222,7 +231,22 @@ export default function App() {
     setNotice(`Carpeta «${name}» creada. Pulsa sobre ella y «Abrir carpeta» para editar su contenido.`)
   }
 
+  // Modo dinámico (solo el tablero principal): se muestra lo que encaja en el momento de la frase
+  const root = lib.boards[lib.rootId]
+  const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
+  const stage = sentenceStage(sentence)
+  const dynStage: Stage | null = !dynCfg || board.id !== lib.rootId ? null : editing ? previewStage : stage
+  const withVerbs = !editing && !!dynCfg && wantsVerb(sentence, dynCfg)
+  const view = dynStage
+    ? dynamicView(board, dynCfg!, dynStage, editing ? 0 : dynPage, window.innerWidth / Math.max(1, window.innerHeight * 0.75), withVerbs)
+    : null
+  const shownBoard = view?.board ?? board
+
   const onCellTap = (cell: Cell) => {
+    if (cell.id === NEXT_PAGE || cell.id === PREV_PAGE) {
+      setDynPage((p) => p + (cell.id === NEXT_PAGE ? 1 : -1))
+      return
+    }
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length) // navegar también cuenta como actividad
@@ -362,6 +386,32 @@ export default function App() {
               <button type="button" onClick={() => resize(board.rows, board.cols - 1)} aria-label="Quitar columna">−</button>
               <strong>{board.cols}</strong>
               <button type="button" onClick={() => resize(board.rows, Math.min(16, board.cols + 1))} aria-label="Añadir columna">+</button>
+              {board.id === lib.rootId && (
+                <span className="dyn-switch">
+                  <button
+                    type="button"
+                    className={dynCfg ? 'primary' : ''}
+                    onClick={() => {
+                      updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))
+                      setPreviewStage(null)
+                    }}
+                    title="Modo dinámico: en cada momento de la frase se ve solo lo que encaja"
+                  >
+                    {dynCfg ? '✓ Dinámico' : 'Modo dinámico'}
+                  </button>
+                  {dynCfg && (
+                    <>
+                      <span className="muted">Ver:</span>
+                      {([null, 1, 2, 3] as const).map((s) => (
+                        <button key={s ?? 'e'} type="button" className={previewStage === s ? 'selected' : ''} onClick={() => setPreviewStage(s)}>
+                          {s === null ? 'Fichas' : `Momento ${s}`}
+                        </button>
+                      ))}
+                      <button type="button" onClick={() => setShowDynConfig(true)} aria-label="Configurar modo dinámico">⚙︎</button>
+                    </>
+                  )}
+                </span>
+              )}
               <button type="button" onClick={reorganize} title="Vuelve a colocar las celdas por columnas de categoría">
                 ⇅<span className="btn-text"> Reordenar por categorías</span>
               </button>
@@ -432,9 +482,9 @@ export default function App() {
 
         <main className="board-area">
           <BoardGrid
-            board={board}
-            editing={editing}
-            onTap={onCellTap}
+            board={shownBoard}
+            editing={editing && !view}
+            onTap={editing ? () => {} : onCellTap}
             labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
             onAddAt={(row, col) =>
@@ -497,6 +547,13 @@ export default function App() {
           onAddToCurrent={addToCurrent}
           onAddAsFolder={addAsFolder}
           onClose={() => setShowCreator(false)}
+        />
+      )}
+      {showDynConfig && root && (
+        <DynamicConfigPanel
+          config={{ ...DEFAULT_DYNAMIC, ...root.dynamic }}
+          onChange={(dynamic) => updateBoard(root.id, (b) => ({ ...b, dynamic }))}
+          onClose={() => setShowDynConfig(false)}
         />
       )}
       {showSettings && (

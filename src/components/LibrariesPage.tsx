@@ -153,6 +153,8 @@ function BoardThumb({ id, cloud }: { id: string; cloud: CloudSync }) {
   if (board === undefined) return <div className="thumb thumb-empty">Cargando…</div>
   if (!board) return <div className="thumb thumb-empty">Sin vista previa</div>
   return (
+    <>
+    {board.dynamic?.enabled && <span className="thumb-badge">Dinámico</span>}
     <div className="thumb" style={{ gridTemplateColumns: `repeat(${board.cols}, 1fr)`, gridTemplateRows: `repeat(${board.rows}, 1fr)`, aspectRatio: `${board.cols} / ${board.rows}` }}>
       {board.cells
         .filter((c) => !c.hidden)
@@ -165,6 +167,7 @@ function BoardThumb({ id, cloud }: { id: string; cloud: CloudSync }) {
           )
         })}
     </div>
+    </>
   )
 }
 
