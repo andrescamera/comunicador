@@ -13,7 +13,7 @@ import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
 import { STARTER_NAME, useLibraries } from './lib/useCloudSync'
 import { categoryFor, missingWords } from './lib/catalog'
-import { buildPool, DEFAULT_DYNAMIC, NEXT_PAGE, OTHER_WORDS, predictionKey, predictiveView, PREV_PAGE } from './lib/predict'
+import { buildPool, DEFAULT_DYNAMIC, predictionKey, predictiveHighlights } from './lib/predict'
 import { DynamicConfigPanel } from './components/DynamicConfigPanel'
 import { speak } from './lib/speech'
 import { loadSettings, saveSettings } from './lib/storage'
@@ -59,11 +59,8 @@ export default function App() {
   }
   const [movingId, setMovingId] = useState<string | null>(null)
   // Modo dinámico: página del momento actual y, en edición, vista previa de un momento
-  const [dynPage, setDynPage] = useState(0)
   // En edición: probar cómo se ve tras una frase (null = editar las fichas)
   const [preview, setPreview] = useState<Cell[] | null>(null)
-  // «otras palabras»: el tablero completo para elegir la siguiente palabra
-  const [showAll, setShowAll] = useState(false)
   const [showDynConfig, setShowDynConfig] = useState(false)
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
@@ -95,12 +92,15 @@ export default function App() {
   settingsRef.current = settings
 
   useEffect(() => saveSettings(settings), [settings])
-  // Otro momento de la frase: se empieza por su primera página
+  // Modo predictivo: tras cada palabra, si todo lo que encaja está en una carpeta, se abre sola
   const predKey = predictionKey(sentence)
-  useEffect(() => setDynPage(0), [predKey])
   useEffect(() => {
-    if (!sentence.length) setShowAll(false) // frase nueva: otra vez con predicción
-  }, [sentence.length])
+    if (!lib || editing || !sentence.length) return
+    const r = lib.boards[lib.rootId]
+    if (!r?.dynamic?.enabled) return
+    const { autoOpen } = predictiveHighlights(lib, { ...DEFAULT_DYNAMIC, ...r.dynamic }, sentence)
+    if (autoOpen && lib.boards[autoOpen]) setHistory([autoOpen])
+  }, [predKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // Todos los tableros con la cuadrícula del principal (también los que llegan de otro dispositivo)
   useEffect(() => {
     if (!lib || readOnly || cloud.downloading) return
@@ -237,26 +237,13 @@ export default function App() {
     setNotice(`Carpeta «${name}» creada. Pulsa sobre ella y «Abrir carpeta» para editar su contenido.`)
   }
 
-  // Modo dinámico (solo el tablero principal): se muestra lo que encaja en el momento de la frase
+  // Modo predictivo: lo que encaja se ve normal y el resto, atenuado (nada cambia de sitio)
   const root = lib.boards[lib.rootId]
   const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
-  const predicting = !!dynCfg && board.id === lib.rootId && (editing ? preview !== null : !showAll)
-  const view = predicting
-    ? predictiveView(lib, dynCfg!, editing ? preview! : sentence, editing ? 0 : dynPage, window.innerWidth / Math.max(1, window.innerHeight * 0.75))
-    : null
-  const shownBoard = view?.board ?? board
+  const previewing = editing && preview !== null
+  const highlights = dynCfg && (!editing || previewing) ? predictiveHighlights(lib, dynCfg, previewing ? preview! : sentence) : null
 
   const onCellTap = (cell: Cell) => {
-    if (cell.id === NEXT_PAGE || cell.id === PREV_PAGE) {
-      setDynPage((p) => p + (cell.id === NEXT_PAGE ? 1 : -1))
-      return
-    }
-    if (cell.id === OTHER_WORDS) {
-      setShowAll(true)
-      return
-    }
-    // Tras elegir una palabra del tablero completo, se vuelve a la predicción
-    if (cell.kind !== 'folder') setShowAll(false)
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length) // navegar también cuenta como actividad
@@ -405,7 +392,7 @@ export default function App() {
                       updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))
                       setPreview(null)
                     }}
-                    title="Modo predictivo: en cada momento se ve solo lo que tiene sentido decir a continuación"
+                    title="Modo predictivo: en cada momento se resalta lo que tiene sentido decir a continuación (nada cambia de sitio)"
                   >
                     {dynCfg ? '✓ Predictivo' : 'Modo predictivo'}
                   </button>
@@ -501,23 +488,16 @@ export default function App() {
           </div>
         )}
         {notice && <div className="notice">{notice}</div>}
-        {dynCfg && showAll && !editing && (
-          <div className="notice">
-            Tablero completo: elige la siguiente palabra.{' '}
-            <button type="button" onClick={() => (setShowAll(false), setHistory([]))}>
-              ◂ Volver a la predicción
-            </button>
-          </div>
-        )}
         {!editing && board.cells.length === 0 && history.length === 0 && (
           <div className="notice">Tablero vacío. Pulsa «✎ Editar» para añadir fichas, o para crear un tablero entero a partir de un texto o de una foto (✨ Crear tablero).</div>
         )}
 
         <main className="board-area">
           <BoardGrid
-            board={shownBoard}
-            editing={editing && !view}
+            board={board}
+            editing={editing && !previewing}
             onTap={editing ? () => {} : onCellTap}
+            dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
             labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
             onAddAt={(row, col) =>

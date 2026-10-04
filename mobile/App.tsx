@@ -38,11 +38,8 @@ import {
   uid,
   verbFormFor,
   DEFAULT_DYNAMIC,
-  predictiveView,
+  predictiveHighlights,
   predictionKey,
-  NEXT_PAGE,
-  PREV_PAGE,
-  OTHER_WORDS,
   categoryFor,
   missingWords,
   zoneOf,
@@ -80,8 +77,6 @@ export default function App() {
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [movingId, setMovingId] = useState<string | null>(null)
-  const [dynPage, setDynPage] = useState(0) // modo predictivo: página del momento actual
-  const [showAll, setShowAll] = useState(false) // «otras palabras»: el tablero completo para la siguiente palabra
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0)
   const [area, setArea] = useState({ w: 0, h: 0 }) // espacio útil (sin márgenes) para barra + tablero
@@ -120,11 +115,15 @@ export default function App() {
     const n = normalizeLibrary(lib)
     if (n !== lib) setLib(n)
   }, [lib])
+  // Modo predictivo: tras cada palabra, si todo lo que encaja está en una carpeta, se abre sola
   const predKey = predictionKey(sentence)
-  useEffect(() => setDynPage(0), [predKey])
   useEffect(() => {
-    if (!sentence.length) setShowAll(false) // frase nueva: otra vez con predicción
-  }, [sentence.length])
+    if (!lib || editing || !sentence.length) return
+    const r = lib.boards[lib.rootId]
+    if (!r?.dynamic?.enabled) return
+    const { autoOpen } = predictiveHighlights(lib, { ...DEFAULT_DYNAMIC, ...r.dynamic }, sentence)
+    if (autoOpen && lib.boards[autoOpen]) setHistory([autoOpen])
+  }, [predKey]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!notice) return
     const t = setTimeout(() => setNotice(''), 8000)
@@ -241,22 +240,9 @@ export default function App() {
   // Modo dinámico (solo el tablero principal y fuera de edición): lo que encaja en el momento de la frase
   const root = lib.boards[lib.rootId]
   const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
-  const view =
-    dynCfg && board.id === lib.rootId && !editing && !showAll
-      ? predictiveView(lib, dynCfg, sentence, dynPage, area.h > 0 ? area.w / area.h : 1.6).board
-      : null
+  const highlights = dynCfg && !editing ? predictiveHighlights(lib, dynCfg, sentence) : null
 
   const onCellTap = (cell: Cell) => {
-    if (cell.id === NEXT_PAGE || cell.id === PREV_PAGE) {
-      setDynPage((p) => p + (cell.id === NEXT_PAGE ? 1 : -1))
-      return
-    }
-    if (cell.id === OTHER_WORDS) {
-      setShowAll(true)
-      return
-    }
-    // Tras elegir una palabra del tablero completo, se vuelve a la predicción
-    if (cell.kind !== 'folder') setShowAll(false)
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length)
@@ -445,7 +431,8 @@ export default function App() {
 
           <View style={styles.boardArea}>
             <BoardView
-              board={view ?? board}
+              board={board}
+              dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
               editing={editing}
               gap={gap}
               labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}

@@ -1,19 +1,19 @@
 import { categoryFor, FOLDER_CATALOG } from './catalog'
-import { computeZones, countZones } from './layout'
 import { AFTER_NOUN, CONNECTORS, DESCRIBERS, frameFor, PERSONAS, TODO, VERBOS } from './semantics'
-import type { Board, Cell, DynamicConfig, Library } from './types'
+import type { Cell, DynamicConfig, Library } from './types'
 
 /**
- * Modo predictivo: el tablero principal muestra en cada momento solo lo que tiene sentido decir
- * a continuación, con fichas lo más grandes posible:
+ * Modo predictivo: en cada momento se resalta solo lo que tiene sentido decir a continuación y el
+ * resto se atenúa (sigue en su sitio y se puede tocar). Las fichas NUNCA cambian de sitio: la mano
+ * aprende un único lugar para cada palabra (memoria motora).
  *  - Empezar: personas, preguntas, verbos y frases sociales.
  *  - Tras persona, pregunta o «no»: verbos (se ven conjugados).
  *  - Tras un verbo: lo que encaja con él (comer → comidas; ir → lugares…), sacado también de
  *    dentro de las carpetas. Si el verbo lleva otro («quiero»), también los verbos.
  *  - Tras un nombre: lo que lo describe (colores, tamaño…) y enlaces («y», «con», «más»).
  *  - Tras un enlace: «y» → otra cosa del mismo tipo; «con» → personas…
- * Siempre: la columna fija (no, sí, más, ayuda) y «otras palabras» (el tablero completo).
- * Funciones puras (con tests).
+ * Siempre resaltadas: las palabras fijas (no, sí, más, ayuda). Si lo que encaja tras un verbo está
+ * todo en una carpeta, se abre sola. Funciones puras (con tests).
  */
 
 export const DEFAULT_DYNAMIC: DynamicConfig = {
@@ -22,9 +22,6 @@ export const DEFAULT_DYNAMIC: DynamicConfig = {
   chainVerbs: ['querer', 'poder', 'necesitar', 'ir', 'gustar', 'saber', 'tener que'],
 }
 
-export const PREV_PAGE = '__prev'
-export const NEXT_PAGE = '__next'
-export const OTHER_WORDS = '__other'
 
 const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 
@@ -39,6 +36,7 @@ interface PoolCell {
   cell: Cell
   tags: Set<string>
   root: boolean // está en el tablero principal (no dentro de una carpeta)
+  folder?: string // carpeta del tablero principal en la que está (id del tablero de la carpeta)
 }
 
 /**
@@ -48,7 +46,7 @@ interface PoolCell {
 export function buildPool(lib: Library): PoolCell[] {
   const pool: PoolCell[] = []
   const seen = new Set<string>()
-  const visit = (boardId: string, inherited: string[], depth: number, visited: Set<string>) => {
+  const visit = (boardId: string, inherited: string[], depth: number, visited: Set<string>, folder?: string) => {
     const b = lib.boards[boardId]
     if (!b || visited.has(boardId) || depth > 3) return
     visited.add(boardId)
@@ -64,12 +62,12 @@ export function buildPool(lib: Library): PoolCell[] {
       const tags = new Set(known ?? inherited)
       if (c.category === 'person') tags.add(PERSONAS)
       if (c.category === 'verb') tags.add(VERBOS)
-      pool.push({ cell: c, tags, root: depth === 0 })
+      pool.push({ cell: c, tags, root: depth === 0, folder })
     }
     for (const f of cells.filter((c) => c.kind === 'folder' && c.target)) {
       const sub = lib.boards[f.target!]
       const cat = sub ? categoryFor(sub.name || f.label, sub.cells.map((c) => c.label)) : null
-      visit(f.target!, [...inherited, ...(cat ? [cat] : [])], depth + 1, visited)
+      visit(f.target!, [...inherited, ...(cat ? [cat] : [])], depth + 1, visited, folder ?? f.target)
     }
   }
   visit(lib.rootId, [], 0, new Set())
@@ -149,59 +147,37 @@ export function predictCells(lib: Library, cfg: DynamicConfig, sentence: Token[]
   return start()
 }
 
-/**
- * Cuadrícula para las fichas de un momento: la más pequeña (fichas más grandes) en la que caben,
- * sin pasar del tamaño del tablero; a la derecha, la columna fija y «otras palabras».
- * Si no caben todas, páginas con flechas. `aspect` = ancho / alto del espacio disponible.
- */
-export function layoutPrediction(root: Board, cells: Cell[], fixed: Cell[], page = 0, aspect = 1.6): { board: Board; pages: number } {
-  const other: Cell = { id: OTHER_WORDS, kind: 'word', label: 'otras palabras', category: 'misc', textOnly: true, row: 0, col: 0 }
-  const side = [...fixed, other]
-  const maxRows = Math.max(1, root.rows)
-  const maxCols = Math.max(2, root.cols) - 1
-  const capacity = maxRows * maxCols
-  const pages = Math.max(1, Math.ceil(cells.length / capacity))
-  const current = Math.min(Math.max(0, page), pages - 1)
-  const shown = cells.slice(current * capacity, (current + 1) * capacity)
-  const needRows = Math.min(maxRows, side.length + (pages > 1 ? 2 : 0))
-
-  let best = { rows: maxRows, size: 0 }
-  for (let r = Math.max(1, needRows); r <= maxRows; r++) {
-    const c = Math.max(1, Math.ceil(shown.length / r))
-    if (c > maxCols) continue
-    const size = Math.min(aspect / (c + 1), 1 / r)
-    if (size > best.size + 1e-9) best = { rows: r, size }
-  }
-  const rows = best.rows
-  const cols = Math.max(1, Math.ceil(shown.length / rows))
-
-  // Por columnas: cada tipo de palabra queda junto, como en el tablero estático
-  const placed: Cell[] = shown.map((c, i) => ({ ...c, row: i % rows, col: Math.floor(i / rows) }))
-  const sideCol = cols
-  const nav: Cell[] = []
-  if (pages > 1) {
-    const mk = (id: string, label: string): Cell => ({ id, kind: 'word', label, category: 'misc', textOnly: true, row: 0, col: 0 })
-    if (current > 0) nav.push(mk(PREV_PAGE, '◂'))
-    if (current < pages - 1) nav.push(mk(NEXT_PAGE, 'más ▸'))
-  }
-  // «otras palabras» y las flechas, abajo; la columna fija, arriba
-  const bottom = [other, ...nav].slice(0, rows)
-  const top = fixed.slice(0, Math.max(0, rows - bottom.length))
-  top.forEach((c, i) => placed.push({ ...c, row: i, col: sideCol }))
-  bottom.forEach((c, i) => placed.push({ ...c, row: rows - bottom.length + i, col: sideCol }))
-  const board: Board = { ...root, rows, cols: cols + 1, cells: placed, zones: computeZones(countZones(placed), rows, cols + 1) }
-  return { board, pages }
+export interface Highlights {
+  /** Fichas que se ven normal (el resto, atenuadas). Incluye las carpetas con algo que encaja. */
+  lit: Set<string>
+  /** Si todo lo que encaja está en una sola carpeta del principal: abrirla sola */
+  autoOpen: string | null
 }
 
-/** Todo junto: lo que se ve ahora en el tablero principal en modo predictivo */
-export function predictiveView(lib: Library, cfg: DynamicConfig, sentence: Token[], page = 0, aspect = 1.6): { board: Board; pages: number } {
-  const root = lib.boards[lib.rootId]
+/** Qué resaltar ahora (en el principal y en las carpetas) y si hay que abrir una carpeta sola */
+export function predictiveHighlights(lib: Library, cfg: DynamicConfig, sentence: Token[]): Highlights {
   const pool = buildPool(lib)
-  const fixed = cfg.fixed.map((w) => pool.find((p) => fold(p.cell.label) === fold(w))?.cell).filter((c): c is Cell => !!c)
-  return layoutPrediction(root, predictCells(lib, cfg, sentence, pool), fixed, page, aspect)
+  const predicted = predictCells(lib, cfg, sentence, pool)
+  const ids = new Set(predicted.map((c) => c.id))
+  const lit = new Set(ids)
+  const fixed = new Set(cfg.fixed.map(fold))
+  for (const p of pool) if (fixed.has(fold(p.cell.label))) lit.add(p.cell.id)
+
+  // Carpetas del principal que contienen algo que encaja
+  const folders = new Map<string, number>()
+  let atRoot = 0
+  for (const p of pool) {
+    if (!ids.has(p.cell.id)) continue
+    if (p.folder) folders.set(p.folder, (folders.get(p.folder) ?? 0) + 1)
+    else if (p.cell.category !== 'verb') atRoot++
+  }
+  const root = lib.boards[lib.rootId]
+  for (const c of root?.cells ?? []) if (c.kind === 'folder' && c.target && folders.has(c.target)) lit.add(c.id)
+  const onlyFolder = sentence.length > 0 && atRoot === 0 && folders.size === 1 && !predicted.some((c) => c.category === 'verb')
+  return { lit, autoOpen: onlyFolder ? [...folders.keys()][0] : null }
 }
 
-/** Clave del momento actual: cambia de página a la primera cuando cambia */
+/** Clave de la frase en curso: cambia cada vez que se añade o quita una palabra */
 export function predictionKey(sentence: Token[]): string {
   return sentence.map((t) => fold(t.label)).join('|')
 }

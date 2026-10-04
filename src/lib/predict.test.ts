@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPool, DEFAULT_DYNAMIC, layoutPrediction, NEXT_PAGE, OTHER_WORDS, predictCells, predictiveView } from './predict'
+import { buildPool, DEFAULT_DYNAMIC, predictCells, predictiveHighlights } from './predict'
 import type { Board, Category, Cell, Library } from './types'
 
 let n = 0
@@ -105,20 +105,23 @@ describe('modo predictivo', () => {
     expect(predict(yo, jugar, pelota, con)).toContain('mamá')
   })
 
-  it('siempre «otras palabras» y la columna fija', () => {
-    const { board: b } = predictiveView(lib, DEFAULT_DYNAMIC, [yo, comer])
-    const side = b.cells.filter((c) => c.col === b.cols - 1).map((c) => c.label)
-    expect(side).toEqual(['no', 'sí', 'más', 'ayuda', 'otras palabras'])
-    expect(b.cells.some((c) => c.id === OTHER_WORDS)).toBe(true)
-    expect(new Set(b.cells.map((c) => `${c.row},${c.col}`)).size).toBe(b.cells.length)
+  it('nada cambia de sitio: solo se resalta lo que encaja (y las palabras fijas)', () => {
+    const { lit } = predictiveHighlights(lib, DEFAULT_DYNAMIC, [yo])
+    expect(lit.has(comer.id)).toBe(true)
+    expect(lit.has(no.id) && lit.has(ayuda.id)).toBe(true)
+    expect(lit.has(agua.id)).toBe(false)
   })
 
-  it('pocas palabras: fichas grandes; muchas: páginas', () => {
-    const few = predictiveView(lib, DEFAULT_DYNAMIC, [yo, beber]).board
-    expect(few.rows * few.cols).toBeLessThan(6 * 10)
-    const many = Array.from({ length: 40 }, (_, i) => w(`cosa${i}`, 'noun'))
-    const { board: b, pages } = layoutPrediction(board('r', 'r', [], 4, 5), many, [no, si])
-    expect(pages).toBe(3)
-    expect(b.cells.some((c) => c.id === NEXT_PAGE)).toBe(true)
+  it('tras «comer»: se abre sola la carpeta Comida (todo lo que encaja está ahí)', () => {
+    expect(predictiveHighlights(lib, DEFAULT_DYNAMIC, [yo, comer]).autoOpen).toBe('f-comida')
+  })
+
+  it('si encaja con varias carpetas o con fichas del principal: no se abre ninguna, se resaltan', () => {
+    const h = predictiveHighlights(lib, DEFAULT_DYNAMIC, [yo, jugar])
+    expect(h.autoOpen).toBeNull()
+    const folderCell = (t: string) => lib.boards.root.cells.find((c) => c.target === t)!.id
+    expect(h.lit.has(folderCell('f-juguetes')) && h.lit.has(folderCell('f-deportes'))).toBe(true)
+    expect(h.lit.has(folderCell('f-comida'))).toBe(false)
+    expect(predictiveHighlights(lib, DEFAULT_DYNAMIC, [yo, querer]).autoOpen).toBeNull() // también verbos
   })
 })

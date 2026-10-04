@@ -13,12 +13,14 @@ interface Props {
   selected?: boolean
   /** Texto que se ve, si no es la etiqueta (verbos conjugados según la frase) */
   displayLabel?: string
+  /** Modo predictivo: no encaja ahora (atenuada, pero se puede tocar) */
+  dimmed?: boolean
 }
 
-export function CellView({ cell, editing, onTap, editProps, selected, displayLabel }: Props) {
+export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed }: Props) {
   const { bg, border } = cellColors(cell.category, cell.kind)
   const style: CSSProperties = { background: bg, borderColor: border, gridRow: cell.row + 1, gridColumn: cell.col + 1 }
-  const className = `cell cell-${cell.kind}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}`
+  const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}`
   const body = (
     <>
       {!cell.textOnly && <Picto id={cell.picto} alt={cell.label} />}

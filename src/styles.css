@@ -1232,3 +1232,10 @@ p.ok {
   background: var(--accent);
   color: white;
 }
+
+/* Modo predictivo: lo que no encaja ahora, atenuado (sigue en su sitio y se puede tocar) */
+.cell-dimmed {
+  opacity: 0.22;
+  filter: grayscale(0.6);
+  transition: opacity 0.15s;
+}

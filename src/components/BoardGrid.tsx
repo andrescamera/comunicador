@@ -20,13 +20,15 @@ interface Props {
   onRenameZone?: (zone: Zone, name: string | null) => void
   /** Texto que se ve en una celda, si no es su etiqueta (verbos conjugados) */
   labelFor?: (cell: Cell) => string | null
+  /** Modo predictivo: fichas atenuadas (no encajan ahora; siguen en su sitio y se pueden tocar) */
+  dimFor?: (cell: Cell) => boolean
 }
 
 function zoneAt(board: Board, col: number): Zone | undefined {
   return ZONE_ORDER.find((z) => board.zones[z][0] <= col && col <= board.zones[z][1])
 }
 
-export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor }: Props) {
+export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor }: Props) {
   const gridStyle = {
     gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
@@ -90,6 +92,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
             editing={editing}
             selected={movingId === cell.id}
             displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}
+            dimmed={!editing && !!dimFor?.(cell)}
             onTap={() => onTap(cell)}
             editProps={{
               onClick: () => (movingId && onMoveTo ? onMoveTo(movingId, cell.row, cell.col) : onEdit(cell)),

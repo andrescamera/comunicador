@@ -16,9 +16,11 @@ interface Props {
   selected: boolean
   /** Texto que se ve, si no es la etiqueta (verbos conjugados según la frase) */
   displayLabel?: string
+  /** Modo predictivo: no encaja ahora (atenuada, pero se puede tocar) */
+  dimmed?: boolean
 }
 
-function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel }: Props) {
+function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel, dimmed }: Props) {
   const label = displayLabel ?? cell.label
   const { bg, border } = cellColors(cell.category, cell.kind)
   const fontSize = Math.max(10, Math.min(22, width * 0.15, height * 0.16))
@@ -30,6 +32,7 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
         cell.kind === 'folder' && styles.folder,
         editing && styles.editing,
         cell.hidden && styles.hidden,
+        dimmed && styles.dimmed,
         pressed && styles.pressed,
         fired && styles.fired,
         selected && styles.selected,
@@ -77,6 +80,7 @@ const styles = StyleSheet.create({
   folder: { borderTopWidth: 10 },
   editing: { borderStyle: 'dashed' },
   hidden: { opacity: 0.35 },
+  dimmed: { opacity: 0.22 },
   pressed: { borderColor: colors.accent, borderWidth: 4, transform: [{ scale: 0.95 }] },
   fired: { borderColor: colors.ok, borderWidth: 5 },
   selected: { borderColor: colors.accent, borderWidth: 5 },

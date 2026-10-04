@@ -19,9 +19,11 @@ interface Props {
   gap?: number
   /** Texto que se ve en una celda, si no es su etiqueta (verbos conjugados) */
   labelFor?: (cell: Cell) => string | null
+  /** Modo predictivo: fichas atenuadas (no encajan ahora; siguen en su sitio y se pueden tocar) */
+  dimFor?: (cell: Cell) => boolean
 }
 
-export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor }: Props) {
+export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor, dimFor }: Props) {
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const [pressedKey, setPressedKey] = useState<string | null>(null)
   const [firedKey, setFiredKey] = useState<string | null>(null)
@@ -124,6 +126,7 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
                   editing={editing}
                   selected={movingId === cell.id}
                   displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}
+                  dimmed={!editing && !!dimFor?.(cell)}
                 />
               )
             })}
