@@ -19,7 +19,8 @@ import type { Cell, DynamicConfig, Library } from './types'
 export const DEFAULT_DYNAMIC: DynamicConfig = {
   enabled: true,
   fixed: ['no', 'sí', 'más', 'ayuda'],
-  chainVerbs: ['querer', 'poder', 'necesitar', 'ir', 'gustar', 'saber', 'tener que'],
+  // Verbos que llevan otro detrás: en los datos de CHILDES, ir (30 %), volver (28 %), querer (23 %), ayudar (13 %)…
+  chainVerbs: ['querer', 'poder', 'necesitar', 'ir', 'volver', 'gustar', 'saber', 'tener que', 'dejar', 'empezar', 'ayudar'],
 }
 
 

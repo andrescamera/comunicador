@@ -1,3 +1,4 @@
+import { CREDITS } from '../lib/credits'
 import { useEffect, useState } from 'react'
 import { speak, spanishVoices } from '../lib/speech'
 import type { Settings } from '../lib/types'
@@ -130,6 +131,11 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
             Nuevo tablero de ejemplo
           </button>
         </div>
+
+        <h3>Créditos</h3>
+        {CREDITS.map((c) => (
+          <p key={c} className="muted credit">{c}</p>
+        ))}
       </section>
     </Modal>
   )

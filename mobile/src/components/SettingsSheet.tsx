@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native'
 import type { Voice } from 'expo-speech'
-import { type CloudSync, DEFAULT_SETTINGS, type Settings } from '../shared'
+import { type CloudSync, CREDITS, DEFAULT_SETTINGS, type Settings } from '../shared'
 import { AccountSection } from './AccountSection'
 import { spanishVoices, speak } from '../speech'
 import { colors } from '../theme'
@@ -96,6 +96,13 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
         <Btn title="Restaurar ajustes" onPress={() => onChange({ ...DEFAULT_SETTINGS })} />
         <Btn title="Nuevo tablero de ejemplo" onPress={onResetBoards} />
       </View>
+
+      <Text style={styles.h}>Créditos</Text>
+      {CREDITS.map((c) => (
+        <Text key={c} style={styles.help}>
+          {c}
+        </Text>
+      ))}
     </Sheet>
   )
 }
