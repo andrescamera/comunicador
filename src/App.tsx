@@ -13,7 +13,7 @@ import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
 import { STARTER_NAME, useLibraries } from './lib/useCloudSync'
 import { categoryFor, missingWords } from './lib/catalog'
-import { DEFAULT_DYNAMIC, dynamicView, NEXT_PAGE, PREV_PAGE, sentenceStage, type Stage, wantsVerb } from './lib/dynamic'
+import { buildPool, DEFAULT_DYNAMIC, NEXT_PAGE, OTHER_WORDS, predictionKey, predictiveView, PREV_PAGE } from './lib/predict'
 import { DynamicConfigPanel } from './components/DynamicConfigPanel'
 import { speak } from './lib/speech'
 import { loadSettings, saveSettings } from './lib/storage'
@@ -60,7 +60,10 @@ export default function App() {
   const [movingId, setMovingId] = useState<string | null>(null)
   // Modo dinámico: página del momento actual y, en edición, vista previa de un momento
   const [dynPage, setDynPage] = useState(0)
-  const [previewStage, setPreviewStage] = useState<Stage | null>(null)
+  // En edición: probar cómo se ve tras una frase (null = editar las fichas)
+  const [preview, setPreview] = useState<Cell[] | null>(null)
+  // «otras palabras»: el tablero completo para elegir la siguiente palabra
+  const [showAll, setShowAll] = useState(false)
   const [showDynConfig, setShowDynConfig] = useState(false)
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
@@ -93,8 +96,11 @@ export default function App() {
 
   useEffect(() => saveSettings(settings), [settings])
   // Otro momento de la frase: se empieza por su primera página
-  const sentenceStageNow = sentenceStage(sentence)
-  useEffect(() => setDynPage(0), [sentenceStageNow])
+  const predKey = predictionKey(sentence)
+  useEffect(() => setDynPage(0), [predKey])
+  useEffect(() => {
+    if (!sentence.length) setShowAll(false) // frase nueva: otra vez con predicción
+  }, [sentence.length])
   // Todos los tableros con la cuadrícula del principal (también los que llegan de otro dispositivo)
   useEffect(() => {
     if (!lib || readOnly || cloud.downloading) return
@@ -234,11 +240,9 @@ export default function App() {
   // Modo dinámico (solo el tablero principal): se muestra lo que encaja en el momento de la frase
   const root = lib.boards[lib.rootId]
   const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
-  const stage = sentenceStage(sentence)
-  const dynStage: Stage | null = !dynCfg || board.id !== lib.rootId ? null : editing ? previewStage : stage
-  const withVerbs = !editing && !!dynCfg && wantsVerb(sentence, dynCfg)
-  const view = dynStage
-    ? dynamicView(board, dynCfg!, dynStage, editing ? 0 : dynPage, window.innerWidth / Math.max(1, window.innerHeight * 0.75), withVerbs)
+  const predicting = !!dynCfg && board.id === lib.rootId && (editing ? preview !== null : !showAll)
+  const view = predicting
+    ? predictiveView(lib, dynCfg!, editing ? preview! : sentence, editing ? 0 : dynPage, window.innerWidth / Math.max(1, window.innerHeight * 0.75))
     : null
   const shownBoard = view?.board ?? board
 
@@ -247,6 +251,12 @@ export default function App() {
       setDynPage((p) => p + (cell.id === NEXT_PAGE ? 1 : -1))
       return
     }
+    if (cell.id === OTHER_WORDS) {
+      setShowAll(true)
+      return
+    }
+    // Tras elegir una palabra del tablero completo, se vuelve a la predicción
+    if (cell.kind !== 'folder') setShowAll(false)
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length) // navegar también cuenta como actividad
@@ -393,20 +403,35 @@ export default function App() {
                     className={dynCfg ? 'primary' : ''}
                     onClick={() => {
                       updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))
-                      setPreviewStage(null)
+                      setPreview(null)
                     }}
-                    title="Modo dinámico: en cada momento de la frase se ve solo lo que encaja"
+                    title="Modo predictivo: en cada momento se ve solo lo que tiene sentido decir a continuación"
                   >
-                    {dynCfg ? '✓ Dinámico' : 'Modo dinámico'}
+                    {dynCfg ? '✓ Predictivo' : 'Modo predictivo'}
                   </button>
                   {dynCfg && (
                     <>
-                      <span className="muted">Ver:</span>
-                      {([null, 1, 2, 3] as const).map((s) => (
-                        <button key={s ?? 'e'} type="button" className={previewStage === s ? 'selected' : ''} onClick={() => setPreviewStage(s)}>
-                          {s === null ? 'Fichas' : `Momento ${s}`}
-                        </button>
-                      ))}
+                      <select
+                        value={preview === null ? 'edit' : preview.length === 0 ? 'start' : preview.length === 1 ? 'subject' : preview[1].id}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          const subject = board.cells.find((c) => c.category === 'pronoun') ?? board.cells.find((c) => c.category === 'person')
+                          const verb = buildPool(lib).find((p) => p.cell.id === v)?.cell
+                          setPreview(v === 'edit' ? null : v === 'start' ? [] : v === 'subject' ? (subject ? [subject] : []) : subject && verb ? [subject, verb] : verb ? [verb] : [])
+                        }}
+                        aria-label="Probar el modo predictivo"
+                      >
+                        <option value="edit">Editar fichas</option>
+                        <option value="start">Probar: al empezar</option>
+                        <option value="subject">Probar: tras la persona</option>
+                        {buildPool(lib)
+                          .filter((p) => p.cell.category === 'verb')
+                          .map((p) => (
+                            <option key={p.cell.id} value={p.cell.id}>
+                              Probar: tras «{p.cell.label}»
+                            </option>
+                          ))}
+                      </select>
                       <button type="button" onClick={() => setShowDynConfig(true)} aria-label="Configurar modo dinámico">⚙︎</button>
                     </>
                   )}
@@ -476,6 +501,14 @@ export default function App() {
           </div>
         )}
         {notice && <div className="notice">{notice}</div>}
+        {dynCfg && showAll && !editing && (
+          <div className="notice">
+            Tablero completo: elige la siguiente palabra.{' '}
+            <button type="button" onClick={() => (setShowAll(false), setHistory([]))}>
+              ◂ Volver a la predicción
+            </button>
+          </div>
+        )}
         {!editing && board.cells.length === 0 && history.length === 0 && (
           <div className="notice">Tablero vacío. Pulsa «✎ Editar» para añadir fichas, o para crear un tablero entero a partir de un texto o de una foto (✨ Crear tablero).</div>
         )}

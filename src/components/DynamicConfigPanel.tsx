@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DEFAULT_DYNAMIC } from '../lib/dynamic'
+import { DEFAULT_DYNAMIC } from '../lib/predict'
 import type { DynamicConfig } from '../lib/types'
 import { Modal } from './Modal'
 
@@ -14,11 +14,13 @@ export function DynamicConfigPanel({ config, onChange, onClose }: { config: Dyna
   const [fixed, setFixed] = useState(config.fixed.join(', '))
   const [chain, setChain] = useState(config.chainVerbs.join(', '))
   return (
-    <Modal title="Modo dinámico" onClose={onClose}>
+    <Modal title="Modo predictivo" onClose={onClose}>
       <div className="settings">
         <p className="muted">
-          En cada momento de la frase se ve solo lo que encaja: al empezar, personas, preguntas y verbos; tras la persona, los
-          verbos; tras el verbo, nombres, carpetas y palabras pequeñas. El tamaño máximo es el de Filas × Columnas del tablero.
+          En cada momento se ve solo lo que tiene sentido decir a continuación: al empezar, personas, preguntas y verbos; tras
+          la persona, los verbos; tras el verbo, lo que encaja con él (comer → comidas, ir → lugares…), también de dentro de las
+          carpetas; tras un nombre, lo que lo describe. «Otras palabras» abre el tablero completo. El tamaño máximo es el de
+          Filas × Columnas del tablero.
         </p>
         <label>
           Columna fija (siempre visible, separadas por comas)

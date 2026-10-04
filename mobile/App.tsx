@@ -38,11 +38,11 @@ import {
   uid,
   verbFormFor,
   DEFAULT_DYNAMIC,
-  dynamicView,
+  predictiveView,
+  predictionKey,
   NEXT_PAGE,
   PREV_PAGE,
-  sentenceStage,
-  wantsVerb,
+  OTHER_WORDS,
   categoryFor,
   missingWords,
   zoneOf,
@@ -80,7 +80,8 @@ export default function App() {
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [movingId, setMovingId] = useState<string | null>(null)
-  const [dynPage, setDynPage] = useState(0) // modo dinámico: página del momento actual
+  const [dynPage, setDynPage] = useState(0) // modo predictivo: página del momento actual
+  const [showAll, setShowAll] = useState(false) // «otras palabras»: el tablero completo para la siguiente palabra
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0)
   const [area, setArea] = useState({ w: 0, h: 0 }) // espacio útil (sin márgenes) para barra + tablero
@@ -119,8 +120,11 @@ export default function App() {
     const n = normalizeLibrary(lib)
     if (n !== lib) setLib(n)
   }, [lib])
-  const stageNow = sentenceStage(sentence)
-  useEffect(() => setDynPage(0), [stageNow])
+  const predKey = predictionKey(sentence)
+  useEffect(() => setDynPage(0), [predKey])
+  useEffect(() => {
+    if (!sentence.length) setShowAll(false) // frase nueva: otra vez con predicción
+  }, [sentence.length])
   useEffect(() => {
     if (!notice) return
     const t = setTimeout(() => setNotice(''), 8000)
@@ -238,8 +242,8 @@ export default function App() {
   const root = lib.boards[lib.rootId]
   const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
   const view =
-    dynCfg && board.id === lib.rootId && !editing
-      ? dynamicView(board, dynCfg, sentenceStage(sentence), dynPage, area.h > 0 ? area.w / area.h : 1.6, wantsVerb(sentence, dynCfg)).board
+    dynCfg && board.id === lib.rootId && !editing && !showAll
+      ? predictiveView(lib, dynCfg, sentence, dynPage, area.h > 0 ? area.w / area.h : 1.6).board
       : null
 
   const onCellTap = (cell: Cell) => {
@@ -247,6 +251,12 @@ export default function App() {
       setDynPage((p) => p + (cell.id === NEXT_PAGE ? 1 : -1))
       return
     }
+    if (cell.id === OTHER_WORDS) {
+      setShowAll(true)
+      return
+    }
+    // Tras elegir una palabra del tablero completo, se vuelve a la predicción
+    if (cell.kind !== 'folder') setShowAll(false)
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length)
@@ -408,7 +418,7 @@ export default function App() {
                 <ToolBtn text={compact ? '⇅' : '⇅ Reordenar'} onPress={reorganize} />
                 {board.id === lib.rootId && (
                   <ToolBtn
-                    text={board.dynamic?.enabled ? '✓ Dinámico' : 'Dinámico'}
+                    text={board.dynamic?.enabled ? '✓ Predictivo' : 'Predictivo'}
                     primary={!!board.dynamic?.enabled}
                     onPress={() => updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))}
                   />

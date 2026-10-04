@@ -48,3 +48,12 @@ momento solo lo que encaja con cómo seguimos una frase en español (persona →
 2. Web: activar el modo en un tablero, uso, vista previa por momentos en edición y configuración.
 3. Tablet: uso (la edición se hace en el ordenador).
 4. Prueba con un tablero real y ajustes con la logopeda.
+
+## Cambio (2026-10-04): modo predictivo (sustituye al dinámico)
+- Tras el verbo ya no se ven «todos los nombres», sino solo lo que encaja con ese verbo (comer → comidas, frutas…;
+  ir → lugares; jugar → juguetes…), sacando las palabras de dentro de las carpetas (sin abrirlas).
+- Tras un nombre: lo que lo describe (colores, tamaño…) y enlaces («y», «con», «más»).
+- Conexiones automáticas: mapa propio (verbo → categorías del catálogo, nombre → descriptores); las fichas que no
+  están en el mapa heredan la categoría de su carpeta.
+- Siempre: columna fija + «otras palabras» (abre el tablero completo para la palabra siguiente).
+- Más adelante: aprender del uso (orden por frecuencia) y conexiones con IA para palabras fuera del mapa.
