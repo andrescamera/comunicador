@@ -60,7 +60,7 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
 
       <Text style={styles.h}>Frase</Text>
       <Toggle label="Borrar la frase después de decirla (al tocar la barra de la frase)" value={settings.clearAfterSpeak} onChange={(v) => set('clearAfterSpeak', v)} />
-      <Toggle label="Borrar la frase si no se toca nada durante un tiempo" value={settings.autoClear} onChange={(v) => set('autoClear', v)} />
+      <Toggle label="Borrado automático: borrar la frase si no se toca nada durante un tiempo" value={settings.autoClear} onChange={(v) => set('autoClear', v)} />
       {settings.autoClear && (
         <Stepper label="Tiempo sin tocar" unit="s" value={settings.autoClearSeconds} step={1} min={1} max={10} onChange={(v) => set('autoClearSeconds', v)}
           help="Cada toque reinicia la cuenta." />

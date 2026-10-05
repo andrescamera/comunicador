@@ -7,7 +7,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
 import { buildFolder, folderCell, sortCells, starterLibrary } from './lib/generator'
-import { moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
+import { FOLDER_NEXT, FOLDER_PREV, folderArea, inlineFolder, moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
@@ -62,6 +62,7 @@ export default function App() {
   // En edición: probar cómo se ve tras una frase (null = editar las fichas)
   const [preview, setPreview] = useState<Cell[] | null>(null)
   const [showDynConfig, setShowDynConfig] = useState(false)
+  const [folderPage, setFolderPage] = useState(0) // carpeta abierta en su zona: página
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
   const clearTimer = useRef<number | undefined>(undefined)
@@ -92,6 +93,7 @@ export default function App() {
   settingsRef.current = settings
 
   useEffect(() => saveSettings(settings), [settings])
+  useEffect(() => setFolderPage(0), [history])
   // Modo predictivo: tras cada palabra, si todo lo que encaja está en una carpeta, se abre sola
   const predKey = predictionKey(sentence)
   useEffect(() => {
@@ -243,7 +245,17 @@ export default function App() {
   const previewing = editing && preview !== null
   const highlights = dynCfg && (!editing || previewing) ? predictiveHighlights(lib, dynCfg, previewing ? preview! : sentence) : null
 
+  // Carpeta abierta: se ve dentro de la zona de carpetas del principal y el resto no se mueve
+  const openFolderCell = history.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === history[0]) : undefined
+  const area = !editing && root && openFolderCell ? folderArea(root, openFolderCell.id) : null
+  const inline = area && root ? inlineFolder(root, board, area, folderPage) : null
+  const shown = inline?.board ?? board
+
   const onCellTap = (cell: Cell) => {
+    if (cell.id === FOLDER_NEXT || cell.id === FOLDER_PREV) {
+      setFolderPage((p) => p + (cell.id === FOLDER_NEXT ? 1 : -1))
+      return
+    }
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length) // navegar también cuenta como actividad
@@ -458,22 +470,6 @@ export default function App() {
           </div>
         </nav>
 
-        {!editing && (
-          <SentenceBar
-            tokens={sentence}
-            onSpeak={speakSentence}
-            onBackspace={() => {
-              scheduleIdleClear(sentence.length - 1)
-              setSentence((s) => s.slice(0, -1))
-            }}
-            onClear={() => {
-              cancelAutoClear()
-              setSentence([])
-            }}
-            clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
-            clearingKey={clearing}
-          />
-        )}
 
         {editing && (
           <div className={`edit-hint ${movingId ? 'moving' : ''}`}>
@@ -492,9 +488,30 @@ export default function App() {
           <div className="notice">Tablero vacío. Pulsa «✎ Editar» para añadir fichas, o para crear un tablero entero a partir de un texto o de una foto (✨ Crear tablero).</div>
         )}
 
+        {/* En uso, la barra de frase mide lo mismo que una fila del tablero */}
+        <div
+          className={`board-stack ${editing ? '' : 'use'}`}
+          style={editing ? undefined : { gridTemplateRows: `calc((100% - ${shown.rows * 8}px) / ${shown.rows + 1}) minmax(0, 1fr)` }}
+        >
+        {!editing && (
+          <SentenceBar
+            tokens={sentence}
+            onSpeak={speakSentence}
+            onBackspace={() => {
+              scheduleIdleClear(sentence.length - 1)
+              setSentence((s) => s.slice(0, -1))
+            }}
+            onClear={() => {
+              cancelAutoClear()
+              setSentence([])
+            }}
+            clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
+            clearingKey={clearing}
+          />
+        )}
         <main className="board-area">
           <BoardGrid
-            board={board}
+            board={shown}
             editing={editing && !previewing}
             onTap={editing ? () => {} : onCellTap}
             dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
@@ -515,6 +532,7 @@ export default function App() {
             }
           />
         </main>
+        </div>
       </div>
 
       {settings.showTapLog && !editing && <TapLog onClose={() => setSettings({ ...settings, showTapLog: false })} />}

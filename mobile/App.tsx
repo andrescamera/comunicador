@@ -43,6 +43,10 @@ import {
   categoryFor,
   missingWords,
   zoneOf,
+  folderArea,
+  inlineFolder,
+  FOLDER_NEXT,
+  FOLDER_PREV,
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
 import { appStore, supabase } from './src/cloud'
@@ -77,6 +81,7 @@ export default function App() {
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [movingId, setMovingId] = useState<string | null>(null)
+  const [folderPage, setFolderPage] = useState(0) // carpeta abierta en su zona: página
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0)
   const [area, setArea] = useState({ w: 0, h: 0 }) // espacio útil (sin márgenes) para barra + tablero
@@ -116,6 +121,7 @@ export default function App() {
     if (n !== lib) setLib(n)
   }, [lib])
   // Modo predictivo: tras cada palabra, si todo lo que encaja está en una carpeta, se abre sola
+  useEffect(() => setFolderPage(0), [history])
   const predKey = predictionKey(sentence)
   useEffect(() => {
     if (!lib || editing || !sentence.length) return
@@ -241,8 +247,16 @@ export default function App() {
   const root = lib.boards[lib.rootId]
   const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
   const highlights = dynCfg && !editing ? predictiveHighlights(lib, dynCfg, sentence) : null
+  // Carpeta abierta: se ve dentro de la zona de carpetas del principal y el resto no se mueve
+  const openFolderCell = history.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === history[0]) : undefined
+  const folderZone = !editing && root && openFolderCell ? folderArea(root, openFolderCell.id) : null
+  const shown = folderZone && root ? inlineFolder(root, board, folderZone, folderPage).board : board
 
   const onCellTap = (cell: Cell) => {
+    if (cell.id === FOLDER_NEXT || cell.id === FOLDER_PREV) {
+      setFolderPage((p) => p + (cell.id === FOLDER_NEXT ? 1 : -1))
+      return
+    }
     if (cell.kind === 'folder') {
       if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length)
@@ -431,7 +445,7 @@ export default function App() {
 
           <View style={styles.boardArea}>
             <BoardView
-              board={board}
+              board={shown}
               dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
               editing={editing}
               gap={gap}

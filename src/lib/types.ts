@@ -83,7 +83,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showTapLog: true,
   conjugateLabels: true,
   clearAfterSpeak: true,
-  autoClear: true,
+  autoClear: false,
   autoClearSeconds: 3,
 }
 

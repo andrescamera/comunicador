@@ -1239,3 +1239,20 @@ p.ok {
   filter: grayscale(0.6);
   transition: opacity 0.15s;
 }
+
+/* Barra de frase + tablero: en uso, la barra mide lo mismo que una fila de fichas */
+.board-stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.board-stack.use {
+  display: grid;
+  gap: 8px;
+}
+.board-stack.use .sentence-bar {
+  height: auto;
+  min-height: 0;
+}

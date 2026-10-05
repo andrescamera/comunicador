@@ -319,3 +319,63 @@ export function resizeLibrary<L extends Lib>(lib: L, rows: number, cols: number)
   }
   return { ...lib, boards }
 }
+
+// ---------- Carpetas dentro de su zona ----------
+
+export interface Area {
+  r0: number
+  c0: number
+  r1: number
+  c1: number
+}
+
+export const FOLDER_PREV = '__folder_prev'
+export const FOLDER_NEXT = '__folder_next'
+
+/**
+ * Zona de carpetas del tablero principal: el bloque de carpetas pegadas entre sí (también en
+ * diagonal) que incluye la carpeta abierta, p. ej. el bloque de 4 × 5 de «Nombres». Ahí se ve el
+ * contenido de la carpeta; el resto del tablero no se mueve. null si es demasiado pequeño (< 4 casillas).
+ */
+export function folderArea(root: Board, folderCellId: string): Area | null {
+  const open = root.cells.find((c) => c.id === folderCellId)
+  if (!open) return null
+  const folders = root.cells.filter((c) => c.kind === 'folder')
+  const block = [open]
+  for (let k = 0; k < block.length; k++) {
+    const c = block[k]
+    for (const f of folders)
+      if (!block.includes(f) && Math.abs(f.row - c.row) <= 1 && Math.abs(f.col - c.col) <= 1) block.push(f)
+  }
+  const area = {
+    r0: Math.min(...block.map((c) => c.row)),
+    c0: Math.min(...block.map((c) => c.col)),
+    r1: Math.max(...block.map((c) => c.row)),
+    c1: Math.max(...block.map((c) => c.col)),
+  }
+  return (area.r1 - area.r0 + 1) * (area.c1 - area.c0 + 1) >= 4 ? area : null
+}
+
+const inside = (a: Area, c: Pick<Cell, 'row' | 'col'>) => c.row >= a.r0 && c.row <= a.r1 && c.col >= a.c0 && c.col <= a.c1
+
+/**
+ * El tablero principal con una carpeta abierta dentro de su zona: fuera de la zona todo sigue igual;
+ * dentro, las fichas de la carpeta (siempre en el mismo orden, por columnas). Si no caben, páginas
+ * con flechas en las últimas casillas de la zona.
+ */
+export function inlineFolder(root: Board, folder: Board, area: Area, page = 0): { board: Board; pages: number } {
+  const rows = area.r1 - area.r0 + 1
+  const capacity = rows * (area.c1 - area.c0 + 1)
+  const contents = folder.cells.filter((c) => !c.hidden).sort((a, b) => a.col - b.col || a.row - b.row)
+  const perPage = contents.length > capacity ? capacity - 2 : capacity
+  const pages = Math.max(1, Math.ceil(contents.length / perPage))
+  const current = Math.min(Math.max(0, page), pages - 1)
+  const at = (i: number) => ({ row: area.r0 + (i % rows), col: area.c0 + Math.floor(i / rows) })
+  const placed: Cell[] = contents.slice(current * perPage, (current + 1) * perPage).map((c, i) => ({ ...c, ...at(i) }))
+  if (pages > 1) {
+    const nav = (id: string, label: string, i: number): Cell => ({ id, kind: 'word', label, category: 'misc', textOnly: true, ...at(i) })
+    if (current > 0) placed.push(nav(FOLDER_PREV, '◂', capacity - 2))
+    if (current < pages - 1) placed.push(nav(FOLDER_NEXT, 'más ▸', capacity - 1))
+  }
+  return { board: { ...root, name: folder.name, cells: [...root.cells.filter((c) => !inside(area, c)), ...placed] }, pages }
+}

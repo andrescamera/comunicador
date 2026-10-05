@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { classify } from './grammar'
 import { computeZones, layoutAt, layoutCells, moveCellTo, type NewCell, normalizeLibrary, pickSize, placeCell, resizeBoard, resizeLibrary, zoneOf } from './layout'
-import type { Board } from './types'
+import type { Board, Cell } from './types'
 
 let n = 0
 const word = (label: string): NewCell => ({ id: `c${++n}`, kind: 'word', label, category: classify(label) })
@@ -168,5 +168,43 @@ describe('cuadrícula común (fichas del mismo tamaño en todos los tableros)', 
       [4, 7],
     ])
     expect(resizeLibrary(n, 1, 1)).toBeNull() // el principal no puede bajar a 1 × 1
+  })
+})
+
+describe('carpeta abierta dentro de su zona', async () => {
+  const { folderArea, inlineFolder, FOLDER_NEXT } = await import('./layout')
+  const cell = (id: string, row: number, col: number, kind: 'word' | 'folder' = 'word'): Cell => ({ id, label: id, kind, category: 'noun', row, col })
+  const root: Board = {
+    id: 'root', name: 'Inicio', rows: 6, cols: 8,
+    zones: { A: [0, 1], B: [2, 3], C: [4, 4], D: [5, 7], E: [8, 7] },
+    cells: [
+      cell('yo', 0, 0), cell('comer', 0, 2), cell('qué', 5, 5), cell('suelta', 0, 0 + 3, 'folder'), // otra carpeta, lejos del bloque
+      cell('animales', 0, 5, 'folder'), cell('comida', 0, 6, 'folder'), cell('ropa', 1, 7, 'folder'), cell('casa', 2, 6, 'folder'),
+    ],
+  }
+  const comida: Board = { ...root, id: 'f', name: 'Comida', cells: Array.from({ length: 5 }, (_, i) => cell(`c${i}`, i, 0)) }
+
+  it('la zona es el bloque de carpetas pegadas a la abierta (aunque crucen grupos de columnas)', () => {
+    expect(folderArea(root, 'comida')).toEqual({ r0: 0, c0: 5, r1: 2, c1: 7 })
+    expect(folderArea(root, 'suelta')).toBeNull() // carpeta suelta: se abre como siempre
+  })
+
+  it('fuera de la zona nada se mueve; dentro, el contenido de la carpeta', () => {
+    const { board } = inlineFolder(root, comida, folderArea(root, 'comida')!)
+    const pos = (id: string) => board.cells.find((c) => c.id === id)
+    expect(pos('yo')).toMatchObject({ row: 0, col: 0 })
+    expect(pos('comer')).toMatchObject({ row: 0, col: 2 })
+    expect(pos('qué')).toMatchObject({ row: 5, col: 5 }) // debajo de la zona: sigue ahí
+    expect(pos('animales')).toBeUndefined()
+    expect(pos('c0')).toMatchObject({ row: 0, col: 5 })
+    expect(pos('c3')).toMatchObject({ row: 0, col: 6 })
+    expect(board.rows).toBe(6)
+  })
+
+  it('si no cabe, páginas con «más ▸»', () => {
+    const big: Board = { ...comida, cells: Array.from({ length: 12 }, (_, i) => cell(`b${i}`, i % 6, Math.floor(i / 6))) }
+    const { board, pages } = inlineFolder(root, big, folderArea(root, 'comida')!)
+    expect(pages).toBe(2)
+    expect(board.cells.find((c) => c.id === FOLDER_NEXT)).toMatchObject({ row: 2, col: 7 })
   })
 })

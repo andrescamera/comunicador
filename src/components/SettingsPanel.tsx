@@ -65,7 +65,7 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
         </label>
         <label className="check">
           <input type="checkbox" checked={settings.autoClear} onChange={(e) => set('autoClear', e.target.checked)} />
-          Borrar la frase si no se toca nada durante un tiempo
+          Borrado automático: borrar la frase si no se toca nada durante un tiempo
         </label>
         {settings.autoClear && (
           <label>

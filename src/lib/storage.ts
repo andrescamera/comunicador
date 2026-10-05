@@ -1,7 +1,8 @@
 import type { Settings } from './types'
 import { DEFAULT_SETTINGS } from './types'
 
-const SETTINGS_KEY = 'comunicador:settings:v1'
+const SETTINGS_KEY = 'comunicador:settings:v2'
+const OLD_SETTINGS_KEY = 'comunicador:settings:v1' // v2: el borrado automático pasa a estar desactivado por defecto
 
 function read<T>(key: string): T | null {
   try {
@@ -20,5 +21,10 @@ function write(key: string, value: unknown): void {
   }
 }
 
-export const loadSettings = (): Settings => ({ ...DEFAULT_SETTINGS, ...(read<Partial<Settings>>(SETTINGS_KEY) ?? {}) })
+export const loadSettings = (): Settings => {
+  const saved = read<Partial<Settings>>(SETTINGS_KEY)
+  if (saved) return { ...DEFAULT_SETTINGS, ...saved }
+  const old = read<Partial<Settings>>(OLD_SETTINGS_KEY)
+  return { ...DEFAULT_SETTINGS, ...(old ?? {}), autoClear: false }
+}
 export const saveSettings = (s: Settings) => write(SETTINGS_KEY, s)
