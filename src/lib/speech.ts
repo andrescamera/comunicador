@@ -1,16 +1,22 @@
+/** Voces en español del navegador (sin las «de juguete», que pronuncian mal) */
 export function spanishVoices(): SpeechSynthesisVoice[] {
   if (!('speechSynthesis' in window)) return []
-  return speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es'))
+  return speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es') && !NOVELTY.test(v.name))
 }
 
+// Voces «de juguete» que trae macOS: pronuncian mal (se comen sonidos: «tengo» -> «tego»)
+const NOVELTY = /^(eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley|albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox)\b/i
+// Voces de buena calidad conocidas (Mac, Chrome, Edge/Windows, iOS)
+const GOOD = /(m[oó]nica|marisol|jorge|luc[ií]a|google espa[nñ]ol|elvira|[aá]lvaro|helena|laura|pablo|siri)/i
+
+/** La mejor voz en español: la elegida en Ajustes o, en automático, una buena de España */
 function pickVoice(voiceURI: string): SpeechSynthesisVoice | undefined {
   const voices = spanishVoices()
-  return (
-    voices.find((v) => v.voiceURI === voiceURI) ??
-    voices.find((v) => v.lang === 'es-ES' && v.localService) ??
-    voices.find((v) => v.lang === 'es-ES') ??
-    voices[0]
-  )
+  const chosen = voices.find((v) => v.voiceURI === voiceURI)
+  if (chosen) return chosen
+  const score = (v: SpeechSynthesisVoice) =>
+    (NOVELTY.test(v.name) ? -100 : 0) + (GOOD.test(v.name) ? 20 : 0) + (v.lang === 'es-ES' ? 10 : 0) + (v.localService ? 1 : 0)
+  return [...voices].sort((a, b) => score(b) - score(a))[0]
 }
 
 let generation = 0
