@@ -14,6 +14,7 @@ import {
   bestPicto,
   type Board,
   buildFolder,
+  buildQuickChat,
   type Cell,
   classify,
   DEFAULT_SETTINGS,
@@ -246,11 +247,26 @@ export default function App() {
   // Modo dinámico (solo el tablero principal y fuera de edición): lo que encaja en el momento de la frase
   const root = lib.boards[lib.rootId]
   const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
-  const highlights = dynCfg && !editing ? predictiveHighlights(lib, dynCfg, sentence) : null
+  // En «Charla rápida» no se predice: son frases hechas, todas a la vista
+  const inQuickChat = !!root?.quickChat && history.includes(root.quickChat)
+  const highlights = dynCfg && !inQuickChat && !editing ? predictiveHighlights(lib, dynCfg, sentence) : null
   // Carpeta abierta: se ve dentro de la zona de carpetas del principal y el resto no se mueve
   const openFolderCell = history.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === history[0]) : undefined
   const folderZone = !editing && root && openFolderCell ? folderArea(root, openFolderCell.id) : null
   const shown = folderZone && root ? inlineFolder(root, board, folderZone, folderPage).board : board
+
+  // «Charla rápida»: frases hechas a un toque. La primera vez se crea con frases de ejemplo.
+  const openQuickChat = async () => {
+    const existing = root?.quickChat && lib.boards[root.quickChat] ? root.quickChat : null
+    if (existing) {
+      setHistory((h) => (h[h.length - 1] === existing ? [] : [existing])) // segundo toque: volver
+      return
+    }
+    if (readOnly || !root) return
+    const chat = await buildQuickChat({ rows: root.rows, cols: root.cols })
+    setLib((l) => (l ? { ...l, boards: { ...l.boards, [chat.id]: chat, [l.rootId]: { ...l.boards[l.rootId], quickChat: chat.id } } } : l))
+    setHistory([chat.id])
+  }
 
   const onCellTap = (cell: Cell) => {
     if (cell.id === FOLDER_NEXT || cell.id === FOLDER_PREV) {
@@ -397,6 +413,7 @@ export default function App() {
                   }}
                   clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
                   clearingKey={clearing}
+                  onQuickChat={root?.quickChat || !readOnly ? () => void openQuickChat() : undefined}
                 />
                 <View style={[styles.tools, { width: cellW, gap }]}>
                   {!readOnly && <ToolBtn text="✎" onPress={() => (setEditing(true), cancelAutoClear())} small />}

@@ -11,9 +11,11 @@ interface Props {
   /** > 0 mientras hay un borrado automático pendiente (duración de la cuenta atrás) */
   clearingMs?: number
   clearingKey?: number // cambia en cada toque para reiniciar la barra de cuenta atrás
+  /** Botón fijo «Charla rápida» (frases hechas) */
+  onQuickChat?: () => void
 }
 
-export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs = 0, clearingKey }: Props) {
+export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs = 0, clearingKey, onQuickChat }: Props) {
   const words = realize(tokens)
   return (
     <div className="sentence-bar">
@@ -38,6 +40,12 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs 
           <span className="action-icon">✕</span>
           <span>Todo</span>
         </div>
+        {onQuickChat && (
+          <div className="action action-quick" data-tap data-label="Charla rápida" ref={tapRef(onQuickChat)} role="button" aria-label="Charla rápida">
+            <span className="action-icon">💬</span>
+            <span>Charla rápida</span>
+          </div>
+        )}
       </div>
     </div>
   )

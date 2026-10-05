@@ -18,9 +18,11 @@ interface Props {
   cellWidth: number
   gap: number
   hint: string
+  /** Botón fijo «Charla rápida» (frases hechas) */
+  onQuickChat?: () => void
 }
 
-export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs, clearingKey, height, cellWidth, gap, hint }: Props) {
+export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs, clearingKey, height, cellWidth, gap, hint, onQuickChat }: Props) {
   const words = realize(tokens)
   const progress = useRef(new Animated.Value(1)).current
 
@@ -67,11 +69,20 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs,
         <Text style={[styles.icon, { fontSize: Math.min(height, cellWidth) * 0.3 }]}>✕</Text>
         <Text style={styles.actionText}>Todo</Text>
       </TapButton>
+      {onQuickChat && (
+        <TapButton label="Charla rápida" onTap={onQuickChat} style={[styles.action, styles.quick, { width: cellWidth }]}>
+          <Text style={[styles.icon, { fontSize: Math.min(height, cellWidth) * 0.3 }]}>💬</Text>
+          <Text style={[styles.actionText, { textAlign: 'center' }]} numberOfLines={2}>
+            Charla rápida
+          </Text>
+        </TapButton>
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  quick: { backgroundColor: '#ffd9e8', borderColor: '#e0578f' },
   bar: { flex: 1, flexDirection: 'row' },
   sentence: {
     flex: 1,

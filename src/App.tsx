@@ -6,7 +6,7 @@ import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
-import { buildFolder, folderCell, sortCells, starterLibrary } from './lib/generator'
+import { buildFolder, buildQuickChat, folderCell, sortCells, starterLibrary } from './lib/generator'
 import { FOLDER_NEXT, FOLDER_PREV, folderArea, inlineFolder, moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
@@ -243,13 +243,28 @@ export default function App() {
   const root = lib.boards[lib.rootId]
   const dynCfg = root?.dynamic?.enabled ? { ...DEFAULT_DYNAMIC, ...root.dynamic } : null
   const previewing = editing && preview !== null
-  const highlights = dynCfg && (!editing || previewing) ? predictiveHighlights(lib, dynCfg, previewing ? preview! : sentence) : null
+  // En «Charla rápida» no se predice: son frases hechas, todas a la vista
+  const inQuickChat = !!root?.quickChat && history.includes(root.quickChat)
+  const highlights = dynCfg && !inQuickChat && (!editing || previewing) ? predictiveHighlights(lib, dynCfg, previewing ? preview! : sentence) : null
 
   // Carpeta abierta: se ve dentro de la zona de carpetas del principal y el resto no se mueve
   const openFolderCell = history.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === history[0]) : undefined
   const area = !editing && root && openFolderCell ? folderArea(root, openFolderCell.id) : null
   const inline = area && root ? inlineFolder(root, board, area, folderPage) : null
   const shown = inline?.board ?? board
+
+  // «Charla rápida»: frases hechas a un toque. La primera vez se crea con frases de ejemplo.
+  const openQuickChat = async () => {
+    const existing = root?.quickChat && lib.boards[root.quickChat] ? root.quickChat : null
+    if (existing) {
+      setHistory((h) => (h[h.length - 1] === existing ? [] : [existing])) // segundo toque: volver
+      return
+    }
+    if (readOnly || !root) return
+    const chat = await buildQuickChat({ rows: root.rows, cols: root.cols })
+    setLib((l) => (l ? { ...l, boards: { ...l.boards, [chat.id]: chat, [l.rootId]: { ...l.boards[l.rootId], quickChat: chat.id } } } : l))
+    setHistory([chat.id])
+  }
 
   const onCellTap = (cell: Cell) => {
     if (cell.id === FOLDER_NEXT || cell.id === FOLDER_PREV) {
@@ -507,6 +522,7 @@ export default function App() {
             }}
             clearingMs={clearing ? settings.autoClearSeconds * 1000 : 0}
             clearingKey={clearing}
+            onQuickChat={root?.quickChat || !readOnly ? () => void openQuickChat() : undefined}
           />
         )}
         <main className="board-area">

@@ -251,6 +251,25 @@ agua, comida, baño, casa, colegio, parque, música, tele
 hola, adiós, sí, gracias, por favor, vale`
 
 
+/**
+ * «Charla rápida»: frases hechas para conversar, a un toque desde la barra de arriba. Cuatro grupos
+ * de columnas: social, preguntas, necesidades y cariño, exclamaciones. Cada frase se dice entera.
+ */
+export const QUICK_CHAT_TEXT = [
+  '"hola", "adiós", _, "¿qué tal?", "¿cómo te llamas?", _, "estoy cansado", "quiero dormir", _, "¡qué risa!", "¡qué divertido!"',
+  '"buenos días", "buenas noches", _, "¿cuántos años tienes?", "¿dónde vives?", _, "tengo sed", "tengo hambre", _, "¡choca esos cinco!", "¡toma ya!"',
+  '"por favor", "gracias", _, "¿quieres jugar conmigo?", "¿puedo jugar contigo?", _, "quiero ir al baño", "tengo caca", _, "¡oh oh!", "¡mecachis!"',
+  '_, _, _, "¿qué hiciste el fin de semana?", _, _, "dame un abrazo", "vamos a jugar"',
+  '"me gusta", "no me gusta", _, _, _, _, "te quiero mucho", "¡mua!"',
+  '_',
+  '"¡feliz cumpleaños!", "¡feliz Navidad!"',
+].join('\n')
+
+export async function buildQuickChat(size: { rows: number; cols: number }): Promise<Board> {
+  const lib = await generateLibrary(parseText(QUICK_CHAT_TEXT, { grid: true }), undefined, size)
+  return { ...lib.boards[lib.rootId], name: 'Charla rápida' }
+}
+
 /** Tamaño del tablero vacío (al vaciar los tableros; se cambia con Filas / Columnas). */
 export const EMPTY_BOARD_SIZE = { rows: 5, cols: 8 }
 
