@@ -87,7 +87,7 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
         value={settings.voiceURI}
         onChange={(v) => set('voiceURI', v)}
       />
-      <Btn title="Probar voz" onPress={() => speak('Hola, esta es mi voz', settings)} />
+      <Btn title="Probar voz" onPress={() => speak('Hola. Tengo caca. Pongo la mesa. Tengo hambre', settings)} />
 
       <Text style={styles.h}>Pruebas</Text>
       <Text style={styles.help}>Últimas pulsaciones: cuáles se aceptaron y por qué se ignoraron las demás.</Text>

@@ -112,7 +112,7 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
           Velocidad: <strong>{settings.rate.toFixed(2)}</strong>
           <input type="range" min={0.5} max={1.5} step={0.05} value={settings.rate} onChange={(e) => set('rate', +e.target.value)} />
         </label>
-        <button type="button" onClick={() => speak('Hola, esta es mi voz', settings)}>Probar voz</button>
+        <button type="button" onClick={() => speak('Hola. Tengo caca. Pongo la mesa. Tengo hambre', settings)}>Probar voz</button>
 
         <h3>Pruebas</h3>
         <label className="check">
