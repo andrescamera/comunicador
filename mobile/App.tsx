@@ -119,7 +119,7 @@ export default function App() {
   useEffect(() => {
     if (!lib || readOnly || cloud.downloading) return
     const n = normalizeLibrary(lib)
-    if (n !== lib) setLib(n)
+    if (n !== lib) setLib(n, { record: false }) // ajuste automático: no se deshace
   }, [lib])
   // Modo predictivo: tras cada palabra, si todo lo que encaja está en una carpeta, se abre sola
   useEffect(() => setFolderPage(0), [history])
@@ -171,6 +171,7 @@ export default function App() {
             Object.entries(l.boards).map(([id, b]) => [id, { ...b, cells: b.cells.map((c) => (!c.picto && found.has(c.id) ? { ...c, picto: found.get(c.id) } : c)) }]),
           ),
         },
+        { record: false }, // pictogramas que se completan solos: no se deshacen
       )
     })()
   }, [lib])
@@ -432,6 +433,8 @@ export default function App() {
                 <ToolBtn text="−" onPress={() => resize(board.rows, board.cols - 1)} />
                 <Text style={styles.count}>{board.cols}</Text>
                 <ToolBtn text="+" onPress={() => resize(board.rows, Math.min(16, board.cols + 1))} />
+                <ToolBtn text="↶" onPress={() => cloud.undo()} small />
+                <ToolBtn text="↷" onPress={() => cloud.redo()} small />
                 <ToolBtn text={compact ? '⇅' : '⇅ Reordenar'} onPress={reorganize} />
                 {board.id === lib.rootId && (
                   <ToolBtn

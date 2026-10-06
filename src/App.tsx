@@ -107,8 +107,25 @@ export default function App() {
   useEffect(() => {
     if (!lib || readOnly || cloud.downloading) return
     const n = normalizeLibrary(lib)
-    if (n !== lib) setLib(n)
+    if (n !== lib) setLib(n, { record: false }) // ajuste automático: no se deshace
   }, [lib])
+
+  // Deshacer / rehacer con el teclado (en un campo de texto, Ctrl+Z sigue deshaciendo el texto)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || readOnly) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return
+      const key = e.key.toLowerCase()
+      const wantsRedo = (key === 'z' && e.shiftKey) || key === 'y'
+      if (key !== 'z' && key !== 'y') return
+      e.preventDefault()
+      const done = wantsRedo ? cloud.redo() : cloud.undo()
+      if (done) setNotice(wantsRedo ? 'Rehecho.' : 'Deshecho. (Ctrl+Shift+Z para rehacer)')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cloud.undo, cloud.redo, readOnly]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const newStarter = async () => cloud.create(await starterLibrary(), STARTER_NAME)
 
@@ -137,6 +154,7 @@ export default function App() {
             ]),
           ),
         },
+        { record: false }, // pictogramas que se completan solos: no se deshacen
       )
     })()
   }, [lib])
@@ -391,6 +409,8 @@ export default function App() {
             </>
           ) : (
             <div className="edit-toolbar">
+              <button type="button" onClick={() => cloud.undo()} disabled={!cloud.canUndo} title="Deshacer (Ctrl+Z)" aria-label="Deshacer">↶</button>
+              <button type="button" onClick={() => cloud.redo()} disabled={!cloud.canRedo} title="Rehacer (Ctrl+Shift+Z)" aria-label="Rehacer">↷</button>
               {history.length > 0 && (
                 <button type="button" onClick={() => setHistory((h) => h.slice(0, -1))} title="Volver al tablero anterior">
                   ↩ Volver

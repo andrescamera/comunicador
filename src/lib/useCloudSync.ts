@@ -303,15 +303,69 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
     return () => clearTimeout(t)
   }, [current?.id, rootName]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const setLib = useCallback((update: LibUpdate) => {
-    setCurrent((c) => {
-      if (!c) return c
-      const lib = typeof update === 'function' ? update(c.lib) : update
-      const next = { id: c.id, lib }
-      curRef.current = next
-      return next
-    })
+  // Deshacer / rehacer: versiones anteriores del tablero abierto (solo cambios hechos por la persona)
+  const history = useRef<{ id: string; past: Library[]; future: Library[]; last: number }>({ id: '', past: [], future: [], last: 0 })
+  const [, setHistoryVersion] = useState(0)
+  const UNDO_LIMIT = 50
+  const UNDO_MERGE_MS = 700 // cambios muy seguidos (p. ej. escribir un nombre) cuentan como uno
+
+  const replaceCurrent = useCallback((lib: Library | null) => {
+    const c = curRef.current
+    if (!c) return
+    const next = { id: c.id, lib }
+    curRef.current = next
+    setCurrent(next)
   }, [])
+
+  /**
+   * Cambiar el tablero abierto. Por defecto se puede deshacer; los ajustes automáticos
+   * (cuadrícula común, pictogramas que se completan solos) pasan `{ record: false }`.
+   */
+  const setLib = useCallback(
+    (update: LibUpdate, opts: { record?: boolean } = {}) => {
+      const c = curRef.current
+      if (!c) return
+      const lib = typeof update === 'function' ? update(c.lib) : update
+      if (lib === c.lib) return
+      if (opts.record !== false && c.lib) {
+        const h = history.current
+        if (h.id !== c.id) history.current = { id: c.id, past: [], future: [], last: 0 }
+        const now = Date.now()
+        if (now - history.current.last > UNDO_MERGE_MS) {
+          history.current.past = [...history.current.past, c.lib].slice(-UNDO_LIMIT)
+        }
+        history.current.future = []
+        history.current.last = now
+        setHistoryVersion((v) => v + 1)
+      }
+      replaceCurrent(lib)
+    },
+    [replaceCurrent],
+  )
+
+  const undo = useCallback(() => {
+    const c = curRef.current
+    const h = history.current
+    if (!c?.lib || h.id !== c.id || !h.past.length) return false
+    h.future = [c.lib, ...h.future]
+    replaceCurrent(h.past[h.past.length - 1])
+    h.past = h.past.slice(0, -1)
+    h.last = 0
+    setHistoryVersion((v) => v + 1)
+    return true
+  }, [replaceCurrent])
+
+  const redo = useCallback(() => {
+    const c = curRef.current
+    const h = history.current
+    if (!c?.lib || h.id !== c.id || !h.future.length) return false
+    h.past = [...h.past, c.lib]
+    replaceCurrent(h.future[0])
+    h.future = h.future.slice(1)
+    h.last = 0
+    setHistoryVersion((v) => v + 1)
+    return true
+  }, [replaceCurrent])
 
   const wipeLocal = useCallback(() => {
     for (const id of Object.keys(regRef.current?.items ?? {})) removeLocal(id)
@@ -365,6 +419,10 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
     /** Aún no ha llegado del servidor (tablero de la cuenta abierto por primera vez aquí) */
     downloading: !!current?.lib && Object.keys(current.lib.boards).length === 0 && !!activeInfo?.synced,
     setLib,
+    undo,
+    redo,
+    canUndo: history.current.id === current?.id && history.current.past.length > 0,
+    canRedo: history.current.id === current?.id && history.current.future.length > 0,
     open: async (id: string) => {
       if (!regRef.current?.items[id] || id === curRef.current?.id) return
       saveRegistry({ ...regRef.current, activeId: id })
