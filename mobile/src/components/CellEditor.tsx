@@ -45,6 +45,8 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
     setExtra('')
   }
   const [query, setQuery] = useState(cell.label)
+  // Buscar un pictograma distinto del texto (p. ej. «Navidad» para la ficha «Papá Noel»)
+  const [customQuery, setCustomQuery] = useState(false)
   const [results, setResults] = useState<PictoResult[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -61,7 +63,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
 
   const setLabel = (label: string) => {
     setDraft((d) => ({ ...d, label, category: d.kind === 'word' && isNew ? classify(label) : d.category }))
-    setQuery(label)
+    if (!customQuery) setQuery(label) // los pictogramas siguen al texto salvo que se busque otro
   }
   const { bg, border } = cellColors(draft.category, draft.kind)
 
@@ -208,7 +210,20 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         </View>
       </View>
       {/* Los pictogramas siguen a lo escrito en «Texto» */}
-      {!!query.trim() && <Text style={styles.label}>Pictograma</Text>}
+      <Text style={styles.label}>Pictograma</Text>
+      <View style={[styles.chips, { alignItems: 'center' }]}>
+        <TextInput
+          style={[styles.input, { flex: 1, minWidth: 220 }]}
+          value={customQuery ? query : ''}
+          onChangeText={(t) => {
+            setQuery(t || draft.label)
+            setCustomQuery(!!t)
+          }}
+          placeholder={`Buscar otro pictograma (ahora: «${draft.label || '…'}»)`}
+          autoCorrect={false}
+        />
+        {customQuery && <Chip text="↺ Usar el texto" active={false} onPress={() => (setCustomQuery(false), setQuery(draft.label))} />}
+      </View>
       {loading && <Text style={styles.muted}>Buscando…</Text>}
       {!loading && results.length === 0 && !!query.trim() && <Text style={styles.muted}>Sin resultados en ARASAAC.</Text>}
       <View style={styles.results}>

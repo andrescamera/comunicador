@@ -1263,3 +1263,14 @@ p.ok {
   text-align: center;
   line-height: 1.1;
 }
+
+.picto-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+.picto-search input {
+  flex: 1 1 220px;
+}

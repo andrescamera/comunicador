@@ -33,6 +33,8 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
   // Carpeta nueva: una celda vacía o una palabra que se convierte en carpeta
   const newFolder = draft.kind === 'folder' && cell.kind !== 'folder'
   const [query, setQuery] = useState(cell.label)
+  // Buscar un pictograma distinto del texto (p. ej. «Navidad» para la ficha «Papá Noel»)
+  const [customQuery, setCustomQuery] = useState(false)
   const [results, setResults] = useState<PictoResult[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -50,7 +52,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
 
   const setLabel = (label: string) => {
     setDraft((d) => ({ ...d, label, category: d.kind === 'word' && isNew ? classify(label) : d.category }))
-    setQuery(label)
+    if (!customQuery) setQuery(label) // los pictogramas siguen al texto salvo que se busque otro
   }
 
   return (
@@ -133,7 +135,23 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         </div>
       </div>
       {/* Los pictogramas siguen a lo escrito en «Texto» */}
-      {query.trim() && <strong className="picto-results-title">Pictograma</strong>}
+      <div className="picto-search">
+        <strong className="picto-results-title">Pictograma</strong>
+        <input
+          value={customQuery ? query : ''}
+          onChange={(e) => {
+            setQuery(e.target.value || draft.label)
+            setCustomQuery(!!e.target.value)
+          }}
+          placeholder={`Buscar otro pictograma (ahora: «${draft.label || '…'}»)`}
+          aria-label="Buscar otro pictograma"
+        />
+        {customQuery && (
+          <button type="button" onClick={() => (setCustomQuery(false), setQuery(draft.label))}>
+            ↺ Usar el texto
+          </button>
+        )}
+      </div>
       <div className="picto-results">
         {loading && <p className="muted">Buscando…</p>}
         {!loading && results.length === 0 && query.trim() && <p className="muted">Sin resultados en ARASAAC.</p>}
