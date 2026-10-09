@@ -267,8 +267,11 @@ export default function App() {
 
   // Carpeta abierta: se ve dentro de la zona de carpetas del principal y el resto no se mueve
   const openFolderCell = history.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === history[0]) : undefined
-  const area = !editing && root && openFolderCell ? folderArea(root, openFolderCell.id) : null
+  const zoneArea = root && openFolderCell ? folderArea(root, openFolderCell.id) : null
+  const area = !editing ? zoneArea : null
   const inline = area && root ? inlineFolder(root, board, area, folderPage) : null
+  // Editando la carpeta: las fichas se ven donde se usan y solo se colocan dentro de la zona
+  const editArea = editing && zoneArea && board.inZone ? zoneArea : null
   const shown = inline?.board ?? board
 
   // «Charla rápida»: frases hechas a un toque. La primera vez se crea con frases de ejemplo.
@@ -551,6 +554,7 @@ export default function App() {
             editing={editing && !previewing}
             onTap={editing ? () => {} : onCellTap}
             dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
+            activeArea={editArea}
             labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
             onAddAt={(row, col) =>

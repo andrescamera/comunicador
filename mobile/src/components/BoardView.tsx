@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
-import { type Board, type Category, type Cell, CATEGORY_COLORS, type Zone, ZONE_LABELS, ZONE_ORDER } from '../shared'
+import { type Area, type Board, type Category, insideArea, type Cell, CATEGORY_COLORS, type Zone, ZONE_LABELS, ZONE_ORDER } from '../shared'
 import { useTapSurface } from '../tap'
 import { colors } from '../theme'
 import { CellView } from './CellView'
@@ -21,9 +21,11 @@ interface Props {
   labelFor?: (cell: Cell) => string | null
   /** Modo predictivo: fichas atenuadas (no encajan ahora; siguen en su sitio y se pueden tocar) */
   dimFor?: (cell: Cell) => boolean
+  /** Edición de una carpeta que se abre en la zona de carpetas: solo se puede colocar ahí */
+  activeArea?: Area | null
 }
 
-export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor, dimFor }: Props) {
+export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor, dimFor, activeArea }: Props) {
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const [pressedKey, setPressedKey] = useState<string | null>(null)
   const [firedKey, setFiredKey] = useState<string | null>(null)
@@ -135,6 +137,8 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
               const z = zoneAt(col)
               const tint = z ? CATEGORY_COLORS[ZONE_TINT[z]] : undefined
               const key = `${row},${col}`
+              if (activeArea && !insideArea(activeArea, row, col))
+                return <View key={key} style={[styles.off, { ...pos(row, col), width: cw, height: ch }]} />
               return (
                 <View
                   key={key}
@@ -179,5 +183,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyActive: { opacity: 0.85 },
+  off: { position: 'absolute', borderRadius: 14, backgroundColor: colors.muted, opacity: 0.08 },
   plus: { fontSize: 26, color: colors.muted },
 })

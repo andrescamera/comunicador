@@ -207,4 +207,26 @@ describe('carpeta abierta dentro de su zona', async () => {
     expect(pages).toBe(2)
     expect(board.cells.find((c) => c.id === FOLDER_NEXT)).toMatchObject({ row: 2, col: 7 })
   })
+
+  it('al normalizar, la carpeta (y sus subcarpetas) se coloca en la zona tal y como se veía', async () => {
+    const sub: Board = { ...root, id: 's', name: 'Frutas', cells: [cell('pera', 4, 4), cell('uva', 0, 0)] }
+    const withSub: Board = { ...comida, cells: [...comida.cells, { ...cell('frutas', 5, 3, 'folder'), target: 's' }] }
+    const r: Board = { ...root, cells: root.cells.map((c) => (c.id === 'comida' ? { ...c, target: 'f' } : c)) }
+    const before = inlineFolder(r, withSub, folderArea(r, 'comida')!).board.cells
+    const lib = normalizeLibrary({ rootId: 'root', boards: { root: r, f: withSub, s: sub } })
+    const f = lib.boards.f
+    expect(f.inZone).toBe(true)
+    expect(inlineFolder(r, f, folderArea(r, 'comida')!).board.cells).toEqual(before) // en uso se ve igual
+    expect(f.cells.find((c) => c.id === 'frutas')).toEqual(before.find((c) => c.id === 'frutas'))
+    expect(lib.boards.s.cells.map((c) => [c.row, c.col])).toEqual([[1, 5], [0, 5]])
+    expect(normalizeLibrary(lib)).toBe(lib) // estable
+  })
+
+  it('colocada en la zona, cada ficha conserva su sitio aunque queden huecos', async () => {
+    const { anchorFolder } = await import('./layout')
+    const area = folderArea(root, 'comida')!
+    const f = anchorFolder({ ...comida, inZone: true, cells: [cell('a', 2, 7), cell('b', 1, 5), cell('fuera', 0, 0)] }, area)
+    expect(f.cells.map((c) => [c.id, c.row, c.col])).toEqual([['a', 2, 7], ['b', 1, 5], ['fuera', 0, 5]])
+    expect(inlineFolder(root, f, area).board.cells.find((c) => c.id === 'a')).toMatchObject({ row: 2, col: 7 })
+  })
 })

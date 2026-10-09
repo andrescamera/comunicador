@@ -1,6 +1,6 @@
 import type { CSSProperties, DragEvent } from 'react'
 import { CATEGORY_COLORS } from '../lib/colors'
-import { ZONE_LABELS, ZONE_ORDER, zoneLabel } from '../lib/layout'
+import { type Area, ZONE_LABELS, ZONE_ORDER, zoneLabel } from '../lib/layout'
 import type { Board, Category, Cell, Zone } from '../lib/types'
 import { CellView } from './CellView'
 
@@ -22,13 +22,15 @@ interface Props {
   labelFor?: (cell: Cell) => string | null
   /** Modo predictivo: fichas atenuadas (no encajan ahora; siguen en su sitio y se pueden tocar) */
   dimFor?: (cell: Cell) => boolean
+  /** Edición de una carpeta que se abre en la zona de carpetas: solo se puede colocar ahí */
+  activeArea?: Area | null
 }
 
 function zoneAt(board: Board, col: number): Zone | undefined {
   return ZONE_ORDER.find((z) => board.zones[z][0] <= col && col <= board.zones[z][1])
 }
 
-export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor }: Props) {
+export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor, activeArea }: Props) {
   const gridStyle = {
     gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
@@ -105,6 +107,8 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
         {empties.map(({ row, col }) => {
           const zone = zoneAt(board, col)
           const tint = zone ? CATEGORY_COLORS[ZONE_TINT[zone]] : undefined
+          const off = !!activeArea && (row < activeArea.r0 || row > activeArea.r1 || col < activeArea.c0 || col > activeArea.c1)
+          if (off) return <div key={`${row},${col}`} className="slot-off" style={{ gridRow: row + 1, gridColumn: col + 1 }} aria-hidden />
           return (
             <button
               key={`${row},${col}`}

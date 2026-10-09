@@ -306,6 +306,8 @@ export function normalizeLibrary<L extends Lib>(lib: L): L {
     if (fitted !== b) changed = true
     boards[id] = fitted
   }
+  const anchored = anchorFolders({ ...lib, boards })
+  if (anchored !== boards) return { ...lib, boards: anchored }
   return changed ? { ...lib, boards } : lib
 }
 
@@ -357,6 +359,7 @@ export function folderArea(root: Board, folderCellId: string): Area | null {
 }
 
 const inside = (a: Area, c: Pick<Cell, 'row' | 'col'>) => c.row >= a.r0 && c.row <= a.r1 && c.col >= a.c0 && c.col <= a.c1
+export const insideArea = (a: Area, row: number, col: number) => inside(a, { row, col })
 
 /**
  * El tablero principal con una carpeta abierta dentro de su zona: fuera de la zona todo sigue igual;
@@ -367,6 +370,9 @@ export function inlineFolder(root: Board, folder: Board, area: Area, page = 0): 
   const rows = area.r1 - area.r0 + 1
   const capacity = rows * (area.c1 - area.c0 + 1)
   const contents = folder.cells.filter((c) => !c.hidden).sort((a, b) => a.col - b.col || a.row - b.row)
+  // Colocada en la zona: cada ficha en su sitio, aunque queden huecos (como en edición)
+  if (folder.inZone && contents.length <= capacity && contents.every((c) => inside(area, c)))
+    return { board: { ...root, name: folder.name, cells: [...root.cells.filter((c) => !inside(area, c)), ...contents] }, pages: 1 }
   const perPage = contents.length > capacity ? capacity - 2 : capacity
   const pages = Math.max(1, Math.ceil(contents.length / perPage))
   const current = Math.min(Math.max(0, page), pages - 1)
@@ -378,4 +384,67 @@ export function inlineFolder(root: Board, folder: Board, area: Area, page = 0): 
     if (current < pages - 1) placed.push(nav(FOLDER_NEXT, 'más ▸', capacity - 1))
   }
   return { board: { ...root, name: folder.name, cells: [...root.cells.filter((c) => !inside(area, c)), ...placed] }, pages }
+}
+
+/** Casillas de la zona en el orden en que se rellenan (por columnas) */
+function areaSlots(area: Area): { row: number; col: number }[] {
+  const slots = []
+  for (let col = area.c0; col <= area.c1; col++) for (let row = area.r0; row <= area.r1; row++) slots.push({ row, col })
+  return slots
+}
+
+/** Zona en la que se ve cada carpeta (y sus subcarpetas) al abrirla desde el principal */
+export function folderAreas(lib: Lib): Map<string, Area> {
+  const root = lib.boards[lib.rootId]
+  const areas = new Map<string, Area>()
+  if (!root) return areas
+  for (const cell of root.cells) {
+    if (cell.kind !== 'folder' || !cell.target) continue
+    const area = folderArea(root, cell.id)
+    if (!area) continue
+    const queue = [cell.target]
+    while (queue.length) {
+      const id = queue.shift()!
+      const b = lib.boards[id]
+      if (!b || id === lib.rootId || id === root.quickChat || areas.has(id)) continue
+      areas.set(id, area)
+      for (const c of b.cells) if (c.kind === 'folder' && c.target) queue.push(c.target)
+    }
+  }
+  return areas
+}
+
+/**
+ * Coloca las fichas de una carpeta dentro de su zona, para que en edición se vean donde se usan.
+ * La primera vez, en el mismo orden en que ya se veían; después cada ficha conserva su sitio y solo
+ * las que quedan fuera (p. ej. si se mueve la zona) pasan a un hueco libre. Si no cabe, se deja igual.
+ */
+export function anchorFolder(folder: Board, area: Area): Board {
+  const slots = areaSlots(area)
+  if (folder.cells.length > slots.length) return folder
+  const key = (c: { row: number; col: number }) => `${c.row},${c.col}`
+  const placed = new Map<string, { row: number; col: number }>()
+  const taken = new Set<string>()
+  const order = [...folder.cells].sort((a, b) => Number(!!a.hidden) - Number(!!b.hidden) || a.col - b.col || a.row - b.row)
+  if (folder.inZone)
+    for (const c of order)
+      if (inside(area, c) && !taken.has(key(c))) {
+        placed.set(c.id, { row: c.row, col: c.col })
+        taken.add(key(c))
+      }
+  const free = slots.filter((s) => !taken.has(key(s)))
+  for (const c of order) if (!placed.has(c.id)) placed.set(c.id, free.shift()!)
+  const moved = folder.cells.some((c) => key(c) !== key(placed.get(c.id)!))
+  if (folder.inZone && !moved) return folder
+  return { ...folder, inZone: true, cells: folder.cells.map((c) => ({ ...c, ...placed.get(c.id)! })) }
+}
+
+/** Todas las carpetas colocadas en su zona. Devuelve el mismo objeto si no cambia nada. */
+function anchorFolders(lib: Lib): Record<string, Board> {
+  let boards = lib.boards
+  for (const [id, area] of folderAreas(lib)) {
+    const b = anchorFolder(boards[id], area)
+    if (b !== boards[id]) boards = { ...boards, [id]: b }
+  }
+  return boards
 }

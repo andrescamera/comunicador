@@ -42,6 +42,7 @@ export interface Board {
   cells: Cell[]
   dynamic?: DynamicConfig // solo el tablero principal: modo dinámico (por momentos de la frase)
   quickChat?: string // solo el principal: id del tablero de «Charla rápida» (botón fijo junto a Borrar y Todo)
+  inZone?: boolean // carpeta: sus fichas están colocadas dentro de la zona de carpetas (se ven tal cual, con huecos)
 }
 
 /** Modo dinámico: el tablero principal muestra en cada momento de la frase solo lo que encaja */

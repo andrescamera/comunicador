@@ -339,6 +339,12 @@ button.danger {
 .slot-empty:disabled {
   opacity: 0.3;
 }
+/* Fuera de la zona de carpetas: en edición de una carpeta no se usa */
+.slot-off {
+  border-radius: var(--radius);
+  background: var(--muted);
+  opacity: 0.08;
+}
 .slot-target {
   opacity: 0.8;
   animation: pulse 1.2s ease-in-out infinite;

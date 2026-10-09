@@ -45,6 +45,7 @@ import {
   missingWords,
   zoneOf,
   folderArea,
+  insideArea,
   inlineFolder,
   FOLDER_NEXT,
   FOLDER_PREV,
@@ -253,8 +254,11 @@ export default function App() {
   const highlights = dynCfg && !inQuickChat && !editing ? predictiveHighlights(lib, dynCfg, sentence) : null
   // Carpeta abierta: se ve dentro de la zona de carpetas del principal y el resto no se mueve
   const openFolderCell = history.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === history[0]) : undefined
-  const folderZone = !editing && root && openFolderCell ? folderArea(root, openFolderCell.id) : null
+  const zoneArea = root && openFolderCell ? folderArea(root, openFolderCell.id) : null
+  const folderZone = !editing ? zoneArea : null
   const shown = folderZone && root ? inlineFolder(root, board, folderZone, folderPage).board : board
+  // Editando la carpeta: las fichas se ven donde se usan y solo se colocan dentro de la zona
+  const editArea = editing && zoneArea && board.inZone ? zoneArea : null
 
   // «Charla rápida»: frases hechas a un toque. La primera vez se crea con frases de ejemplo.
   const openQuickChat = async () => {
@@ -321,6 +325,7 @@ export default function App() {
       },
     ])
   const onTapSlot = (row: number, col: number, cell: Cell | undefined) => {
+    if (!cell && editArea && !insideArea(editArea, row, col)) return // fuera de la zona de carpetas
     if (movingId) {
       updateBoard(board.id, (b) => moveCellTo(b, movingId, row, col))
       setMovingId(null)
@@ -467,6 +472,7 @@ export default function App() {
             <BoardView
               board={shown}
               dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
+              activeArea={editArea}
               editing={editing}
               gap={gap}
               labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
