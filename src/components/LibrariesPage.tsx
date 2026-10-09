@@ -159,7 +159,7 @@ function BoardThumb({ id, cloud }: { id: string; cloud: CloudSync }) {
       {board.cells
         .filter((c) => !c.hidden)
         .map((c) => {
-          const { bg, border } = cellColors(c.category, c.kind)
+          const { bg, border } = cellColors(c.category, c.kind, c.folderColor)
           return (
             <div key={c.id} className="thumb-cell" style={{ gridRow: c.row + 1, gridColumn: c.col + 1, background: bg, borderColor: border }} title={c.label}>
               {c.textOnly || !c.picto ? <span>{c.label}</span> : <img src={pictoUrl(c.picto)} alt="" loading="lazy" draggable={false} />}

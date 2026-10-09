@@ -16,7 +16,7 @@ interface Props {
   onStartMove?: () => void
   onClose: () => void
   /** Crear una carpeta (vacía o con el vocabulario de una plantilla), nueva o en lugar de esta celda */
-  onCreateFolder?: (name: string, words: string[], picto: number | undefined) => Promise<void>
+  onCreateFolder?: (name: string, words: string[], picto: number | undefined, folderColor?: Category) => Promise<void>
   /** Casillas de cada tablero (para avisar si las palabras elegidas no caben en la carpeta) */
   capacity?: number
   /** Ficha nueva dentro de una carpeta: palabras de su categoría que aún no están */
@@ -97,6 +97,17 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                 </select>
               </label>}
             </div>
+          )}
+          {draft.kind === 'folder' && (
+            <label>
+              Color
+              <select value={draft.folderColor ?? ''} onChange={(e) => setDraft({ ...draft, folderColor: (e.target.value || undefined) as Category | undefined })}>
+                <option value="">Carpeta (marrón)</option>
+                {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </label>
           )}
           {newFolder && (
             <div className="folder-templates">
@@ -180,7 +191,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           onClick={async () => {
             if (newFolder && onCreateFolder) {
               setCreating(true)
-              await onCreateFolder(normalizeText(draft.label), picked, draft.picto)
+              await onCreateFolder(normalizeText(draft.label), picked, draft.picto, draft.folderColor)
               setCreating(false)
             } else onSave({ ...draft, label: normalizeText(draft.label) })
           }}

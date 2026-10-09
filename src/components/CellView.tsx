@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed }: Props) {
-  const { bg, border } = cellColors(cell.category, cell.kind)
+  const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor)
   const style: CSSProperties = { background: bg, borderColor: border, gridRow: cell.row + 1, gridColumn: cell.col + 1 }
   const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}`
   const body = (

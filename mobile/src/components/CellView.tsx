@@ -22,7 +22,7 @@ interface Props {
 
 function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel, dimmed }: Props) {
   const label = displayLabel ?? cell.label
-  const { bg, border } = cellColors(cell.category, cell.kind)
+  const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor)
   const fontSize = Math.max(10, Math.min(22, width * 0.15, height * 0.16))
   return (
     <View

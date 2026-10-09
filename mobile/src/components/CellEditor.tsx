@@ -13,7 +13,7 @@ interface Props {
   onStartMove?: () => void
   onClose: () => void
   /** Crear una carpeta (vacía o con las palabras elegidas), nueva o en lugar de esta celda */
-  onCreateFolder?: (name: string, words: string[], picto: number | undefined) => Promise<void>
+  onCreateFolder?: (name: string, words: string[], picto: number | undefined, folderColor?: Category) => Promise<void>
   /** Casillas de cada tablero (para avisar si las palabras elegidas no caben) */
   capacity?: number
   /** Ficha nueva dentro de una carpeta: palabras de su categoría que aún no están */
@@ -65,7 +65,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
     setDraft((d) => ({ ...d, label, category: d.kind === 'word' && isNew ? classify(label) : d.category }))
     if (!customQuery) setQuery(label) // los pictogramas siguen al texto salvo que se busque otro
   }
-  const { bg, border } = cellColors(draft.category, draft.kind)
+  const { bg, border } = cellColors(draft.category, draft.kind, draft.folderColor)
 
   return (
     <Sheet
@@ -86,7 +86,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
             onPress={async () => {
               if (newFolder && onCreateFolder) {
                 setCreating(true)
-                await onCreateFolder(normalizeText(draft.label), options.filter((w) => picked.includes(w)), draft.picto)
+                await onCreateFolder(normalizeText(draft.label), options.filter((w) => picked.includes(w)), draft.picto, draft.folderColor)
                 setCreating(false)
               } else onSave({ ...draft, label: normalizeText(draft.label) })
             }}
@@ -183,6 +183,17 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                 returnKeyType="done"
               />
               {!!extra.trim() && <Suggestions words={suggestWords(extra, 8, options)} onPick={addExtra} />}
+            </>
+          )}
+          {draft.kind === 'folder' && (
+            <>
+              <Text style={styles.label}>Color</Text>
+              <View style={styles.chips}>
+                <Chip active={!draft.folderColor} color={cellColors('misc', 'folder').bg} onPress={() => setDraft({ ...draft, folderColor: undefined })} text="Carpeta (marrón)" />
+                {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (
+                  <Chip key={c} active={draft.folderColor === c} color={cellColors(c, 'word').bg} onPress={() => setDraft({ ...draft, folderColor: c })} text={CATEGORY_LABELS[c]} />
+                ))}
+              </View>
             </>
           )}
           {draft.kind !== 'folder' && (

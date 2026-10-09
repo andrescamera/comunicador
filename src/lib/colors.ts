@@ -13,7 +13,7 @@ export const CATEGORY_COLORS: Record<Category, { bg: string; border: string }> =
   misc: { bg: '#ffffff', border: '#9aa3ad' },
 }
 
-export function cellColors(category: Category, kind: CellKind) {
-  if (kind === 'folder') return { bg: '#efe6d6', border: '#8d6e4a' }
+export function cellColors(category: Category, kind: CellKind, folderColor?: Category) {
+  if (kind === 'folder') return folderColor ? CATEGORY_COLORS[folderColor] : { bg: '#efe6d6', border: '#8d6e4a' }
   return CATEGORY_COLORS[category]
 }

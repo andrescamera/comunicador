@@ -15,6 +15,7 @@ import {
   type Board,
   buildFolder,
   buildQuickChat,
+  type Category,
   type Cell,
   classify,
   DEFAULT_SETTINGS,
@@ -248,10 +249,10 @@ export default function App() {
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
   // `replace`: una celda que ya existe y pasa a ser carpeta (conserva su sitio y su color)
-  const createFolder = async (at: Cell, replace: boolean, name: string, words: string[], picto: number | undefined) => {
+  const createFolder = async (at: Cell, replace: boolean, name: string, words: string[], picto: number | undefined, folderColor?: Category) => {
     const root = lib.boards[lib.rootId] ?? board
     const { board: sub, cell } = await buildFolder(name, words, { rows: root.rows, cols: root.cols })
-    const folder: Cell = { ...cell, picto: picto ?? cell.picto, row: at.row, col: at.col }
+    const folder: Cell = { ...cell, picto: picto ?? cell.picto, folderColor, row: at.row, col: at.col }
     if (replace) Object.assign(folder, { id: at.id, category: at.category, hidden: at.hidden })
     setLib((l) => {
       if (!l) return l
@@ -529,7 +530,7 @@ export default function App() {
           onDelete={editTarget.isNew ? undefined : () => deleteCell(editTarget.cell.id)}
           onStartMove={editTarget.isNew ? undefined : () => (setMovingId(editTarget.cell.id), setEditTarget(null))}
           onClose={() => setEditTarget(null)}
-          onCreateFolder={(name, words, picto) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto)}
+          onCreateFolder={(name, words, picto, color) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto, color)}
           suggestions={editTarget.isNew ? folderSuggestions(board, lib) : undefined}
           capacity={(lib.boards[lib.rootId] ?? board).rows * (lib.boards[lib.rootId] ?? board).cols}
           onOpenFolder={
