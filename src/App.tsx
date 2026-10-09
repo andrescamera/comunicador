@@ -89,6 +89,23 @@ export default function App() {
     },
   })
   const { lib, setLib, readOnly } = cloud
+
+  // Edición: copia al entrar, para poder salir sin guardar («Cancelar» la recupera)
+  const beforeEdit = useRef<typeof lib>(null)
+  useEffect(() => {
+    beforeEdit.current = editing ? lib : null
+  }, [editing]) // eslint-disable-line react-hooks/exhaustive-deps
+  const editChanged = () => !!beforeEdit.current && !!lib && JSON.stringify(beforeEdit.current) !== JSON.stringify(lib)
+  const discardEdits = () => {
+    const before = beforeEdit.current
+    if (before) {
+      setLib(before)
+      setHistory((h) => h.filter((id) => before.boards[id])) // carpetas creadas al editar ya no existen
+    }
+    setEditing(false)
+    setMovingId(null)
+    setEditTarget(null)
+  }
   const settingsRef = useRef(settings)
   settingsRef.current = settings
 
@@ -490,6 +507,16 @@ export default function App() {
                 ✨<span className="btn-text"> Crear tablero</span>
               </button>
             )}
+            {editing && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!editChanged() || confirm('¿Salir sin guardar? Se perderán los cambios hechos desde que pulsaste «Editar».')) discardEdits()
+                }}
+              >
+                ✕<span className="btn-text"> Cancelar</span>
+              </button>
+            )}
             {!readOnly && <button
               type="button"
               className={editing ? 'primary' : ''}
@@ -500,7 +527,7 @@ export default function App() {
               }}
             >
               {editing ? '✓' : '✎'}
-              <span className="btn-text">{editing ? ' Terminar' : ' Editar'}</span>
+              <span className="btn-text">{editing ? ' Guardar' : ' Editar'}</span>
             </button>}
             {!editing && (
               <button type="button" onClick={() => setShowSettings(true)} aria-label="Ajustes">⚙︎</button>

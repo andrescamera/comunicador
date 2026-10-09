@@ -101,6 +101,23 @@ export default function App() {
     onOpened: () => (setHistory([]), setSentence([]), setEditing(false)),
   })
   const { lib, setLib, readOnly } = cloud
+
+  // Edición: copia al entrar, para poder salir sin guardar («Cancelar» la recupera)
+  const beforeEdit = useRef<typeof lib>(null)
+  useEffect(() => {
+    beforeEdit.current = editing ? lib : null
+  }, [editing]) // eslint-disable-line react-hooks/exhaustive-deps
+  const editChanged = () => !!beforeEdit.current && !!lib && JSON.stringify(beforeEdit.current) !== JSON.stringify(lib)
+  const discardEdits = () => {
+    const before = beforeEdit.current
+    if (before) {
+      setLib(before)
+      setHistory((h) => h.filter((id) => before.boards[id])) // carpetas creadas al editar ya no existen
+    }
+    setEditing(false)
+    setMovingId(null)
+    setEditTarget(null)
+  }
   const newStarter = async () => cloud.create(await starterLibrary(), STARTER_NAME)
 
   // Arranque: ajustes + motor de voz listo (los tableros los carga useLibraries)
@@ -449,7 +466,18 @@ export default function App() {
                   />
                 )}
                 <ToolBtn text={compact ? '✨' : '✨ Crear tablero'} onPress={() => setShowCreator(true)} />
-                <ToolBtn text="✓ Terminar" primary onPress={() => (setEditing(false), setMovingId(null))} />
+                <ToolBtn
+                  text="✕ Cancelar"
+                  onPress={() =>
+                    editChanged()
+                      ? Alert.alert('¿Salir sin guardar?', 'Se perderán los cambios hechos desde que pulsaste «Editar».', [
+                          { text: 'Seguir editando', style: 'cancel' },
+                          { text: 'Salir sin guardar', style: 'destructive', onPress: discardEdits },
+                        ])
+                      : discardEdits()
+                  }
+                />
+                <ToolBtn text="✓ Guardar" primary onPress={() => (setEditing(false), setMovingId(null))} />
               </View>
             )}
 
