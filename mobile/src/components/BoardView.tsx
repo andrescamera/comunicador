@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
-import { type Area, type Board, type Category, insideArea, type Cell, CATEGORY_COLORS, type Zone, ZONE_LABELS, ZONE_ORDER } from '../shared'
+import { type Area, type Board, type Category, groupAt, type Group, insideArea, type Cell, CATEGORY_COLORS, type Zone, ZONE_LABELS, ZONE_ORDER } from '../shared'
 import { useTapSurface } from '../tap'
 import { colors } from '../theme'
 import { CellView } from './CellView'
@@ -23,9 +23,11 @@ interface Props {
   dimFor?: (cell: Cell) => boolean
   /** Edición de una carpeta que se abre en la zona de carpetas: solo se puede colocar ahí */
   activeArea?: Area | null
+  /** Grupos con los que se colorean las carpetas y las casillas vacías */
+  groups?: Group[]
 }
 
-export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor, dimFor, activeArea }: Props) {
+export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor, dimFor, activeArea, groups = [] }: Props) {
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const [pressedKey, setPressedKey] = useState<string | null>(null)
   const [firedKey, setFiredKey] = useState<string | null>(null)
@@ -90,7 +92,7 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
 
   return (
     <View style={styles.wrap}>
-      {editing && dims.w > 0 && (
+      {editing && dims.w > 0 && !board.groups && (
         <View style={styles.headerRow}>
           {ZONE_ORDER.filter((z) => board.zones[z][1] >= board.zones[z][0]).map((z) => {
             const [s, e] = board.zones[z]
@@ -129,13 +131,15 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
                   selected={movingId === cell.id}
                   displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}
                   dimmed={!editing && !!dimFor?.(cell)}
+                  groupColor={groupAt(groups, cell.row, cell.col)?.color}
                 />
               )
             })}
           {dims.w > 0 &&
             empties.map(({ row, col }) => {
               const z = zoneAt(col)
-              const tint = z ? CATEGORY_COLORS[ZONE_TINT[z]] : undefined
+              const g = board.groups ? groupAt(board.groups, row, col) : undefined
+              const tint = board.groups ? (g?.color ? CATEGORY_COLORS[g.color] : undefined) : z ? CATEGORY_COLORS[ZONE_TINT[z]] : undefined
               const key = `${row},${col}`
               if (activeArea && !insideArea(activeArea, row, col))
                 return <View key={key} style={[styles.off, { ...pos(row, col), width: cw, height: ch }]} />

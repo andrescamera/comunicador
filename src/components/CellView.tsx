@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, CSSProperties } from 'react'
 import { cellColors } from '../lib/colors'
 import { tapRef } from '../lib/tap'
-import type { Cell } from '../lib/types'
+import type { Category, Cell } from '../lib/types'
 import { Picto } from './Picto'
 
 interface Props {
@@ -15,10 +15,12 @@ interface Props {
   displayLabel?: string
   /** Modo predictivo: no encaja ahora (atenuada, pero se puede tocar) */
   dimmed?: boolean
+  /** Color del grupo en el que está (las carpetas lo toman si no tienen uno propio) */
+  groupColor?: Category
 }
 
-export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed }: Props) {
-  const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor)
+export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed, groupColor }: Props) {
+  const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor, groupColor)
   const style: CSSProperties = { background: bg, borderColor: border, gridRow: cell.row + 1, gridColumn: cell.col + 1 }
   const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}`
   const body = (

@@ -1,4 +1,4 @@
-import type { Board, Category, Cell, Zone, Zones } from './types'
+import type { Board, Category, Cell, Group, Zone, Zones } from './types'
 
 /**
  * Colocación de celdas siguiendo los patrones de las aplicaciones SAAC de referencia
@@ -134,7 +134,14 @@ export function findSlot(board: Pick<Board, 'rows' | 'cols' | 'zones' | 'cells'>
 }
 
 /** Coloca una celda nueva sin mover ninguna existente. Si no hay sitio, añade una fila. */
-export function placeCell<B extends Pick<Board, 'rows' | 'cols' | 'zones' | 'cells'>>(board: B, cell: NewCell): B {
+export function placeCell<B extends Pick<Board, 'rows' | 'cols' | 'zones' | 'cells'> & { groups?: Group[] }>(board: B, cell: NewCell): B {
+  // Con grupos: el primer hueco del grupo de su categoría (las carpetas, en el de carpetas)
+  const group = board.groups?.find((g) => (cell.kind === 'folder' ? g.folders : g.color === (cell.kind === 'phrase' ? 'social' : cell.category)))
+  if (group) {
+    const taken = new Set(board.cells.map((c) => key(c.row, c.col)))
+    const slot = groupSlots(group).find((s) => !taken.has(key(s.row, s.col)) && s.row < board.rows && s.col < board.cols)
+    if (slot) return { ...board, cells: [...board.cells, { ...cell, ...slot }] }
+  }
   const zone = zoneOf(cell)
   let target = board
   let slot = findSlot(target, zone)
@@ -342,6 +349,13 @@ export const FOLDER_NEXT = '__folder_next'
 export function folderArea(root: Board, folderCellId: string): Area | null {
   const open = root.cells.find((c) => c.id === folderCellId)
   if (!open) return null
+  // Con grupos guardados, la zona es el grupo de carpetas en el que está
+  if (root.groups) return root.groups.find((g) => g.folders && inside(g.area, open))?.area ?? null
+  return adjacentFolderBlock(root, open)
+}
+
+/** Sin grupos guardados: el bloque de carpetas pegadas a `open` (al menos 4 casillas) */
+function adjacentFolderBlock(root: Board, open: Cell): Area | null {
   const folders = root.cells.filter((c) => c.kind === 'folder')
   const block = [open]
   for (let k = 0; k < block.length; k++) {
@@ -447,4 +461,61 @@ function anchorFolders(lib: Lib): Record<string, Board> {
     if (b !== boards[id]) boards = { ...boards, [id]: b }
   }
   return boards
+}
+
+// ---------- Grupos ----------
+
+/** Casillas de un rectángulo en orden de llenado: por columnas (de arriba abajo) o por filas */
+export function fillOrder(area: Area, byRows = false): { row: number; col: number }[] {
+  const out: { row: number; col: number }[] = []
+  if (byRows) for (let row = area.r0; row <= area.r1; row++) for (let col = area.c0; col <= area.c1; col++) out.push({ row, col })
+  else for (let col = area.c0; col <= area.c1; col++) for (let row = area.r0; row <= area.r1; row++) out.push({ row, col })
+  return out
+}
+export const groupSlots = (g: Group) => fillOrder(g.area, g.byRows)
+export const groupAt = (groups: Group[], row: number, col: number) => groups.find((g) => insideArea(g.area, row, col))
+
+const ZONE_COLOR: Record<Zone, Category> = { A: 'pronoun', B: 'verb', C: 'adjective', D: 'noun', E: 'social' }
+
+/** Rectángulo `a` menos `b`: hasta 4 trozos que no se solapan */
+function subtract(a: Area, b: Area): Area[] {
+  if (b.r1 < a.r0 || b.r0 > a.r1 || b.c1 < a.c0 || b.c0 > a.c1) return [a]
+  const out: Area[] = []
+  if (b.r0 > a.r0) out.push({ ...a, r1: b.r0 - 1 })
+  if (b.r1 < a.r1) out.push({ ...a, r0: b.r1 + 1 })
+  const r0 = Math.max(a.r0, b.r0), r1 = Math.min(a.r1, b.r1)
+  if (b.c0 > a.c0) out.push({ r0, r1, c0: a.c0, c1: b.c0 - 1 })
+  if (b.c1 < a.c1) out.push({ r0, r1, c0: b.c1 + 1, c1: a.c1 })
+  return out
+}
+
+/**
+ * Grupos de un tablero: los guardados o, en el principal sin grupos, los de siempre (cada grupo de
+ * columnas, y cada bloque de carpetas pegadas como zona de carpetas, sin solaparse).
+ */
+export function boardGroups(board: Board, isRoot: boolean): Group[] {
+  if (board.groups) return board.groups
+  if (!isRoot) return []
+  const blocks: Area[] = []
+  for (const f of board.cells.filter((c) => c.kind === 'folder')) {
+    if (blocks.some((b) => inside(b, f))) continue
+    const b = adjacentFolderBlock(board, f)
+    if (b) blocks.push(b)
+  }
+  const groups: Group[] = blocks.map((area, i) => ({ id: `carpetas-${i}`, name: blocks.length > 1 ? `Carpetas ${i + 1}` : 'Carpetas', area, folders: true }))
+  for (const z of ZONE_ORDER) {
+    const [c0, c1] = board.zones[z]
+    if (c1 < c0) continue
+    let pieces: Area[] = [{ r0: 0, r1: board.rows - 1, c0, c1: Math.min(c1, board.cols - 1) }]
+    for (const b of blocks) pieces = pieces.flatMap((p) => subtract(p, b))
+    pieces.forEach((area, i) =>
+      groups.push({ id: `zona-${z}-${i}`, name: zoneLabel(board, z) + (i ? ` ${i + 1}` : ''), area, color: ZONE_COLOR[z] }),
+    )
+  }
+  return groups.sort((a, b) => a.area.c0 - b.area.c0 || a.area.r0 - b.area.r0) // en el orden en que se leen
+}
+
+/** Color con el que se ve una carpeta: el suyo, el de su grupo o el marrón */
+export function groupColorAt(groups: Group[], cell: Pick<Cell, 'row' | 'col'>): Category | undefined {
+  return groupAt(groups, cell.row, cell.col)?.color
 }

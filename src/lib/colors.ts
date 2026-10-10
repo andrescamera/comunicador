@@ -13,7 +13,13 @@ export const CATEGORY_COLORS: Record<Category, { bg: string; border: string }> =
   misc: { bg: '#ffffff', border: '#9aa3ad' },
 }
 
-export function cellColors(category: Category, kind: CellKind, folderColor?: Category) {
-  if (kind === 'folder') return folderColor ? CATEGORY_COLORS[folderColor] : { bg: '#efe6d6', border: '#8d6e4a' }
+export const FOLDER_COLORS = { bg: '#efe6d6', border: '#8d6e4a' }
+
+/** Colores de una ficha. Una carpeta: el color elegido, si no el de su grupo, si no el marrón. */
+export function cellColors(category: Category, kind: CellKind, folderColor?: Category | 'folder', groupColor?: Category) {
+  if (kind === 'folder') {
+    const c = folderColor ?? groupColor
+    return c && c !== 'folder' ? CATEGORY_COLORS[c] : FOLDER_COLORS
+  }
   return CATEGORY_COLORS[category]
 }

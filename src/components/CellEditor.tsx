@@ -16,7 +16,7 @@ interface Props {
   onStartMove?: () => void
   onClose: () => void
   /** Crear una carpeta (vacía o con el vocabulario de una plantilla), nueva o en lugar de esta celda */
-  onCreateFolder?: (name: string, words: string[], picto: number | undefined, folderColor?: Category) => Promise<void>
+  onCreateFolder?: (name: string, words: string[], picto: number | undefined, folderColor?: Category | 'folder') => Promise<void>
   /** Casillas de cada tablero (para avisar si las palabras elegidas no caben en la carpeta) */
   capacity?: number
   /** Ficha nueva dentro de una carpeta: palabras de su categoría que aún no están */
@@ -101,8 +101,9 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           {draft.kind === 'folder' && (
             <label>
               Color
-              <select value={draft.folderColor ?? ''} onChange={(e) => setDraft({ ...draft, folderColor: (e.target.value || undefined) as Category | undefined })}>
-                <option value="">Carpeta (marrón)</option>
+              <select value={draft.folderColor ?? ''} onChange={(e) => setDraft({ ...draft, folderColor: (e.target.value || undefined) as Cell['folderColor'] })}>
+                <option value="">Como su grupo</option>
+                <option value="folder">Marrón (carpeta)</option>
                 {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}

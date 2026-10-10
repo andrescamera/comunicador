@@ -339,6 +339,37 @@ button.danger {
 .slot-empty:disabled {
   opacity: 0.3;
 }
+/* Sitio para el nombre de los grupos de la fila de arriba */
+.grid.with-groups {
+  padding-top: 12px;
+  row-gap: 14px;
+}
+/* Grupos guardados: su rectángulo y su nombre, encima de las fichas (sin tapar los clics) */
+.group-outline {
+  pointer-events: none;
+  z-index: 2;
+  margin: -5px;
+  border: 3px solid;
+  border-radius: calc(var(--radius) + 4px);
+  position: relative;
+}
+.group-outline span {
+  position: absolute;
+  top: -11px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.group-folders {
+  border-style: dashed;
+}
 /* Fuera de la zona de carpetas: en edición de una carpeta no se usa */
 .slot-off {
   border-radius: var(--radius);
@@ -1279,4 +1310,112 @@ p.ok {
 }
 .picto-search input {
   flex: 1 1 220px;
+}
+
+/* Tablero escrito */
+.board-text-help {
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  tab-size: 4;
+}
+.board-text-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);
+  gap: 12px;
+  padding: 12px 16px;
+}
+.board-text-editor {
+  display: flex;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+  overflow: hidden;
+}
+.board-text-editor textarea,
+.board-text-gutter {
+  margin: 0;
+  padding: 10px 8px;
+  font: 0.95rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  tab-size: 4;
+}
+.board-text-editor textarea {
+  flex: 1;
+  border: none;
+  resize: none;
+  outline: none;
+  white-space: pre;
+  overflow: auto;
+}
+.board-text-gutter {
+  overflow: hidden;
+  min-width: 3.2em;
+  text-align: right;
+  color: var(--muted);
+  background: #f6f7f9;
+  user-select: none;
+}
+.board-text-gutter .bad {
+  color: white;
+  background: #e0402f;
+}
+.board-text-side {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.board-text-side h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.board-text-errors,
+.board-text-changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.board-text-errors button {
+  text-align: left;
+  width: 100%;
+  border-color: #e0402f;
+  background: #fff3f1;
+  font-size: 0.9rem;
+}
+.board-text-changes li {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.board-text-changes .add {
+  color: #2e7d32;
+}
+.board-text-changes .del,
+.board-text-warning {
+  color: #c62828;
+}
+.board-text-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+@media (max-width: 760px) {
+  .board-text-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(300px, 1fr) auto;
+  }
 }

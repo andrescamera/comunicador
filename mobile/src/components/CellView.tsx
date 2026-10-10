@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { type Cell, cellColors } from '../shared'
+import { type Category, type Cell, cellColors } from '../shared'
 import { colors } from '../theme'
 import { Picto } from './Picto'
 
@@ -18,11 +18,13 @@ interface Props {
   displayLabel?: string
   /** Modo predictivo: no encaja ahora (atenuada, pero se puede tocar) */
   dimmed?: boolean
+  /** Color del grupo en el que está (las carpetas lo toman si no tienen uno propio) */
+  groupColor?: Category
 }
 
-function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel, dimmed }: Props) {
+function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel, dimmed, groupColor }: Props) {
   const label = displayLabel ?? cell.label
-  const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor)
+  const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor, groupColor)
   const fontSize = Math.max(10, Math.min(22, width * 0.15, height * 0.16))
   return (
     <View

@@ -134,7 +134,7 @@ function parseFreeText(body: string): ParsedItem[] {
 }
 
 /** "Mati", "Lucía": empieza por mayúscula y no es una palabra que conozcamos. */
-function isProperName(word: string): boolean {
+export function isProperName(word: string): boolean {
   return /^\p{Lu}\p{Ll}+$/u.test(word) && !isKnownWord(word) && !STOPWORDS.has(word.toLowerCase())
 }
 

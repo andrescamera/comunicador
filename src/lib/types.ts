@@ -22,7 +22,7 @@ export interface Cell {
   row: number
   col: number
   hidden?: boolean // oculta pero conservando su hueco
-  folderColor?: Category // carpeta: color de una categoría (sin él, el marrón de carpeta)
+  folderColor?: Category | 'folder' // carpeta: color elegido ('folder' = marrón); sin él, el de su grupo
   textOnly?: boolean // solo la palabra, en grande, sin pictograma (artículos, preposiciones...)
 }
 
@@ -43,7 +43,18 @@ export interface Board {
   cells: Cell[]
   dynamic?: DynamicConfig // solo el tablero principal: modo dinámico (por momentos de la frase)
   quickChat?: string // solo el principal: id del tablero de «Charla rápida» (botón fijo junto a Borrar y Todo)
+  groups?: Group[] // grupos de fichas (rectángulos con nombre); si no hay, los de las columnas (zones)
   inZone?: boolean // carpeta: sus fichas están colocadas dentro de la zona de carpetas (se ven tal cual, con huecos)
+}
+
+/** Grupo de fichas: un rectángulo del tablero con nombre (filas y columnas desde 0, extremos incluidos) */
+export interface Group {
+  id: string
+  name: string
+  area: { r0: number; c0: number; r1: number; c1: number }
+  color?: Category // color del grupo (casillas vacías y carpetas) y categoría que recibe por defecto
+  byRows?: boolean // se llena por filas (por defecto, por columnas)
+  folders?: boolean // zona de carpetas: ahí se abren las carpetas
 }
 
 /** Modo dinámico: el tablero principal muestra en cada momento de la frase solo lo que encaja */

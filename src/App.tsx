@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { BoardTextPage } from './components/BoardTextPage'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
 import { Creator } from './components/Creator'
@@ -7,7 +8,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
 import { buildFolder, buildQuickChat, folderCell, sortCells, starterLibrary } from './lib/generator'
-import { FOLDER_NEXT, FOLDER_PREV, folderArea, inlineFolder, moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
+import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, inlineFolder, moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
 import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
@@ -41,6 +42,7 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
+  const [showText, setShowText] = useState(false) // «Tablero escrito»: todo el tablero como texto
   const [showSettings, setShowSettings] = useState(false)
   // «Mis tableros» es otra página (con dirección propia: #tableros, y el botón Atrás del navegador vuelve)
   const [showLibraries, setShowLibrariesState] = useState(() => window.location.hash === '#tableros')
@@ -211,6 +213,21 @@ export default function App() {
     )
   }
 
+  if (showText) {
+    return (
+      <BoardTextPage
+        lib={lib}
+        onClose={() => setShowText(false)}
+        onApply={(next) => {
+          setLib(next) // un solo paso: Ctrl+Z lo deshace entero
+          setHistory((h) => h.filter((id) => next.boards[id]))
+          setShowText(false)
+          setNotice('Tablero actualizado desde el texto. Si algo no te convence, «↶» o Ctrl+Z lo deshace.')
+        }}
+      />
+    )
+  }
+
   const currentId = history[history.length - 1] ?? lib.rootId
   // Red de seguridad: si falta el tablero (p. ej. borrado desde otro dispositivo), se usa el principal o el primero
   const board: Board | undefined = lib.boards[currentId] ?? lib.boards[lib.rootId] ?? Object.values(lib.boards)[0]
@@ -259,7 +276,7 @@ export default function App() {
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
   // `replace`: una celda que ya existe y pasa a ser carpeta (conserva su sitio y su color)
-  const createFolder = async (at: Cell, replace: boolean, name: string, words: string[], picto: number | undefined, folderColor?: Category) => {
+  const createFolder = async (at: Cell, replace: boolean, name: string, words: string[], picto: number | undefined, folderColor?: Category | 'folder') => {
     const root = lib.boards[lib.rootId] ?? board
     const { board: sub, cell } = await buildFolder(name, words, { rows: root.rows, cols: root.cols })
     const folder: Cell = { ...cell, picto: picto ?? cell.picto, folderColor, row: at.row, col: at.col }
@@ -290,6 +307,9 @@ export default function App() {
   // Editando la carpeta: las fichas se ven donde se usan y solo se colocan dentro de la zona
   const editArea = editing && zoneArea && board.inZone ? zoneArea : null
   const shown = inline?.board ?? board
+  // Grupos para el color de las carpetas: los de la carpeta y, si se ve dentro del principal, los de este
+  const isRootBoard = board.id === lib.rootId
+  const shownGroups = [...boardGroups(board, isRootBoard), ...(inline && root ? boardGroups(root, true) : [])]
 
   // «Charla rápida»: frases hechas a un toque. La primera vez se crea con frases de ejemplo.
   const openQuickChat = async () => {
@@ -503,6 +523,11 @@ export default function App() {
               </button>
             )}
             {editing && (
+              <button type="button" onClick={() => setShowText(true)} title="Ver y editar todo el tablero como texto">
+                📝<span className="btn-text"> Texto</span>
+              </button>
+            )}
+            {editing && (
               <button type="button" onClick={() => setShowCreator(true)}>
                 ✨<span className="btn-text"> Crear tablero</span>
               </button>
@@ -582,6 +607,7 @@ export default function App() {
             onTap={editing ? () => {} : onCellTap}
             dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
             activeArea={editArea}
+            groups={shownGroups}
             labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
             onAddAt={(row, col) =>

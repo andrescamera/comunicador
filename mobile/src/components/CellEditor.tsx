@@ -13,7 +13,7 @@ interface Props {
   onStartMove?: () => void
   onClose: () => void
   /** Crear una carpeta (vacía o con las palabras elegidas), nueva o en lugar de esta celda */
-  onCreateFolder?: (name: string, words: string[], picto: number | undefined, folderColor?: Category) => Promise<void>
+  onCreateFolder?: (name: string, words: string[], picto: number | undefined, folderColor?: Category | 'folder') => Promise<void>
   /** Casillas de cada tablero (para avisar si las palabras elegidas no caben) */
   capacity?: number
   /** Ficha nueva dentro de una carpeta: palabras de su categoría que aún no están */
@@ -189,7 +189,8 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
             <>
               <Text style={styles.label}>Color</Text>
               <View style={styles.chips}>
-                <Chip active={!draft.folderColor} color={cellColors('misc', 'folder').bg} onPress={() => setDraft({ ...draft, folderColor: undefined })} text="Carpeta (marrón)" />
+                <Chip active={!draft.folderColor} onPress={() => setDraft({ ...draft, folderColor: undefined })} text="Como su grupo" />
+                <Chip active={draft.folderColor === 'folder'} color={cellColors('misc', 'folder').bg} onPress={() => setDraft({ ...draft, folderColor: 'folder' })} text="Marrón (carpeta)" />
                 {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (
                   <Chip key={c} active={draft.folderColor === c} color={cellColors(c, 'word').bg} onPress={() => setDraft({ ...draft, folderColor: c })} text={CATEGORY_LABELS[c]} />
                 ))}

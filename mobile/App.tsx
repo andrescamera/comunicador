@@ -45,6 +45,7 @@ import {
   categoryFor,
   missingWords,
   zoneOf,
+  boardGroups,
   folderArea,
   insideArea,
   inlineFolder,
@@ -249,7 +250,7 @@ export default function App() {
 
   // Carpetas: crear (vacía o con vocabulario) y entrar a editarlas
   // `replace`: una celda que ya existe y pasa a ser carpeta (conserva su sitio y su color)
-  const createFolder = async (at: Cell, replace: boolean, name: string, words: string[], picto: number | undefined, folderColor?: Category) => {
+  const createFolder = async (at: Cell, replace: boolean, name: string, words: string[], picto: number | undefined, folderColor?: Category | 'folder') => {
     const root = lib.boards[lib.rootId] ?? board
     const { board: sub, cell } = await buildFolder(name, words, { rows: root.rows, cols: root.cols })
     const folder: Cell = { ...cell, picto: picto ?? cell.picto, folderColor, row: at.row, col: at.col }
@@ -275,6 +276,8 @@ export default function App() {
   const zoneArea = root && openFolderCell ? folderArea(root, openFolderCell.id) : null
   const folderZone = !editing ? zoneArea : null
   const shown = folderZone && root ? inlineFolder(root, board, folderZone, folderPage).board : board
+  // Grupos para el color de las carpetas: los de la carpeta y, si se ve dentro del principal, los de este
+  const shownGroups = [...boardGroups(board, board.id === lib.rootId), ...(folderZone && root ? boardGroups(root, true) : [])]
   // Editando la carpeta: las fichas se ven donde se usan y solo se colocan dentro de la zona
   const editArea = editing && zoneArea && board.inZone ? zoneArea : null
 
@@ -502,6 +505,7 @@ export default function App() {
               board={shown}
               dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
               activeArea={editArea}
+              groups={shownGroups}
               editing={editing}
               gap={gap}
               labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}

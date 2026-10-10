@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { pictoUrl } from '../lib/arasaac'
 import { cellColors } from '../lib/colors'
 import { emptyLibrary, starterLibrary } from '../lib/generator'
+import { boardGroups, groupAt } from '../lib/layout'
 import type { LibraryInfo, Role } from '../lib/libraries'
 import type { Board, Library } from '../lib/types'
 import { type CloudSync, STARTER_NAME } from '../lib/useCloudSync'
@@ -156,16 +157,19 @@ function BoardThumb({ id, cloud }: { id: string; cloud: CloudSync }) {
     <>
     {board.dynamic?.enabled && <span className="thumb-badge">Dinámico</span>}
     <div className="thumb" style={{ gridTemplateColumns: `repeat(${board.cols}, 1fr)`, gridTemplateRows: `repeat(${board.rows}, 1fr)`, aspectRatio: `${board.cols} / ${board.rows}` }}>
-      {board.cells
+      {(() => {
+        const groups = boardGroups(board, true)
+        return board.cells
         .filter((c) => !c.hidden)
         .map((c) => {
-          const { bg, border } = cellColors(c.category, c.kind, c.folderColor)
+          const { bg, border } = cellColors(c.category, c.kind, c.folderColor, groupAt(groups, c.row, c.col)?.color)
           return (
             <div key={c.id} className="thumb-cell" style={{ gridRow: c.row + 1, gridColumn: c.col + 1, background: bg, borderColor: border }} title={c.label}>
               {c.textOnly || !c.picto ? <span>{c.label}</span> : <img src={pictoUrl(c.picto)} alt="" loading="lazy" draggable={false} />}
             </div>
           )
-        })}
+        })
+      })()}
     </div>
     </>
   )

@@ -1,7 +1,7 @@
 import type { CSSProperties, DragEvent } from 'react'
 import { CATEGORY_COLORS } from '../lib/colors'
-import { type Area, ZONE_LABELS, ZONE_ORDER, zoneLabel } from '../lib/layout'
-import type { Board, Category, Cell, Zone } from '../lib/types'
+import { type Area, groupAt, ZONE_LABELS, ZONE_ORDER, zoneLabel } from '../lib/layout'
+import type { Board, Category, Cell, Group, Zone } from '../lib/types'
 import { CellView } from './CellView'
 
 const ZONE_TINT: Record<Zone, Category> = { A: 'pronoun', B: 'verb', C: 'adjective', D: 'noun', E: 'social' }
@@ -24,13 +24,15 @@ interface Props {
   dimFor?: (cell: Cell) => boolean
   /** Edición de una carpeta que se abre en la zona de carpetas: solo se puede colocar ahí */
   activeArea?: Area | null
+  /** Grupos con los que se colorean las carpetas (y, si el tablero los tiene guardados, se dibujan al editar) */
+  groups?: Group[]
 }
 
 function zoneAt(board: Board, col: number): Zone | undefined {
   return ZONE_ORDER.find((z) => board.zones[z][0] <= col && col <= board.zones[z][1])
 }
 
-export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor, activeArea }: Props) {
+export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor, activeArea, groups = [] }: Props) {
   const gridStyle = {
     gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
@@ -58,7 +60,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
 
   return (
     <div className="grid-wrap" style={{ '--rows': board.rows, '--cols': board.cols } as CSSProperties}>
-      {editing && (
+      {editing && !board.groups && (
         <div className="zone-header" style={{ gridTemplateColumns: gridStyle.gridTemplateColumns }}>
           {ZONE_ORDER.filter((z) => board.zones[z][1] >= board.zones[z][0]).map((z) => {
             const style = {
@@ -86,7 +88,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
           })}
         </div>
       )}
-      <div className="grid" style={gridStyle}>
+      <div className={`grid${editing && board.groups ? ' with-groups' : ''}`} style={gridStyle}>
         {visible.map((cell) => (
           <CellView
             key={cell.id}
@@ -95,6 +97,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
             selected={movingId === cell.id}
             displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}
             dimmed={!editing && !!dimFor?.(cell)}
+            groupColor={groupAt(groups, cell.row, cell.col)?.color}
             onTap={() => onTap(cell)}
             editProps={{
               onClick: () => (movingId && onMoveTo ? onMoveTo(movingId, cell.row, cell.col) : onEdit(cell)),
@@ -106,7 +109,8 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
         ))}
         {empties.map(({ row, col }) => {
           const zone = zoneAt(board, col)
-          const tint = zone ? CATEGORY_COLORS[ZONE_TINT[zone]] : undefined
+          const g = board.groups ? groupAt(board.groups, row, col) : undefined
+          const tint = board.groups ? (g?.color ? CATEGORY_COLORS[g.color] : undefined) : zone ? CATEGORY_COLORS[ZONE_TINT[zone]] : undefined
           const off = !!activeArea && (row < activeArea.r0 || row > activeArea.r1 || col < activeArea.c0 || col > activeArea.c1)
           if (off) return <div key={`${row},${col}`} className="slot-off" style={{ gridRow: row + 1, gridColumn: col + 1 }} aria-hidden />
           return (
@@ -124,6 +128,21 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
             </button>
           )
         })}
+        {editing &&
+          board.groups?.map((g) => (
+            <div
+              key={g.id}
+              className={`group-outline${g.folders ? ' group-folders' : ''}`}
+              style={{
+                gridRow: `${g.area.r0 + 1} / ${g.area.r1 + 2}`,
+                gridColumn: `${g.area.c0 + 1} / ${g.area.c1 + 2}`,
+                borderColor: g.color ? CATEGORY_COLORS[g.color].border : '#8d6e4a',
+              }}
+              aria-hidden
+            >
+              <span style={{ background: g.color ? CATEGORY_COLORS[g.color].border : '#8d6e4a' }}>{g.name}</span>
+            </div>
+          ))}
       </div>
     </div>
   )
