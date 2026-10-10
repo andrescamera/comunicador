@@ -423,7 +423,7 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
         err(`«${tg.name}» se sale de la zona de carpetas en la que se abre esta carpeta (${rangeText('fila', zone.r0, zone.r1)}, ${rangeText('columna', zone.c0, zone.c1)}).`)
       const clash = groups.find((g) => g.area.r0 <= area.r1 && area.r0 <= g.area.r1 && g.area.c0 <= area.c1 && area.c0 <= g.area.c1)
       if (clash) err(`«${tg.name}» se solapa con «${clash.name}».`)
-      const g: Group = { id: prev && !/^(zona|carpetas)-/.test(prev.id) ? prev.id : uid('g'), name: tg.name, area }
+      const g: Group = { id: prev && !/^(zona|carpetas|auto)-/.test(prev.id) ? prev.id : uid('g'), name: tg.name, area }
       const color = tg.color ?? (inherit ? prev.color : undefined)
       if (color && color !== 'folder') g.color = color
       if (tg.byRows ?? (inherit ? prev.byRows : false)) g.byRows = true

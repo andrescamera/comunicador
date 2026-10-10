@@ -475,23 +475,31 @@ export function fillOrder(area: Area, byRows = false): { row: number; col: numbe
 export const groupSlots = (g: Group) => fillOrder(g.area, g.byRows)
 export const groupAt = (groups: Group[], row: number, col: number) => groups.find((g) => insideArea(g.area, row, col))
 
-const ZONE_COLOR: Record<Zone, Category> = { A: 'pronoun', B: 'verb', C: 'adjective', D: 'noun', E: 'social' }
-
-/** Rectángulo `a` menos `b`: hasta 4 trozos que no se solapan */
-function subtract(a: Area, b: Area): Area[] {
-  if (b.r1 < a.r0 || b.r0 > a.r1 || b.c1 < a.c0 || b.c0 > a.c1) return [a]
-  const out: Area[] = []
-  if (b.r0 > a.r0) out.push({ ...a, r1: b.r0 - 1 })
-  if (b.r1 < a.r1) out.push({ ...a, r0: b.r1 + 1 })
-  const r0 = Math.max(a.r0, b.r0), r1 = Math.min(a.r1, b.r1)
-  if (b.c0 > a.c0) out.push({ r0, r1, c0: a.c0, c1: b.c0 - 1 })
-  if (b.c1 < a.c1) out.push({ r0, r1, c0: b.c1 + 1, c1: a.c1 })
-  return out
+// Nombre de cada grupo deducido, por el color de sus fichas (persona y pronombre comparten color)
+const GROUP_NAMES: Partial<Record<Category, string>> = {
+  pronoun: 'Personas',
+  verb: 'Verbos',
+  noun: 'Nombres',
+  adjective: 'Descriptivos',
+  social: 'Social',
+  question: 'Preguntas',
+  negation: 'Negación',
+  misc: 'Otras palabras',
 }
+const colorKey = (c: Pick<Cell, 'kind' | 'category'>): Category => (c.kind === 'phrase' ? 'social' : c.category === 'person' ? 'pronoun' : c.category)
+const overlaps = (a: Area, b: Area) => a.r0 <= b.r1 && b.r0 <= a.r1 && a.c0 <= b.c1 && b.c0 <= a.c1
+const bbox = (cells: Pick<Cell, 'row' | 'col'>[]): Area => ({
+  r0: Math.min(...cells.map((c) => c.row)),
+  c0: Math.min(...cells.map((c) => c.col)),
+  r1: Math.max(...cells.map((c) => c.row)),
+  c1: Math.max(...cells.map((c) => c.col)),
+})
 
 /**
- * Grupos de un tablero: los guardados o, en el principal sin grupos, los de siempre (cada grupo de
- * columnas, y cada bloque de carpetas pegadas como zona de carpetas, sin solaparse).
+ * Grupos de un tablero: los guardados o, en el principal sin grupos, los que se deducen de cómo
+ * están colocadas las fichas: cada bloque de fichas del mismo color pegadas entre sí es un
+ * rectángulo (si no entra nada de otro color), y cada bloque de carpetas, la zona de carpetas.
+ * Una carpeta suelta (p. ej. «más ▸») va con el grupo en el que está o al que está pegada.
  */
 export function boardGroups(board: Board, isRoot: boolean): Group[] {
   if (board.groups) return board.groups
@@ -502,17 +510,80 @@ export function boardGroups(board: Board, isRoot: boolean): Group[] {
     const b = adjacentFolderBlock(board, f)
     if (b) blocks.push(b)
   }
-  const groups: Group[] = blocks.map((area, i) => ({ id: `carpetas-${i}`, name: blocks.length > 1 ? `Carpetas ${i + 1}` : 'Carpetas', area, folders: true }))
-  for (const z of ZONE_ORDER) {
-    const [c0, c1] = board.zones[z]
-    if (c1 < c0) continue
-    let pieces: Area[] = [{ r0: 0, r1: board.rows - 1, c0, c1: Math.min(c1, board.cols - 1) }]
-    for (const b of blocks) pieces = pieces.flatMap((p) => subtract(p, b))
-    pieces.forEach((area, i) =>
-      groups.push({ id: `zona-${z}-${i}`, name: zoneLabel(board, z) + (i ? ` ${i + 1}` : ''), area, color: ZONE_COLOR[z] }),
-    )
+  const rects: { area: Area; color?: Category; folders?: boolean }[] = blocks.map((area) => ({ area, folders: true }))
+  const at = new Map(board.cells.map((c) => [key(c.row, c.col), c]))
+  const free = (c: Cell) => !blocks.some((b) => inside(b, c))
+  const words = board.cells.filter((c) => c.kind !== 'folder' && free(c))
+  // Un rectángulo vale si no pisa otro grupo y lo que hay dentro es de su color (o carpetas sueltas)
+  const fits = (area: Area, color: Category, except?: Area) => {
+    if (rects.some((r) => r.area !== except && overlaps(r.area, area))) return false
+    for (let r = area.r0; r <= area.r1; r++)
+      for (let c = area.c0; c <= area.c1; c++) {
+        const cell = at.get(key(r, c))
+        if (cell && !(cell.kind === 'folder' ? free(cell) : colorKey(cell) === color)) return false
+      }
+    return true
   }
-  return groups.sort((a, b) => a.area.c0 - b.area.c0 || a.area.r0 - b.area.r0) // en el orden en que se leen
+  // Bloques del mismo color (vecinos arriba, abajo, izquierda y derecha), de más grande a más pequeño
+  const seen = new Set<string>()
+  const components: Cell[][] = []
+  for (const start of words) {
+    if (seen.has(start.id)) continue
+    const comp = [start]
+    seen.add(start.id)
+    for (let k = 0; k < comp.length; k++)
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = at.get(key(comp[k].row + dr, comp[k].col + dc))
+        if (n && n.kind !== 'folder' && !seen.has(n.id) && free(n) && colorKey(n) === colorKey(start)) {
+          seen.add(n.id)
+          comp.push(n)
+        }
+      }
+    components.push(comp)
+  }
+  components.sort((a, b) => b.length - a.length)
+  for (const comp of components) {
+    const color = colorKey(comp[0])
+    const whole = bbox(comp)
+    if (fits(whole, color)) {
+      rects.push({ area: whole, color })
+      continue
+    }
+    // No cabe como un solo rectángulo: un trozo por cada tramo seguido de cada columna
+    for (const col of [...new Set(comp.map((c) => c.col))]) {
+      const rows = comp.filter((c) => c.col === col).map((c) => c.row).sort((a, b) => a - b)
+      let r0 = rows[0]
+      rows.forEach((r, i) => {
+        if (i === rows.length - 1 || rows[i + 1] !== r + 1) {
+          const area = { r0, r1: r, c0: col, c1: col }
+          if (fits(area, color)) rects.push({ area, color })
+          r0 = rows[i + 1]
+        }
+      })
+    }
+  }
+  // Carpetas sueltas pegadas a un grupo: el grupo crece para incluirlas, si sigue siendo válido
+  for (const f of board.cells.filter((c) => c.kind === 'folder' && free(c))) {
+    if (rects.some((r) => inside(r.area, f))) continue
+    for (const r of rects) {
+      if (r.folders || !r.color) continue
+      const near = f.row >= r.area.r0 - 1 && f.row <= r.area.r1 + 1 && f.col >= r.area.c0 - 1 && f.col <= r.area.c1 + 1
+      if (!near) continue
+      const grown = bbox([f, { row: r.area.r0, col: r.area.c0 }, { row: r.area.r1, col: r.area.c1 }])
+      if (fits(grown, r.color, r.area)) {
+        r.area = grown
+        break
+      }
+    }
+  }
+  rects.sort((a, b) => a.area.c0 - b.area.c0 || a.area.r0 - b.area.r0) // en el orden en que se leen
+  const used = new Map<string, number>()
+  return rects.map((r, i) => {
+    const base = r.folders ? 'Carpetas' : (GROUP_NAMES[r.color!] ?? 'Grupo')
+    const n = (used.get(base) ?? 0) + 1
+    used.set(base, n)
+    return { id: `auto-${i}`, name: n > 1 ? `${base} ${n}` : base, area: r.area, ...(r.color ? { color: r.color } : {}), ...(r.folders ? { folders: true } : {}) }
+  })
 }
 
 /** Color con el que se ve una carpeta: el suyo, el de su grupo o el marrón */

@@ -230,3 +230,43 @@ describe('carpeta abierta dentro de su zona', async () => {
     expect(inlineFolder(root, f, area).board.cells.find((c) => c.id === 'a')).toMatchObject({ row: 2, col: 7 })
   })
 })
+
+describe('grupos deducidos de cómo están colocadas las fichas', async () => {
+  const { boardGroups } = await import('./layout')
+  // Un tablero real de 7 × 11, por bandas de filas (fila,columna:categoría; F = carpeta)
+  const spec = [
+    'P P P P P P F', // columna 1: pronombres y «más ▸»
+    'V V V S S A A',
+    'V V V S S A A',
+    'V V V S S A A',
+    'V V F S F A F', // columna 5: «más ▸» de verbos, social y descriptivos
+    'M M M M M M M',
+    'M M M M M M M',
+    'F F F F . . Q',
+    'F F F F . . Q',
+    'F F F F . . Q',
+    'F F F F . . Q',
+  ] // cada línea es una columna, de arriba abajo
+  const cat = { P: 'pronoun', V: 'verb', S: 'social', A: 'adjective', M: 'misc', Q: 'question', F: 'misc' } as const
+  const cells: Cell[] = []
+  spec.forEach((colSpec, col) =>
+    colSpec.split(' ').forEach((k, row) => {
+      if (k === '.') return
+      cells.push({ id: `${row}-${col}`, label: `${k}${row}${col}`, kind: k === 'F' ? 'folder' : 'word', category: cat[k as keyof typeof cat], row, col, target: k === 'F' ? 'x' : undefined })
+    }),
+  )
+  const board: Board = { id: 'r', name: 'Inicio', rows: 7, cols: 11, zones: computeZones({ A: 1, B: 1, C: 1, D: 1, E: 1 }, 7, 11), cells }
+
+  it('un rectángulo por cada bloque del mismo color, y la zona de carpetas', () => {
+    const groups = boardGroups(board, true).map((g) => [g.name, g.area.r0 + 1, g.area.r1 + 1, g.area.c0 + 1, g.area.c1 + 1, g.folders ?? false])
+    expect(groups).toEqual([
+      ['Personas', 1, 7, 1, 1, false], // con su «más ▸» debajo
+      ['Verbos', 1, 3, 2, 5, false],
+      ['Social', 4, 5, 2, 5, false],
+      ['Descriptivos', 6, 7, 2, 5, false],
+      ['Otras palabras', 1, 7, 6, 7, false],
+      ['Carpetas', 1, 4, 8, 11, true],
+      ['Preguntas', 7, 7, 8, 11, false],
+    ])
+  })
+})
