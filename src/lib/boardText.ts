@@ -54,6 +54,7 @@ type TItem =
 
 interface TBoard {
   name: string
+  path: string[] // carpetas desde el principal (vacío en el principal)
   line: number
   groups: TGroup[]
   items: TItem[]
@@ -172,8 +173,16 @@ function parseCellOptions(options: string[], err: (m: string) => void): TCellOpt
 }
 
 /** Lee el texto. Solo comprueba la forma; lo que depende del tablero se comprueba al aplicar. */
-export function parseBoardText(text: string): { doc: TDoc | null; errors: TextError[] } {
+/** Dónde está cada línea: su tablero, su grupo (-1 = ninguno) y la ficha, si es una */
+export interface LineInfo {
+  board: TBoard
+  group: number
+  item?: TItem
+}
+
+export function parseBoardText(text: string): { doc: TDoc | null; errors: TextError[]; lines: Map<number, LineInfo> } {
   const errors: TextError[] = []
+  const info = new Map<number, LineInfo>()
   const lines = text.normalize('NFC').replace(/\r\n?/g, '\n').split('\n')
   let doc: TDoc | null = null
   let indentChar: '\t' | ' ' | null = null
@@ -204,7 +213,8 @@ export function parseBoardText(text: string): { doc: TDoc | null; errors: TextEr
       const { body, options, bad } = splitOptions(trimmed.replace(/^#+\s*/, ''))
       if (bad) return err(bad)
       if (!body) return err('falta el nombre del tablero, p. ej. «# Inicio».')
-      const root: TBoard = { name: body, line, groups: [], items: [] }
+      const root: TBoard = { name: body, path: [], line, groups: [], items: [] }
+      info.set(line, { board: root, group: -1 })
       doc = { root }
       let rows: number | undefined, cols: number | undefined
       for (const o of options ?? []) {
@@ -227,7 +237,7 @@ export function parseBoardText(text: string): { doc: TDoc | null; errors: TextEr
     const top = stack[stack.length - 1]
     if (indent > top.indent) {
       if (!lastCell || lastCell.level !== top) return err('esta línea está más metida, pero no va debajo de una ficha (solo el contenido de una carpeta va con sangría).')
-      const folder: TBoard = { name: lastCell.item.label, line: lastCell.item.line, groups: [], items: [] }
+      const folder: TBoard = { name: lastCell.item.label, path: [...top.board.path, lastCell.item.label], line: lastCell.item.line, groups: [], items: [] }
       lastCell.item.children = folder
       stack.push({ indent, board: folder, group: -1 })
     } else if (indent < top.indent) {
@@ -246,11 +256,13 @@ export function parseBoardText(text: string): { doc: TDoc | null; errors: TextEr
       if (body === '-' || body === '') {
         if (options?.length) err('«@ -» (fichas fuera de grupos) no lleva opciones.')
         level.group = -1
+        info.set(line, { board, group: -1 })
         return
       }
       if (board.groups.some((g) => fold(g.name) === fold(body))) return err(`el grupo «${body}» ya está definido en este tablero.`)
       board.groups.push({ name: body, line, ...parseGroupOptions(options ?? [], err) })
       level.group = board.groups.length - 1
+      info.set(line, { board, group: level.group })
       return
     }
 
@@ -258,6 +270,7 @@ export function parseBoardText(text: string): { doc: TDoc | null; errors: TextEr
     if (/^_+$/.test(trimmed)) {
       lastCell = null
       board.items.push({ type: 'gap', line, group: level.group })
+      info.set(line, { board, group: level.group, item: board.items[board.items.length - 1] })
       return
     }
 
@@ -268,10 +281,11 @@ export function parseBoardText(text: string): { doc: TDoc | null; errors: TextEr
     if (!label) return err('falta el texto de la ficha.')
     const item: Extract<TItem, { type: 'cell' }> = { type: 'cell', line, group: level.group, label, opts: parseCellOptions(options ?? [], err) }
     board.items.push(item)
+    info.set(line, { board, group: level.group, item })
     lastCell = { item, level }
   })
   if (!doc && !errors.length) errors.push({ line: 1, message: 'el texto está vacío. Empieza por el tablero principal, p. ej. «# Inicio».' })
-  return { doc, errors }
+  return { doc, errors, lines: info }
 }
 
 // ---------- Tablero → texto ----------
@@ -530,7 +544,7 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
       let cell: Cell
       if (isFolder) {
         const prevBoard = prev && isFolderOf(lib, prev) ? lib.boards[prev.target!] : undefined
-        const children = it.children ?? { name: it.label, line: it.line, groups: [], items: [] }
+        const children = it.children ?? { name: it.label, path: [...t.path, it.label], line: it.line, groups: [], items: [] }
         // Se abre en la zona de carpetas si está en ella (y su contenido sin grupos cabe; si no, a pantalla completa, por páginas)
         let childZone = isRoot ? groups.find((g) => g.folders && insideArea(g.area, slot.row, slot.col))?.area : zone
         let paged = false
@@ -696,4 +710,61 @@ export async function resolvePictos(lib: Library, jobs: PictoJob[], onProgress?:
   )
   for (const job of jobs.filter((j) => j.folder)) await one(job)
   return { ...lib, boards }
+}
+
+// ---------- Mapa: dónde cae lo que se está editando ----------
+
+export interface LineContext {
+  rows: number
+  cols: number
+  title: string // «Inicio › Verbos», «Inicio › animales (zona de carpetas)»
+  groups: { name: string; area: Area; color?: Category; folders?: boolean; current: boolean }[]
+  /** Lo que se resalta: el grupo, la zona de la carpeta o la casilla de una ficha suelta */
+  highlight: Area | null
+  color?: Category
+}
+
+/** Para el mapa del texto: el tablero y el grupo de la línea `line` (o de la anterior con contenido) */
+export function lineContext(lib: Library, text: string, line: number): LineContext | null {
+  const { doc, lines } = parseBoardText(text)
+  if (!doc) return null
+  let at: LineInfo | undefined
+  for (let l = line; l >= 1 && !at; l--) at = lines.get(l)
+  if (!at) return null
+  const root = lib.boards[lib.rootId]
+  const rows = doc.size?.rows ?? root.rows
+  const cols = doc.size?.cols ?? root.cols
+  // El tablero de ahora con esa ruta (si ya existía), para los grupos sin rectángulo y su zona
+  let old: Board | undefined = root
+  for (const label of at.board.path) {
+    const f: Cell | undefined = old?.cells.find((c) => c.kind === 'folder' && c.target && fold(c.label) === fold(label))
+    old = f ? lib.boards[f.target!] : undefined
+  }
+  const oldGroups = old ? boardGroups(old, old.id === lib.rootId) : []
+  const groups = at.board.groups.flatMap((g, i) => {
+    const area = g.rect ?? oldGroups.find((x) => fold(x.name) === fold(g.name))?.area
+    if (!area) return []
+    const color = g.color && g.color !== 'folder' ? g.color : g.rect ? undefined : oldGroups.find((x) => fold(x.name) === fold(g.name))?.color
+    return [{ name: g.name, area, color, folders: g.folders, current: i === at!.group }]
+  })
+  const title = [doc.root.name, ...at.board.path].join(' › ')
+  const current = groups.find((g) => g.current)
+  if (current) return { rows, cols, title: `${title} › ${current.name}`, groups, highlight: current.area, color: current.color }
+  // Ficha suelta con su casilla
+  if (at.item?.type === 'cell' && at.item.opts.row !== undefined)
+    return { rows, cols, title: `${title} (fila ${at.item.opts.row + 1}, columna ${at.item.opts.col! + 1})`, groups, highlight: { r0: at.item.opts.row, r1: at.item.opts.row, c0: at.item.opts.col!, c1: at.item.opts.col! } }
+  // Contenido de una carpeta sin grupo: su zona de carpetas o la pantalla entera
+  if (at.board.path.length) {
+    // La zona es el grupo de carpetas del principal en el que está su carpeta de primer nivel
+    const top = doc.root.items.find((it) => it.type === 'cell' && fold(it.label) === fold(at!.board.path[0]))
+    const tg = top && top.group >= 0 ? doc.root.groups[top.group] : undefined
+    const rootGroups = boardGroups(root, true)
+    const prevTg = tg && rootGroups.find((x) => fold(x.name) === fold(tg.name))
+    const zone = tg && (tg.folders ?? (tg.rect ? false : prevTg?.folders)) ? (tg.rect ?? prevTg?.area) : undefined
+    const n = at.board.items.length
+    // Se abre en la zona de carpetas (si no cabe, por páginas dentro de ella) o a pantalla completa
+    if (zone) return { rows, cols, title: `${title} (en la zona de carpetas${n > areaSize(zone) && !at.board.groups.length ? ', por páginas' : ''})`, groups, highlight: zone }
+    return { rows, cols, title: `${title} (pantalla completa)`, groups, highlight: { r0: 0, c0: 0, r1: rows - 1, c1: cols - 1 } }
+  }
+  return { rows, cols, title, groups, highlight: null }
 }

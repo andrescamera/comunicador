@@ -1419,3 +1419,42 @@ p.ok {
     grid-template-rows: minmax(300px, 1fr) auto;
   }
 }
+.board-map {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.board-map figcaption {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+}
+.board-map-grid {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+}
+.board-map-slot {
+  border-radius: 3px;
+  background: #eceef1;
+}
+.board-map-group {
+  border: 2px solid;
+  border-radius: 5px;
+  margin: -2px;
+  opacity: 0.45;
+}
+.board-map-group.current {
+  opacity: 1;
+  border-width: 3px;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(0, 0, 0, 0.25);
+  z-index: 1;
+}
+.board-map-group.other {
+  border-color: #3d7fd9;
+  border-style: dashed;
+  background: rgba(61, 127, 217, 0.15);
+}
