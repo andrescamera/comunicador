@@ -145,6 +145,18 @@ describe('tablero escrito: cambios', () => {
     expect(p.changes).toEqual([])
   })
 
+  it('una carpeta que no cabe en la zona (por páginas): en orden, sin huecos ni posiciones, y sin cambios', () => {
+    const lib = sample()
+    // 6 fichas en una zona de 4, repartidas por el tablero (y marcada como «en la zona» de antes)
+    lib.boards['b-comida'].cells = ['agua', 'leche', 'pan', 'sal', 'uva', 'pera'].map((l, i) => w(l, l, (i * 2) % 4, 1 + Math.floor(i / 2) * 2))
+    const text = boardToText(lib)
+    expect(text).toContain('Comida\n\tagua\n\tleche\n\tpan\n\tsal\n\tuva\n\tpera\n')
+    expect(text).not.toMatch(/\t_\n\tpan|fila \d, columna \d\]\n\tsal/)
+    const p = plan(lib, text)
+    expect(p.errors).toEqual([])
+    expect(p.changes).toEqual([])
+  })
+
   it('también con espacios en vez de tabuladores', () => {
     const lib = sample()
     const p = plan(lib, boardToText(lib).replace(/\t/g, '        '))

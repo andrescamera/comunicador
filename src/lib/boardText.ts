@@ -289,8 +289,11 @@ function defaultCategory(label: string, kind: Cell['kind']): Category {
 
 /** Zona en la que se llena el contenido sin grupo de cada tablero: la de carpetas o el tablero entero */
 function streamArea(board: Board, zone: Area | undefined): Area {
-  return board.inZone && zone ? zone : { r0: 0, c0: 0, r1: board.rows - 1, c1: board.cols - 1 }
+  return zone && !isPaged(board, zone) ? zone : { r0: 0, c0: 0, r1: board.rows - 1, c1: board.cols - 1 }
 }
+const areaSize = (a: Area) => (a.r1 - a.r0 + 1) * (a.c1 - a.c0 + 1)
+/** Carpeta de la zona de carpetas que no cabe en ella: se ve por páginas, en orden y sin huecos */
+const isPaged = (board: Board, zone: Area | undefined) => !!zone && !board.groups?.length && board.cells.length > areaSize(zone)
 
 export function boardToText(lib: Library): string {
   const root = lib.boards[lib.rootId]
@@ -339,6 +342,9 @@ export function boardToText(lib: Library): string {
     if (isRoot) {
       // En el principal, las fichas sueltas (fuera de grupos) llevan su casilla
       for (const c of [...b.cells].sort((x, y) => x.col - y.col || x.row - y.row)) if (!inGroup(c)) withPosition(c)
+    } else if (isPaged(b, zones.get(b.id))) {
+      // Por páginas: en el orden en que se ve (por columnas), sin huecos ni posiciones
+      for (const c of [...b.cells].sort((x, y) => x.col - y.col || x.row - y.row)) cellLine(c, depth, undefined)
     } else {
       // En una carpeta, lo que no está en un grupo llena su zona por orden (con «_» en los huecos)
       writeSlots(b, fillOrder(area).filter((s) => !inGroup(s)), depth, undefined)
@@ -433,10 +439,10 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
     return groups
   }
 
-  const areaSize = (a: Area) => (a.r1 - a.r0 + 1) * (a.c1 - a.c0 + 1)
   const streamCount = (t: TBoard) => t.items.filter((it) => it.group < 0 && !(it.type === 'cell' && it.opts.row !== undefined)).length
 
-  function buildBoard(t: TBoard, old: Board | undefined, path: string, isRoot: boolean, zone: Area | undefined): Board {
+  // `paged`: carpeta de la zona de carpetas que no cabe en ella (por páginas: su orden es lo que cuenta, no su casilla)
+  function buildBoard(t: TBoard, old: Board | undefined, path: string, isRoot: boolean, zone: Area | undefined, paged = false): Board {
     const id = old?.id ?? uid('b')
     used.add(id)
     const groups = buildGroups(t, old, isRoot, zone)
@@ -527,8 +533,12 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
         const children = it.children ?? { name: it.label, line: it.line, groups: [], items: [] }
         // Se abre en la zona de carpetas si está en ella (y su contenido sin grupos cabe; si no, a pantalla completa, por páginas)
         let childZone = isRoot ? groups.find((g) => g.folders && insideArea(g.area, slot.row, slot.col))?.area : zone
-        if (childZone && !children.groups.length && streamCount(children) > areaSize(childZone)) childZone = undefined
-        const sub = buildBoard(children, prevBoard, `${path} › ${it.label}`, false, childZone)
+        let paged = false
+        if (childZone && !children.groups.length && streamCount(children) > areaSize(childZone)) {
+          childZone = undefined
+          paged = true
+        }
+        const sub = buildBoard(children, prevBoard, `${path} › ${it.label}`, false, childZone, paged)
         cell = { ...(prev?.kind === 'folder' ? prev : {}), id: prev?.id ?? uid('c'), kind: 'folder', label: it.label, category: prev?.category ?? 'misc', picto: prev?.picto, target: sub.id, row: slot.row, col: slot.col }
         delete cell.textOnly
         if (it.opts.color) cell.folderColor = it.opts.color
@@ -556,7 +566,7 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
       // Resumen
       if (!prev) change.added.push(it.label)
       else {
-        if (prev.row !== cell.row || prev.col !== cell.col) change.moved++
+        if (!paged && (prev.row !== cell.row || prev.col !== cell.col)) change.moved++
         const prevGroupColor = old ? groupAt(boardGroups(old, isRoot), prev.row, prev.col)?.color : undefined
         const look = (c: Cell, gc: Category | undefined) =>
           JSON.stringify([c.label, c.kind, c.category, !!c.textOnly, !!c.hidden, c.kind === 'folder' ? (c.folderColor ?? gc ?? 'folder') : ''])
