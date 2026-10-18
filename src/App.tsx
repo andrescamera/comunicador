@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BoardTextPage } from './components/BoardTextPage'
+import { PhotoImport } from './components/PhotoImport'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
 import { Creator } from './components/Creator'
@@ -42,6 +43,7 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
+  const [showPhoto, setShowPhoto] = useState(false) // «Fichas desde foto» en el tablero que se edita
   const [showText, setShowText] = useState(false) // «Tablero escrito»: todo el tablero como texto
   const [showSettings, setShowSettings] = useState(false)
   // «Mis tableros» es otra página (con dirección propia: #tableros, y el botón Atrás del navegador vuelve)
@@ -505,6 +507,11 @@ export default function App() {
               </button>
             )}
             {editing && (
+              <button type="button" onClick={() => setShowPhoto(true)} title="Cargar en este tablero las fichas de una foto">
+                📷<span className="btn-text"> Fichas desde imagen</span>
+              </button>
+            )}
+            {editing && (
               <button
                 type="button"
                 onClick={() => {
@@ -640,6 +647,19 @@ export default function App() {
         <Creator
           onCreate={replaceLibrary}
           onClose={() => setShowCreator(false)}
+        />
+      )}
+      {showPhoto && (
+        <PhotoImport
+          board={board}
+          isRoot={board.id === lib.rootId}
+          zone={editArea}
+          onClose={() => setShowPhoto(false)}
+          onAdd={(r) => {
+            updateBoard(board.id, (b) => ({ ...b, cells: [...b.cells, ...r.added.filter((c) => !b.cells.some((x) => x.id === c.id))] }))
+            setShowPhoto(false)
+            setNotice(`${r.added.length} fichas añadidas a «${board.name}»${r.moved.length ? ` (${r.moved.length} en otro hueco porque su casilla estaba ocupada)` : ''}. Se puede deshacer con «↶» o Ctrl+Z.`)
+          }}
         />
       )}
       {showDynConfig && root && (

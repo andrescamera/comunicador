@@ -601,3 +601,49 @@ export function boardGroups(board: Board, isRoot: boolean): Group[] {
 export function groupColorAt(groups: Group[], cell: Pick<Cell, 'row' | 'col'>): Category | undefined {
   return groupAt(groups, cell.row, cell.col)?.color
 }
+
+// ---------- Fichas desde una foto ----------
+
+export interface ImportResult {
+  board: Board
+  added: Cell[]
+  skipped: string[] // ya estaban en el tablero
+  moved: string[] // su casilla de la foto estaba ocupada (o fuera): van a un hueco de su grupo
+  noRoom: string[] // no queda ningún hueco
+}
+
+/**
+ * Añade a `board` las fichas leídas de una foto: cada una en su misma casilla si está libre
+ * (memoria motora), si no en el primer hueco de su grupo (o de la zona de la carpeta), y si no,
+ * en cualquier hueco. Las que ya están en el tablero no se repiten. Nada de lo que hay se mueve.
+ */
+export function importCells(board: Board, cells: Cell[], opts: { isRoot: boolean; zone: Area | null }): ImportResult {
+  const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+  const groups = boardGroups(board, opts.isRoot)
+  const known = new Set(board.cells.map((c) => fold(c.label)))
+  const taken = new Set(board.cells.map((c) => key(c.row, c.col)))
+  const area = opts.zone ?? { r0: 0, c0: 0, r1: board.rows - 1, c1: board.cols - 1 }
+  const ok = (s: { row: number; col: number }) => insideArea(area, s.row, s.col) && !taken.has(key(s.row, s.col))
+  const result: ImportResult = { board, added: [], skipped: [], moved: [], noRoom: [] }
+  for (const cell of [...cells].sort((a, b) => a.col - b.col || a.row - b.row)) {
+    if (known.has(fold(cell.label))) {
+      result.skipped.push(cell.label)
+      continue
+    }
+    known.add(fold(cell.label))
+    let slot: { row: number; col: number } | undefined = ok(cell) ? { row: cell.row, col: cell.col } : undefined
+    if (!slot) {
+      const group = opts.zone ? undefined : groups.find((g) => !g.folders && g.color === colorKey(cell))
+      slot = (group ? groupSlots(group) : []).find(ok) ?? fillOrder(area).find(ok)
+      if (slot) result.moved.push(cell.label)
+    }
+    if (!slot) {
+      result.noRoom.push(cell.label)
+      continue
+    }
+    taken.add(key(slot.row, slot.col))
+    result.added.push({ ...cell, ...slot })
+  }
+  result.board = { ...board, cells: [...board.cells, ...result.added] }
+  return result
+}

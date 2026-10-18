@@ -1516,3 +1516,11 @@ p.ok {
   border-style: dashed;
   background: rgba(107, 79, 187, 0.18);
 }
+.import-summary {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.92rem;
+}
