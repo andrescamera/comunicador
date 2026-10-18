@@ -743,6 +743,24 @@ textarea {
 .preview-grid {
   height: min(52vh, 480px);
 }
+/* Fichas desde imagen: vista previa pequeña, para que quepan el resumen y los botones */
+.import-preview {
+  height: min(34vh, 320px);
+  overflow: hidden;
+}
+.import-preview .grid-wrap {
+  --min-cell-w: 36px;
+  --min-cell-h: 34px;
+}
+.import-preview .grid {
+  gap: 4px;
+}
+.import-preview .zone-header {
+  display: none;
+}
+.import-preview .cell-label {
+  font-size: 0.75rem;
+}
 code {
   background: #eef1f5;
   padding: 1px 5px;

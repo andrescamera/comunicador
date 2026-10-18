@@ -100,7 +100,7 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
         {preview && result && (
           <>
             <p className="muted">Revisa lo leído: pulsa una ficha para corregir su texto o pictograma, o para quitarla.</p>
-            <div className="preview-grid">
+            <div className="preview-grid import-preview">
               <BoardGrid board={previewShown(preview, zone)} editing onTap={() => {}} onEdit={setEditing} />
             </div>
             <ul className="import-summary">
