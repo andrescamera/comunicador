@@ -330,10 +330,16 @@ const areaSize = (a: Area) => (a.r1 - a.r0 + 1) * (a.c1 - a.c0 + 1)
 const isPaged = (board: Board, zone: Area | undefined) => !!zone && !board.groups?.length && board.cells.length > areaSize(zone)
 
 export function boardToText(lib: Library): string {
+  return boardToTextWithLines(lib).text
+}
+
+/** El texto y, para cada tablero, la línea (desde 1) de la ficha-carpeta que lo abre (el principal: su «#») */
+export function boardToTextWithLines(lib: Library): { text: string; lines: Map<string, number> } {
   const root = lib.boards[lib.rootId]
   const zones = folderAreas(lib)
   const out = [TEXT_HEADER, `# ${root.name} [${root.rows} filas, ${root.cols} columnas]`]
   const seen = new Set<string>([lib.rootId])
+  const lines = new Map<string, number>([[lib.rootId, 2]])
 
   const cellLine = (c: Cell, depth: number, groupColor: Category | undefined) => {
     const opts: string[] = []
@@ -353,6 +359,7 @@ export function boardToText(lib: Library): string {
     out.push('\t'.repeat(depth) + c.label + (opts.length ? ` [${opts.join(', ')}]` : ''))
     if (folder && !seen.has(c.target!)) {
       seen.add(c.target!)
+      lines.set(c.target!, out.length)
       writeBoard(lib.boards[c.target!], depth + 1, false)
     }
   }
@@ -395,7 +402,7 @@ export function boardToText(lib: Library): string {
     }
   }
   writeBoard(root, 0, true)
-  return out.join('\n') + '\n'
+  return { text: out.join('\n') + '\n', lines }
 }
 
 const rangeText = (what: 'fila' | 'columna', a: number, b: number) => (a === b ? `${what} ${a + 1}` : `${what}s ${a + 1}-${b + 1}`)

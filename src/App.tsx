@@ -217,6 +217,7 @@ export default function App() {
     return (
       <BoardTextPage
         lib={lib}
+        focusBoardId={history[history.length - 1]}
         onClose={() => setShowText(false)}
         onApply={(next) => {
           setLib(next) // un solo paso: Ctrl+Z lo deshace entero

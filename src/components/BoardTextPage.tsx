@@ -1,5 +1,5 @@
-import { type KeyboardEvent, useMemo, useRef, useState } from 'react'
-import { type BoardChange, boardToText, type LineContext, lineContext, parseBoardText, planBoardText, resolvePictos, type TextError, type TextPlan } from '../lib/boardText'
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type BoardChange, boardToTextWithLines, type LineContext, lineContext, parseBoardText, planBoardText, resolvePictos, type TextError, type TextPlan } from '../lib/boardText'
 import { CATEGORY_COLORS, FOLDER_COLORS } from '../lib/colors'
 import type { Library } from '../lib/types'
 
@@ -7,6 +7,8 @@ interface Props {
   lib: Library
   onApply: (lib: Library) => void
   onClose: () => void
+  /** El tablero que se estaba viendo (una carpeta, un «más»…): el texto se abre en su sección */
+  focusBoardId?: string
 }
 
 const HELP = `# Nombre [7 filas, 11 columnas]   el tablero principal (una vez, al principio)
@@ -20,8 +22,9 @@ Categorías: pronombre, persona, verbo, nombre, descriptivo, social, pregunta, n
 Para no mover nada: escribe lo nuevo en lugar de un «_» o al final de su grupo (en medio, lo de después se desplaza).`
 
 /** El tablero entero como texto: se edita y, tras revisar los cambios, se aplica de una vez */
-export function BoardTextPage({ lib, onApply, onClose }: Props) {
-  const original = useMemo(() => boardToText(lib), []) // eslint-disable-line react-hooks/exhaustive-deps
+export function BoardTextPage({ lib, onApply, onClose, focusBoardId }: Props) {
+  const exported = useMemo(() => boardToTextWithLines(lib), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const original = exported.text
   const [text, setText] = useState(original)
   const [errors, setErrors] = useState<TextError[]>([])
   const [plan, setPlan] = useState<TextPlan | null>(null)
@@ -29,6 +32,15 @@ export function BoardTextPage({ lib, onApply, onClose }: Props) {
   const [showHelp, setShowHelp] = useState(false)
   const [caretLine, setCaretLine] = useState(1)
   const context = useMemo(() => lineContext(lib, text, caretLine), [lib, text, caretLine])
+  // Al abrir desde una carpeta: el cursor en su primera ficha (la línea siguiente a la de la carpeta)
+  useEffect(() => {
+    const at = focusBoardId && focusBoardId !== lib.rootId ? exported.lines.get(focusBoardId) : undefined
+    if (at) {
+      const line = lib.boards[focusBoardId!]?.cells.length ? at + 1 : at // vacía: en la línea de la carpeta
+      goToLine(line, false)
+      setCaretLine(line)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const trackCaret = (el: HTMLTextAreaElement) => setCaretLine(el.value.slice(0, el.selectionStart).split('\n').length)
   const area = useRef<HTMLTextAreaElement>(null)
   const gutter = useRef<HTMLPreElement>(null)
@@ -50,13 +62,16 @@ export function BoardTextPage({ lib, onApply, onClose }: Props) {
     onApply(next)
   }
 
-  const goToLine = (line: number) => {
+  const goToLine = (line: number, select = true) => {
     const el = area.current
     if (!el) return
     const lines = text.split('\n')
     const start = lines.slice(0, line - 1).reduce((n, l) => n + l.length + 1, 0)
     el.focus()
-    el.setSelectionRange(start, start + (lines[line - 1]?.length ?? 0))
+    const text0 = lines[line - 1] ?? ''
+    const content = start + (text0.length - text0.trimStart().length) // tras la sangría
+    if (select) el.setSelectionRange(start, start + text0.length)
+    else el.setSelectionRange(content, content)
     el.scrollTop = Math.max(0, (line - 4) * parseFloat(getComputedStyle(el).lineHeight || '20'))
   }
 
