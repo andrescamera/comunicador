@@ -1458,11 +1458,3 @@ p.ok {
   border-style: dashed;
   background: rgba(61, 127, 217, 0.15);
 }
-.import-summary {
-  margin: 0;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.92rem;
-}
