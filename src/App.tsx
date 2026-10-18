@@ -619,6 +619,11 @@ export default function App() {
           onClose={() => setEditTarget(null)}
           onCreateFolder={(name, words, picto, color) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto, color)}
           suggestions={editTarget.isNew ? folderSuggestions(board, lib) : undefined}
+          expansionBoard={
+            !editTarget.isNew && editTarget.cell.kind === 'folder' && board.id === lib.rootId
+              ? { rows: board.rows, cols: board.cols, groups: boardGroups(board, true) }
+              : undefined
+          }
           capacity={(lib.boards[lib.rootId] ?? board).rows * (lib.boards[lib.rootId] ?? board).cols}
           onOpenFolder={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && editTarget.cell.target && lib.boards[editTarget.cell.target]

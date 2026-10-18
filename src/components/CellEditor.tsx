@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { searchPictos, type PictoResult } from '../lib/arasaac'
 import { FOLDER_TEMPLATES } from '../lib/generator'
 import { classify, normalizeText } from '../lib/grammar'
-import { CATEGORY_LABELS, type Category, type Cell } from '../lib/types'
+import { CATEGORY_LABELS, type Category, type Cell, type Group } from '../lib/types'
+import { ExpansionPicker } from './ExpansionPicker'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
 import { WordInput } from './WordInput'
@@ -23,9 +24,11 @@ interface Props {
   suggestions?: { category: string; words: string[] }
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
+  /** Carpeta del principal: elegir dónde se abre (zona de carpetas o zona de ampliación propia) */
+  expansionBoard?: { rows: number; cols: number; groups: Group[] }
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, expansionBoard }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
@@ -109,6 +112,18 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                 ))}
               </select>
             </label>
+          )}
+          {draft.kind === 'folder' && !newFolder && expansionBoard && (
+            <ExpansionPicker
+              {...expansionBoard}
+              at={{ row: draft.row, col: draft.col }}
+              value={draft.expansion}
+              onChange={(expansion) => setDraft((d) => {
+                const next = { ...d, expansion }
+                if (!expansion) delete next.expansion
+                return next
+              })}
+            />
           )}
           {newFolder && (
             <div className="folder-templates">

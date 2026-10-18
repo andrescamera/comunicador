@@ -1475,3 +1475,42 @@ p.ok {
   border-style: dashed;
   background: rgba(61, 127, 217, 0.15);
 }
+.expansion-picker {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.expansion-picker legend {
+  font-weight: 700;
+  padding: 0 4px;
+}
+.expansion-grid {
+  max-width: 520px;
+}
+.expansion-grid .board-map-group {
+  pointer-events: none;
+}
+.board-map-slot.pick {
+  border: none;
+  padding: 0;
+  min-height: 0;
+  min-width: 0;
+  cursor: pointer;
+}
+.board-map-slot.pick:hover {
+  background: #cfd6df;
+}
+.board-map-slot.here {
+  background: #1f2937;
+}
+.board-map-slot.first {
+  background: #6b4fbb;
+}
+.board-map-group.expansion-area {
+  border-color: #6b4fbb;
+  border-style: dashed;
+  background: rgba(107, 79, 187, 0.18);
+}
