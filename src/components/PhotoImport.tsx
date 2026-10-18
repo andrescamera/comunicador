@@ -89,11 +89,11 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
             </label>
             {photoUrl && <img src={photoUrl} alt="" className="photo-thumb" />}
           </div>
-          <p className="muted">
+          {!preview && <p className="muted">
             Una foto o captura de un tablero o de una página (mejor recortada a la cuadrícula). Se cargan las fichas de ese nivel en
             «{board.name}», cada una en la misma casilla que en la foto si está libre. El texto se lee en este ordenador: la imagen no se
             envía a ningún sitio.
-          </p>
+          </p>}
           {error && <p className="error">{error}</p>}
         </div>
 

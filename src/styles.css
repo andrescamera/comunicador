@@ -745,12 +745,21 @@ textarea {
 }
 /* Fichas desde imagen: vista previa pequeña, para que quepan el resumen y los botones */
 .import-preview {
-  height: min(34vh, 320px);
+  height: min(42vh, 420px);
   overflow: hidden;
 }
+.import-preview {
+  display: flex;
+  justify-content: center;
+}
+/* Casillas cuadradas: el ancho sale del alto según filas y columnas */
 .import-preview .grid-wrap {
-  --min-cell-w: 36px;
-  --min-cell-h: 34px;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: var(--cols) / var(--rows);
+  min-width: 0;
+  min-height: 0;
 }
 .import-preview .grid {
   gap: 4px;
@@ -759,7 +768,10 @@ textarea {
   display: none;
 }
 .import-preview .cell-label {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
+}
+.import-preview .cell {
+  padding: 2px;
 }
 code {
   background: #eef1f5;
