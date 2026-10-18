@@ -350,8 +350,22 @@ export function folderArea(root: Board, folderCellId: string): Area | null {
   const open = root.cells.find((c) => c.id === folderCellId)
   if (!open) return null
   // Con grupos guardados, la zona es el grupo de carpetas en el que está
-  if (root.groups) return root.groups.find((g) => g.folders && inside(g.area, open))?.area ?? null
-  return adjacentFolderBlock(root, open)
+  const own = root.groups ? (root.groups.find((g) => g.folders && inside(g.area, open))?.area ?? null) : adjacentFolderBlock(root, open)
+  if (own) return own
+  // Un «más» (carpeta dentro de un grupo de color): se abre en la zona de ampliación
+  return isExpansionFolder(root, open) ? expansionArea(root) : null
+}
+
+/** ¿Es un «más»? Una carpeta del principal dentro de un grupo de color (no de la zona de carpetas) */
+export function isExpansionFolder(root: Board, cell: Cell): boolean {
+  if (cell.kind !== 'folder') return false
+  const g = groupAt(boardGroups(root, true), cell.row, cell.col)
+  return !!g && !g.folders && !!g.color
+}
+
+/** Zona de ampliación del principal: la suya o, si no tiene, la (primera) zona de carpetas */
+export function expansionArea(root: Board): Area | null {
+  return root.expansion?.area ?? boardGroups(root, true).find((g) => g.folders)?.area ?? null
 }
 
 /** Sin grupos guardados: el bloque de carpetas pegadas a `open` (al menos 4 casillas) */

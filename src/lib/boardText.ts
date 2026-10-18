@@ -34,6 +34,7 @@ interface TGroup {
   color?: FolderColor
   byRows?: boolean
   folders?: boolean
+  expansion?: boolean // zona de ampliación: donde se abren los «más» (sin fichas propias; puede solaparse)
 }
 
 interface TCellOpts {
@@ -74,7 +75,7 @@ const categoryName = (c: Category) => CATEGORY_LABELS[c].toLowerCase()
 const colorName = (c: FolderColor) => (c === 'folder' ? 'carpeta' : categoryName(c))
 
 const CELL_KEYS = ['carpeta', 'picto', 'solo texto', 'oculta', 'frase', 'palabra', 'categoria', 'color', 'fila', 'columna']
-const GROUP_KEYS = ['filas', 'fila', 'columnas', 'columna', 'color', 'por filas', 'por columnas', 'carpetas']
+const GROUP_KEYS = ['filas', 'fila', 'columnas', 'columna', 'color', 'por filas', 'por columnas', 'carpetas', 'ampliacion']
 
 function distance(a: string, b: string): number {
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
@@ -126,6 +127,7 @@ function parseGroupOptions(options: string[], err: (m: string) => void): Omit<TG
     if (o === 'por filas') g.byRows = true
     else if (o === 'por columnas') g.byRows = false
     else if (o === 'carpetas') g.folders = true
+    else if (o === 'ampliacion') g.expansion = true
     else if (m && m[1] === 'color') {
       const c = parseColor(m[2])
       if (c && c !== 'folder') g.color = c
@@ -372,6 +374,11 @@ export function boardToText(lib: Library): string {
       out.push('', `${pad}@ ${g.name} [${opts.join(', ')}]`)
       writeSlots(b, groupSlots(g), depth, g.color)
     }
+    if (isRoot && b.expansion) {
+      const a = b.expansion.area
+      out.push('', `${pad}// Donde se abren los «más» (tapa lo que haya debajo mientras están abiertos)`)
+      out.push(`${pad}@ ${b.expansion.name} [${rangeText('fila', a.r0, a.r1)}, ${rangeText('columna', a.c0, a.c1)}, ampliación]`)
+    }
   }
   writeBoard(root, 0, true)
   return out.join('\n') + '\n'
@@ -426,11 +433,25 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
   const used = new Set<string>()
 
   // Grupos nuevos (con rectángulo) o los que ya existían con ese nombre («@ Nombre» a secas: tal cual)
-  function buildGroups(t: TBoard, old: Board | undefined, isRoot: boolean, zone: Area | undefined): Group[] {
+  function buildGroups(t: TBoard, old: Board | undefined, isRoot: boolean, zone: Area | undefined): { groups: Group[]; expansion?: Board['expansion'] } {
     const oldGroups = old ? boardGroups(old, isRoot) : []
     const groups: Group[] = []
-    for (const tg of t.groups) {
+    let expansion: Board['expansion']
+    for (const [gi, tg] of t.groups.entries()) {
       const err = (message: string) => errors.push({ line: tg.line, message })
+      if (tg.expansion) {
+        // La zona de ampliación: sin fichas propias y puede tapar otros grupos
+        const area = tg.rect ?? (old?.expansion && fold(old.expansion.name) === fold(tg.name) ? old.expansion.area : undefined)
+        if (!isRoot) err('la zona de ampliación solo va en el tablero principal.')
+        else if (expansion) err('solo puede haber una zona de ampliación.')
+        else if (!area) err(`escribe dónde va la zona de ampliación, p. ej. «@ ${tg.name} [filas 1-7, columnas 6-11, ampliación]».`)
+        else if (area.r1 >= rows || area.c1 >= cols) err(`«${tg.name}» se sale del tablero (${rows} filas, ${cols} columnas).`)
+        else expansion = { name: tg.name, area }
+        if (tg.folders || tg.color || tg.byRows) err('la zona de ampliación no lleva «carpetas», «color» ni «por filas».')
+        const first = t.items.find((it) => it.group === gi)
+        if (first) errors.push({ line: first.line, message: `la zona de ampliación («${tg.name}») no lleva fichas: ahí se ve el contenido de los «más». Escribe estas fichas en otro grupo.` })
+        continue
+      }
       const prev = oldGroups.find((g) => fold(g.name) === fold(tg.name))
       const inherit = !tg.rect && prev
       const area = tg.rect ?? prev?.area
@@ -450,7 +471,7 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
       if (tg.folders ?? (inherit ? prev.folders : false)) g.folders = true
       groups.push(g)
     }
-    return groups
+    return { groups, expansion }
   }
 
   const streamCount = (t: TBoard) => t.items.filter((it) => it.group < 0 && !(it.type === 'cell' && it.opts.row !== undefined)).length
@@ -459,7 +480,7 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
   function buildBoard(t: TBoard, old: Board | undefined, path: string, isRoot: boolean, zone: Area | undefined, paged = false): Board {
     const id = old?.id ?? uid('b')
     used.add(id)
-    const groups = buildGroups(t, old, isRoot, zone)
+    const { groups, expansion } = buildGroups(t, old, isRoot, zone)
     const area: Area = zone ?? { r0: 0, c0: 0, r1: rows - 1, c1: cols - 1 }
     // Lo que ya existía, por su texto (si se repite, en orden)
     const oldByLabel = new Map<string, Cell[]>()
@@ -546,7 +567,12 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
         const prevBoard = prev && isFolderOf(lib, prev) ? lib.boards[prev.target!] : undefined
         const children = it.children ?? { name: it.label, path: [...t.path, it.label], line: it.line, groups: [], items: [] }
         // Se abre en la zona de carpetas si está en ella (y su contenido sin grupos cabe; si no, a pantalla completa, por páginas)
-        let childZone = isRoot ? groups.find((g) => g.folders && insideArea(g.area, slot.row, slot.col))?.area : zone
+        // En el principal: en la zona de carpetas si está en ella; un «más» (en un grupo de color), en la de ampliación
+        const at = (g: Group) => insideArea(g.area, slot.row, slot.col)
+        let childZone = !isRoot
+          ? zone
+          : (groups.find((g) => g.folders && at(g))?.area ??
+            (groups.some((g) => !g.folders && g.color && at(g)) ? (expansion?.area ?? groups.find((g) => g.folders)?.area) : undefined))
         let paged = false
         if (childZone && !children.groups.length && streamCount(children) > areaSize(childZone)) {
           childZone = undefined
@@ -604,6 +630,10 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
     for (const p of before) if (!groups.some((g) => fold(g.name) === fold(p.name))) change.groups.push(`− ${p.name}`)
 
     const board: Board = { ...(old ?? { zones: oldRoot.zones }), id, name: t.name, rows, cols, cells, groups }
+    if (expansion) board.expansion = expansion
+    else delete board.expansion
+    if (isRoot && JSON.stringify(old?.expansion ?? null) !== JSON.stringify(expansion ?? null))
+      change.groups.push(expansion ? `${old?.expansion ? '' : '+ '}${expansion.name} (ampliación)${old?.expansion ? ': cambia' : ''}` : `− ${old!.expansion!.name} (ampliación)`)
     if (zone) board.inZone = true
     else delete board.inZone
     boards[id] = board
@@ -760,10 +790,18 @@ export function lineContext(lib: Library, text: string, line: number): LineConte
     const tg = top && top.group >= 0 ? doc.root.groups[top.group] : undefined
     const rootGroups = boardGroups(root, true)
     const prevTg = tg && rootGroups.find((x) => fold(x.name) === fold(tg.name))
-    const zone = tg && (tg.folders ?? (tg.rect ? false : prevTg?.folders)) ? (tg.rect ?? prevTg?.area) : undefined
+    const isFolders = tg && (tg.folders ?? (tg.rect ? false : prevTg?.folders))
+    const isColor = tg && !isFolders && (tg.color ?? (tg.rect ? undefined : prevTg?.color))
+    const exp = doc.root.groups.find((g) => g.expansion)
+    const expArea = exp ? (exp.rect ?? (root.expansion && fold(root.expansion.name) === fold(exp.name) ? root.expansion.area : undefined)) : undefined
+    const foldersArea = (() => {
+      const f = doc.root.groups.find((g) => g.folders) ?? undefined
+      return f ? (f.rect ?? rootGroups.find((x) => fold(x.name) === fold(f.name))?.area) : rootGroups.find((x) => x.folders)?.area
+    })()
+    const zone = isFolders ? (tg!.rect ?? prevTg?.area) : isColor ? (expArea ?? foldersArea) : undefined
     const n = at.board.items.length
     // Se abre en la zona de carpetas (si no cabe, por páginas dentro de ella) o a pantalla completa
-    if (zone) return { rows, cols, title: `${title} (en la zona de carpetas${n > areaSize(zone) && !at.board.groups.length ? ', por páginas' : ''})`, groups, highlight: zone }
+    if (zone) return { rows, cols, title: `${title} (en la zona de ${isColor ? 'ampliación' : 'carpetas'}${n > areaSize(zone) && !at.board.groups.length ? ', por páginas' : ''})`, groups, highlight: zone }
     return { rows, cols, title: `${title} (pantalla completa)`, groups, highlight: { r0: 0, c0: 0, r1: rows - 1, c1: cols - 1 } }
   }
   return { rows, cols, title, groups, highlight: null }

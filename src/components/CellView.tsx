@@ -17,12 +17,14 @@ interface Props {
   dimmed?: boolean
   /** Color del grupo en el que está (las carpetas lo toman si no tienen uno propio) */
   groupColor?: Category
+  /** Carpeta abierta ahora mismo (se resalta) */
+  open?: boolean
 }
 
-export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed, groupColor }: Props) {
+export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed, groupColor, open }: Props) {
   const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor, groupColor)
   const style: CSSProperties = { background: bg, borderColor: border, gridRow: cell.row + 1, gridColumn: cell.col + 1 }
-  const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}`
+  const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}${open ? ' cell-open' : ''}`
   const body = (
     <>
       {!cell.textOnly && <Picto id={cell.picto} alt={cell.label} />}

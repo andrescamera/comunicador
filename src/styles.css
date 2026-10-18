@@ -370,6 +370,23 @@ button.danger {
 .group-folders {
   border-style: dashed;
 }
+/* Zona de ampliación (donde se abren los «más»): discontinua, por encima de los grupos */
+.group-expansion {
+  border-style: dashed;
+  border-color: #6b4fbb;
+  z-index: 3;
+  margin: -9px;
+}
+.group-expansion span {
+  background: #6b4fbb;
+  left: auto;
+  right: 8px;
+}
+/* El «más» (o la carpeta) que está abierto */
+.cell-open {
+  outline: 5px solid #1f2937;
+  outline-offset: -2px;
+}
 /* Fuera de la zona de carpetas: en edición de una carpeta no se usa */
 .slot-off {
   border-radius: var(--radius);

@@ -8,7 +8,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
 import { buildFolder, buildQuickChat, sortCells, starterLibrary } from './lib/generator'
-import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, inlineFolder, moveCellTo, normalizeLibrary, relayoutBoard, resizeLibrary } from './lib/layout'
+import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, groupAt, isExpansionFolder, inlineFolder, moveCellTo, normalizeLibrary, relayoutBoard, resizeLibrary } from './lib/layout'
 import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
@@ -309,7 +309,14 @@ export default function App() {
   const shown = inline?.board ?? board
   // Grupos para el color de las carpetas: los de la carpeta y, si se ve dentro del principal, los de este
   const isRootBoard = board.id === lib.rootId
-  const shownGroups = [...boardGroups(board, isRootBoard), ...(inline && root ? boardGroups(root, true) : [])]
+  // Un «más» abierto: amplía su grupo en la zona de ampliación (no se cierra al elegir una ficha)
+  const openIsExpansion = !!(root && openFolderCell && zoneArea && isExpansionFolder(root, openFolderCell))
+  const originColor = openIsExpansion ? groupAt(boardGroups(root!, true), openFolderCell!.row, openFolderCell!.col)?.color : undefined
+  const shownGroups = [
+    ...boardGroups(board, isRootBoard),
+    ...(inline && zoneArea && originColor ? [{ id: 'ampliacion', name: '', area: zoneArea, color: originColor }] : []),
+    ...(inline && root ? boardGroups(root, true) : []),
+  ]
 
   // «Charla rápida»: frases hechas a un toque. La primera vez se crea con frases de ejemplo.
   const openQuickChat = async () => {
@@ -330,7 +337,11 @@ export default function App() {
       return
     }
     if (cell.kind === 'folder') {
-      if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
+      if (!cell.target || !lib.boards[cell.target]) return
+      if (history.length && root?.cells.some((c) => c.id === cell.id)) {
+        // Una ficha del principal con algo abierto: la misma lo cierra; otra lo cambia (una sola cosa abierta)
+        setHistory(history[0] === cell.target ? [] : [cell.target])
+      } else setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length) // navegar también cuenta como actividad
       return
     }
@@ -339,7 +350,7 @@ export default function App() {
     setSentence(next)
     if (settings.speakOnTap) say(realize(next)[next.length - 1] || cell.label)
     // Dentro de una carpeta: tras elegir una ficha se vuelve al tablero principal
-    if (settings.returnHome && history.length > 0) setHistory([])
+    if (settings.returnHome && history.length > 0 && !openIsExpansion) setHistory([])
   }
 
   const updateBoard = (id: string, fn: (b: Board) => Board) =>
@@ -568,6 +579,7 @@ export default function App() {
             dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
             activeArea={editArea}
             groups={shownGroups}
+            openId={inline ? openFolderCell?.id : undefined}
             labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
             onAddAt={(row, col) =>

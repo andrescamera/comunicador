@@ -26,13 +26,15 @@ interface Props {
   activeArea?: Area | null
   /** Grupos con los que se colorean las carpetas (y, si el tablero los tiene guardados, se dibujan al editar) */
   groups?: Group[]
+  /** La carpeta abierta (p. ej. el «más» que se está ampliando): se resalta */
+  openId?: string
 }
 
 function zoneAt(board: Board, col: number): Zone | undefined {
   return ZONE_ORDER.find((z) => board.zones[z][0] <= col && col <= board.zones[z][1])
 }
 
-export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor, activeArea, groups = [] }: Props) {
+export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor, activeArea, groups = [], openId }: Props) {
   const gridStyle = {
     gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
@@ -95,6 +97,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
             cell={cell}
             editing={editing}
             selected={movingId === cell.id}
+            open={cell.id === openId}
             displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}
             dimmed={!editing && !!dimFor?.(cell)}
             groupColor={groupAt(groups, cell.row, cell.col)?.color}
@@ -128,6 +131,15 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
             </button>
           )
         })}
+        {editing && board.expansion && (
+          <div
+            className="group-outline group-expansion"
+            style={{ gridRow: `${board.expansion.area.r0 + 1} / ${board.expansion.area.r1 + 2}`, gridColumn: `${board.expansion.area.c0 + 1} / ${board.expansion.area.c1 + 2}` }}
+            aria-hidden
+          >
+            <span>{board.expansion.name} · donde se abren los «más»</span>
+          </div>
+        )}
         {editing &&
           board.groups?.map((g) => (
             <div

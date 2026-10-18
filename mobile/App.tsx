@@ -47,6 +47,8 @@ import {
   zoneOf,
   boardGroups,
   folderArea,
+  groupAt,
+  isExpansionFolder,
   insideArea,
   inlineFolder,
   FOLDER_NEXT,
@@ -277,7 +279,14 @@ export default function App() {
   const folderZone = !editing ? zoneArea : null
   const shown = folderZone && root ? inlineFolder(root, board, folderZone, folderPage).board : board
   // Grupos para el color de las carpetas: los de la carpeta y, si se ve dentro del principal, los de este
-  const shownGroups = [...boardGroups(board, board.id === lib.rootId), ...(folderZone && root ? boardGroups(root, true) : [])]
+  // Un «más» abierto: amplía su grupo en la zona de ampliación (no se cierra al elegir una ficha)
+  const openIsExpansion = !!(root && openFolderCell && zoneArea && isExpansionFolder(root, openFolderCell))
+  const originColor = openIsExpansion ? groupAt(boardGroups(root!, true), openFolderCell!.row, openFolderCell!.col)?.color : undefined
+  const shownGroups = [
+    ...boardGroups(board, board.id === lib.rootId),
+    ...(folderZone && originColor ? [{ id: 'ampliacion', name: '', area: folderZone, color: originColor }] : []),
+    ...(folderZone && root ? boardGroups(root, true) : []),
+  ]
   // Editando la carpeta: las fichas se ven donde se usan y solo se colocan dentro de la zona
   const editArea = editing && zoneArea && board.inZone ? zoneArea : null
 
@@ -300,7 +309,11 @@ export default function App() {
       return
     }
     if (cell.kind === 'folder') {
-      if (cell.target && lib.boards[cell.target]) setHistory((h) => [...h, cell.target!])
+      if (!cell.target || !lib.boards[cell.target]) return
+      if (history.length && root?.cells.some((c) => c.id === cell.id)) {
+        // Una ficha del principal con algo abierto: la misma lo cierra; otra lo cambia (una sola cosa abierta)
+        setHistory(history[0] === cell.target ? [] : [cell.target])
+      } else setHistory((h) => [...h, cell.target!])
       scheduleIdleClear(sentence.length)
       return
     }
@@ -309,7 +322,7 @@ export default function App() {
     setSentence(next)
     if (settings.speakOnTap) say(realize(next)[next.length - 1] || cell.label)
     // Dentro de una carpeta: tras elegir una ficha se vuelve al tablero principal
-    if (settings.returnHome && history.length > 0) setHistory([])
+    if (settings.returnHome && history.length > 0 && !openIsExpansion) setHistory([])
   }
 
   // ---------- Edición ----------
@@ -506,6 +519,7 @@ export default function App() {
               dimFor={highlights ? (c) => !highlights.lit.has(c.id) : undefined}
               activeArea={editArea}
               groups={shownGroups}
+              openId={folderZone ? openFolderCell?.id : undefined}
               editing={editing}
               gap={gap}
               labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}

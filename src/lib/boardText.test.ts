@@ -42,9 +42,11 @@ function sample(): Library {
     ...base,
     id: 'b-mas',
     name: 'más',
-    cells: [w('vos', 'vosotros', 0, 0, { category: 'pronoun' }), w('ellos', 'ellos', 1, 0, { category: 'pronoun' }), folder('otros', 'otros', 2, 0, 'b-otros')],
+    // un «más» (carpeta en un grupo de color): se abre en la zona de ampliación, que aquí es la de carpetas
+    inZone: true,
+    cells: [w('vos', 'vosotros', 0, 1, { category: 'pronoun' }), w('ellos', 'ellos', 1, 1, { category: 'pronoun' }), folder('otros', 'otros', 0, 2, 'b-otros')],
   }
-  const otros: Board = { ...base, id: 'b-otros', name: 'otros', cells: [w('eles', 'eles', 0, 0)] }
+  const otros: Board = { ...base, id: 'b-otros', name: 'otros', inZone: true, cells: [w('eles', 'eles', 0, 1)] }
   const comida: Board = { ...base, id: 'b-comida', name: 'Comida', inZone: true, cells: [w('agua', 'agua', 0, 1), w('leche', 'leche', 1, 1)] }
   return { rootId: 'root', boards: { root, 'b-mas': mas, 'b-otros': otros, 'b-comida': comida } }
 }
@@ -155,6 +157,34 @@ describe('tablero escrito: cambios', () => {
     const p = plan(lib, text)
     expect(p.errors).toEqual([])
     expect(p.changes).toEqual([])
+  })
+
+  it('zona de ampliación: los «más» se llenan en ella (aunque tape otros grupos) y vuelve igual', () => {
+    const lib = sample()
+    const text = boardToText(lib) + '\n@ Ampliación [filas 1-4, columnas 5-6, ampliación]\n'
+    const p = plan(lib, text.replace('ayuda [categoría: otros, fila 4, columna 6]\n', ''))
+    expect(p.errors).toEqual([])
+    expect(p.lib!.boards.root.expansion).toEqual({ name: 'Ampliación', area: { r0: 0, r1: 3, c0: 4, c1: 5 } })
+    expect(pos(p.lib!, 'b-mas', 'vosotros')).toEqual([0, 4])
+    expect(pos(p.lib!, 'b-mas', 'otros')).toEqual([2, 4])
+    expect(pos(p.lib!, 'b-otros', 'eles')).toEqual([0, 4]) // la subcarpeta, en la misma zona
+    expect(pos(p.lib!, 'b-comida', 'agua')).toEqual([0, 1]) // las carpetas normales, en la suya
+    expect(p.changes[0].groups).toEqual(['+ Ampliación (ampliación)'])
+    const again = boardToText(p.lib!)
+    expect(again).toContain('@ Ampliación [filas 1-4, columnas 5-6, ampliación]')
+    expect(plan(p.lib!, again).changes).toEqual([])
+  })
+
+  it('zona de ampliación: no lleva fichas, una sola y solo en el principal', () => {
+    const lib = sample()
+    const base = boardToText(lib)
+    const errs = (t: string) => {
+      const { doc, errors } = parseBoardText(t)
+      return errors.length ? errors : planBoardText(lib, doc!).errors
+    }
+    expect(errs(base + '@ A [filas 1-2, columnas 5-6, ampliación]\nhola2\n')[0].message).toContain('no lleva fichas')
+    expect(errs(base + '@ A [filas 1-2, columnas 5-6, ampliación]\n@ B [filas 3-4, columnas 5-6, ampliación]\n')[0].message).toContain('solo puede haber una')
+    expect(errs(base.replace('\tleche\n', '\tleche\n\t@ A [filas 1-2, columnas 2-3, ampliación]\n'))[0].message).toContain('solo va en el tablero principal')
   })
 
   it('también con espacios en vez de tabuladores', () => {

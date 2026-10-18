@@ -186,7 +186,8 @@ describe('carpeta abierta dentro de su zona', async () => {
 
   it('la zona es el bloque de carpetas pegadas a la abierta (aunque crucen grupos de columnas)', () => {
     expect(folderArea(root, 'comida')).toEqual({ r0: 0, c0: 5, r1: 2, c1: 7 })
-    expect(folderArea(root, 'suelta')).toBeNull() // carpeta suelta: se abre como siempre
+    // carpeta pegada a un grupo de color (un «más»): se abre en la zona de ampliación (aquí, la de carpetas)
+    expect(folderArea(root, 'suelta')).toEqual({ r0: 0, c0: 5, r1: 2, c1: 7 })
   })
 
   it('fuera de la zona nada se mueve; dentro, el contenido de la carpeta', () => {
