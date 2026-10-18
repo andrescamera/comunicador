@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BoardTextPage } from './components/BoardTextPage'
+import { PhotoImport } from './components/PhotoImport'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
 import { Creator } from './components/Creator'
@@ -7,8 +8,8 @@ import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
-import { buildFolder, buildQuickChat, folderCell, sortCells, starterLibrary } from './lib/generator'
-import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, inlineFolder, moveCellTo, type NewCell, normalizeLibrary, placeCell, relayoutBoard, resizeLibrary, zoneOf } from './lib/layout'
+import { buildFolder, buildQuickChat, sortCells, starterLibrary } from './lib/generator'
+import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, inlineFolder, moveCellTo, normalizeLibrary, relayoutBoard, resizeLibrary } from './lib/layout'
 import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
@@ -42,6 +43,7 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
+  const [showPhoto, setShowPhoto] = useState(false) // «Fichas desde foto» en el tablero que se edita
   const [showText, setShowText] = useState(false) // «Tablero escrito»: todo el tablero como texto
   const [showSettings, setShowSettings] = useState(false)
   // «Mis tableros» es otra página (con dirección propia: #tableros, y el botón Atrás del navegador vuelve)
@@ -366,7 +368,6 @@ export default function App() {
     if (next) setLib(next)
     else setNotice('No se puede reducir: no queda ninguna fila o columna vacía. Mueve o elimina alguna ficha antes.')
   }
-  const strip = ({ row: _r, col: _c, ...cell }: Cell): NewCell => cell
   const reorganize = () => {
     if (!confirm('Esto vuelve a colocar todas las celdas de este tablero por categorías (cambiarán de sitio). ¿Continuar?')) return
     updateBoard(board.id, (b) =>
@@ -386,40 +387,6 @@ export default function App() {
     setSentence([])
     setShowCreator(false)
   }
-  const addToCurrent = (sub: Library) => {
-    setLib((l) => {
-      if (!l) return l
-      const host = l.boards[board.id]
-      const known = new Set(host.cells.map((c) => `${c.kind}:${c.label.toLowerCase()}`))
-      const incoming = sub.boards[sub.rootId].cells.filter((c) => !known.has(`${c.kind}:${c.label.toLowerCase()}`))
-      // Las celdas existentes no se mueven: las nuevas ocupan huecos libres de su zona
-      const updated = incoming.reduce((b, c) => placeCell(b, strip(c)), host)
-      const outside = updated.cells
-        .filter((c) => !host.cells.includes(c))
-        .filter((c) => {
-          const [s, e] = updated.zones[zoneOf(c)]
-          return c.col < s || c.col > e
-        })
-        .map((c) => `«${c.label}»`)
-      const msgs = []
-      if (updated.rows > host.rows) msgs.push(`No había huecos suficientes: se añadieron ${updated.rows - host.rows} fila(s).`)
-      if (outside.length) msgs.push(`Su zona estaba llena y se colocaron en la casilla libre más cercana: ${outside.join(', ')}. Puedes moverlas o ampliar la cuadrícula.`)
-      if (msgs.length) setNotice(msgs.join(' '))
-      const { [sub.rootId]: _root, ...folders } = sub.boards
-      return { ...l, boards: { ...l.boards, ...folders, [host.id]: updated } }
-    })
-    setShowCreator(false)
-  }
-  const addAsFolder = async (sub: Library) => {
-    const folder = await folderCell(sub.boards[sub.rootId])
-    setLib((l) => {
-      if (!l) return l
-      const host = l.boards[board.id]
-      return { ...l, boards: { ...l.boards, ...sub.boards, [host.id]: placeCell(host, folder) } }
-    })
-    setShowCreator(false)
-  }
-
   return (
     <div className={`app ${settings.showTapLog && !editing ? 'with-log' : ''}`}>
       <div className="main">
@@ -528,8 +495,8 @@ export default function App() {
               </button>
             )}
             {editing && (
-              <button type="button" onClick={() => setShowCreator(true)}>
-                ✨<span className="btn-text"> Crear tablero</span>
+              <button type="button" onClick={() => setShowPhoto(true)} title="Cargar en este tablero las fichas de una foto">
+                📷<span className="btn-text"> Desde foto</span>
               </button>
             )}
             {editing && (
@@ -660,17 +627,21 @@ export default function App() {
       )}
       {showCreator && (
         <Creator
-          currentBoardName={board.name}
-          onReplace={replaceLibrary}
-          onCreateNew={(next) => {
-            const name = prompt('Nombre del tablero nuevo', next.boards[next.rootId]?.name && next.boards[next.rootId].name !== 'Inicio' ? next.boards[next.rootId].name : 'Nuevo tablero')
-            if (name === null) return
-            void cloud.create(next, name)
-            setShowCreator(false)
-          }}
-          onAddToCurrent={addToCurrent}
-          onAddAsFolder={addAsFolder}
+          onCreate={replaceLibrary}
           onClose={() => setShowCreator(false)}
+        />
+      )}
+      {showPhoto && (
+        <PhotoImport
+          board={board}
+          isRoot={board.id === lib.rootId}
+          zone={editArea}
+          onClose={() => setShowPhoto(false)}
+          onAdd={(r) => {
+            updateBoard(board.id, (b) => ({ ...b, cells: [...b.cells, ...r.added.filter((c) => !b.cells.some((x) => x.id === c.id))] }))
+            setShowPhoto(false)
+            setNotice(`${r.added.length} fichas añadidas a «${board.name}»${r.moved.length ? ` (${r.moved.length} en otro hueco porque su casilla estaba ocupada)` : ''}. Se puede deshacer con «↶» o Ctrl+Z.`)
+          }}
         />
       )}
       {showDynConfig && root && (

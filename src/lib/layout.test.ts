@@ -270,3 +270,29 @@ describe('grupos deducidos de cómo están colocadas las fichas', async () => {
     ])
   })
 })
+
+describe('fichas desde una foto', async () => {
+  const { importCells } = await import('./layout')
+  const mk = (id: string, label: string, row: number, col: number, category: Cell['category'] = 'noun'): Cell => ({ id, label, kind: 'word', category, row, col })
+  const board: Board = {
+    id: 'b', name: 'Animales', rows: 3, cols: 4, zones: computeZones({ A: 1, B: 1, C: 1, D: 1, E: 1 }, 3, 4),
+    groups: [{ id: 'g', name: 'Nombres', area: { r0: 0, r1: 2, c0: 2, c1: 3 }, color: 'noun' }],
+    cells: [mk('perro', 'perro', 0, 0), mk('gato', 'gato', 0, 2)],
+  }
+
+  it('en su casilla si está libre; si no, en el primer hueco de su grupo; las repetidas no', () => {
+    const r = importCells(board, [mk('a', 'Perro', 1, 1), mk('b', 'vaca', 1, 0), mk('c', 'oveja', 0, 2), mk('d', 'cerdo', 5, 9)], { isRoot: false, zone: null })
+    expect(r.skipped).toEqual(['Perro'])
+    expect(r.added.map((c) => [c.label, c.row, c.col])).toEqual([['vaca', 1, 0], ['oveja', 1, 2], ['cerdo', 2, 2]])
+    expect(r.moved).toEqual(['oveja', 'cerdo'])
+    expect(r.board.cells.find((c) => c.id === 'gato')).toMatchObject({ row: 0, col: 2 }) // lo que había no se mueve
+  })
+
+  it('en una carpeta de la zona de carpetas: solo dentro de la zona', () => {
+    const zone = { r0: 0, r1: 1, c0: 0, c1: 1 }
+    const r = importCells({ ...board, groups: [] }, [mk('a', 'vaca', 2, 3), mk('b', 'oveja', 0, 1), mk('c', 'pez', 1, 1), mk('d', 'pato', 0, 0)], { isRoot: false, zone })
+    // «pato» cae donde está «perro»: al hueco libre de la zona; «vaca», fuera de la zona y ya sin sitio
+    expect(r.added.map((c) => [c.label, c.row, c.col])).toEqual([['pato', 1, 0], ['oveja', 0, 1], ['pez', 1, 1]])
+    expect(r.noRoom).toEqual(['vaca'])
+  })
+})
