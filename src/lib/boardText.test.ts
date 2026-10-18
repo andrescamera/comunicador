@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boardToText, parseBoardText, planBoardText } from './boardText'
+import { boardToText, lineContext, parseBoardText, planBoardText } from './boardText'
 import { layoutCells } from './layout'
 import type { Board, Cell, Library } from './types'
 
@@ -187,6 +187,15 @@ describe('tablero escrito: cambios', () => {
     expect(errs(base.replace('\totros\n', '\totros [ampliación, filas 1-2, columnas 5-6]\n'))[0].message).toContain('tablero principal')
     expect(errs(base + '@ A [filas 1-2, columnas 5-6, ampliación]\n')[0].message).toContain('va en el «más»')
     expect(errs(base.replace('ayuda [categoría: otros, fila 4, columna 6]', 'ayuda [filas 3-4, columna 6]'))[0].message).toContain('una sola casilla')
+  })
+
+  it('mapa: con dos «más», resalta la zona del que se está editando', () => {
+    const lib = sample()
+    const text = boardToText(lib).replace('\ngracias\n', '\ngracias\nmás [ampliación, filas 1-4, columnas 5-6]\n\tgenial\n')
+    const lines = text.split('\n')
+    const ctx = (s: string) => lineContext(lib, text, lines.indexOf(s) + 1)!
+    expect(ctx('\tgenial')).toMatchObject({ title: 'Inicio › más (en la zona de ampliación)', highlight: { r0: 0, r1: 3, c0: 4, c1: 5 } })
+    expect(ctx('\tvosotros')).toMatchObject({ title: 'Inicio › más (en la zona de carpetas)', highlight: { r0: 0, r1: 1, c0: 1, c1: 2 } })
   })
 
   it('también con espacios en vez de tabuladores', () => {

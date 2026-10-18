@@ -57,6 +57,8 @@ type TItem =
 interface TBoard {
   name: string
   path: string[] // carpetas desde el principal (vacío en el principal)
+  parent?: TBoard // el tablero en el que está su carpeta
+  item?: Extract<TItem, { type: 'cell' }> // la ficha-carpeta que lo abre
   line: number
   groups: TGroup[]
   items: TItem[]
@@ -255,7 +257,7 @@ export function parseBoardText(text: string): { doc: TDoc | null; errors: TextEr
     const top = stack[stack.length - 1]
     if (indent > top.indent) {
       if (!lastCell || lastCell.level !== top) return err('esta línea está más metida, pero no va debajo de una ficha (solo el contenido de una carpeta va con sangría).')
-      const folder: TBoard = { name: lastCell.item.label, path: [...top.board.path, lastCell.item.label], line: lastCell.item.line, groups: [], items: [] }
+      const folder: TBoard = { name: lastCell.item.label, path: [...top.board.path, lastCell.item.label], parent: top.board, item: lastCell.item, line: lastCell.item.line, groups: [], items: [] }
       lastCell.item.children = folder
       stack.push({ indent, board: folder, group: -1 })
     } else if (indent < top.indent) {
@@ -772,10 +774,15 @@ export function lineContext(lib: Library, text: string, line: number): LineConte
   const root = lib.boards[lib.rootId]
   const rows = doc.size?.rows ?? root.rows
   const cols = doc.size?.cols ?? root.cols
-  // El tablero de ahora con esa ruta (si ya existía), para los grupos sin rectángulo y su zona
+  // Las carpetas desde el principal hasta la de esta línea (las fichas exactas: puede haber dos «más»)
+  const chain: TBoard[] = []
+  for (let b: TBoard | undefined = at.board; b?.parent; b = b.parent) chain.unshift(b)
+  // El tablero de ahora que corresponde (si ya existía): la carpeta con ese nombre, la n-ésima si se repite
   let old: Board | undefined = root
-  for (const label of at.board.path) {
-    const f: Cell | undefined = old?.cells.find((c) => c.kind === 'folder' && c.target && fold(c.label) === fold(label))
+  for (const b of chain) {
+    const nth = b.parent!.items.filter((it) => it.type === 'cell' && fold(it.label) === fold(b.name)).indexOf(b.item!)
+    const same = (old?.cells ?? []).filter((c) => c.kind === 'folder' && c.target && fold(c.label) === fold(b.name)).sort((x, y) => x.col - y.col || x.row - y.row)
+    const f: Cell | undefined = same[nth] ?? same[0]
     old = f ? lib.boards[f.target!] : undefined
   }
   const oldGroups = old ? boardGroups(old, old.id === lib.rootId) : []
@@ -794,7 +801,7 @@ export function lineContext(lib: Library, text: string, line: number): LineConte
   // Contenido de una carpeta sin grupo: su zona de carpetas o la pantalla entera
   if (at.board.path.length) {
     // La zona es el grupo de carpetas del principal en el que está su carpeta de primer nivel
-    const top = doc.root.items.find((it) => it.type === 'cell' && fold(it.label) === fold(at!.board.path[0]))
+    const top = chain[0]?.item
     const tg = top && top.group >= 0 ? doc.root.groups[top.group] : undefined
     const rootGroups = boardGroups(root, true)
     const prevTg = tg && rootGroups.find((x) => fold(x.name) === fold(tg.name))
