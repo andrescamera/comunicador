@@ -159,32 +159,34 @@ describe('tablero escrito: cambios', () => {
     expect(p.changes).toEqual([])
   })
 
-  it('zona de ampliación: los «más» se llenan en ella (aunque tape otros grupos) y vuelve igual', () => {
+  it('ampliación: cada «más» dice dónde se abre (aunque tape otros grupos) y vuelve igual', () => {
     const lib = sample()
-    const text = boardToText(lib) + '\n@ Ampliación [filas 1-4, columnas 5-6, ampliación]\n'
+    const text = boardToText(lib).replace('\nmás\n', '\nmás [ampliación, filas 1-4, columnas 5-6]\n')
     const p = plan(lib, text.replace('ayuda [categoría: otros, fila 4, columna 6]\n', ''))
     expect(p.errors).toEqual([])
-    expect(p.lib!.boards.root.expansion).toEqual({ name: 'Ampliación', area: { r0: 0, r1: 3, c0: 4, c1: 5 } })
+    expect(p.lib!.boards.root.cells.find((c) => c.id === 'mas')!.expansion).toEqual({ r0: 0, r1: 3, c0: 4, c1: 5 })
     expect(pos(p.lib!, 'b-mas', 'vosotros')).toEqual([0, 4])
     expect(pos(p.lib!, 'b-mas', 'otros')).toEqual([2, 4])
     expect(pos(p.lib!, 'b-otros', 'eles')).toEqual([0, 4]) // la subcarpeta, en la misma zona
     expect(pos(p.lib!, 'b-comida', 'agua')).toEqual([0, 1]) // las carpetas normales, en la suya
-    expect(p.changes[0].groups).toEqual(['+ Ampliación (ampliación)'])
+    expect(p.changes[0].changed).toEqual(['más'])
     const again = boardToText(p.lib!)
-    expect(again).toContain('@ Ampliación [filas 1-4, columnas 5-6, ampliación]')
+    expect(again).toContain('\nmás [ampliación, filas 1-4, columnas 5-6]\n\tvosotros\n')
     expect(plan(p.lib!, again).changes).toEqual([])
   })
 
-  it('zona de ampliación: no lleva fichas, una sola y solo en el principal', () => {
+  it('ampliación: solo en carpetas del principal, con su zona', () => {
     const lib = sample()
     const base = boardToText(lib)
     const errs = (t: string) => {
       const { doc, errors } = parseBoardText(t)
       return errors.length ? errors : planBoardText(lib, doc!).errors
     }
-    expect(errs(base + '@ A [filas 1-2, columnas 5-6, ampliación]\nhola2\n')[0].message).toContain('no lleva fichas')
-    expect(errs(base + '@ A [filas 1-2, columnas 5-6, ampliación]\n@ B [filas 3-4, columnas 5-6, ampliación]\n')[0].message).toContain('solo puede haber una')
-    expect(errs(base.replace('\tleche\n', '\tleche\n\t@ A [filas 1-2, columnas 2-3, ampliación]\n'))[0].message).toContain('solo va en el tablero principal')
+    expect(errs(base.replace('\nhola\n', '\nhola [ampliación, filas 1-2, columnas 5-6]\n'))[0].message).toContain('es para un «más»')
+    expect(errs(base.replace('\nmás\n', '\nmás [ampliación]\n'))[0].message).toContain('necesita la zona')
+    expect(errs(base.replace('\totros\n', '\totros [ampliación, filas 1-2, columnas 5-6]\n'))[0].message).toContain('tablero principal')
+    expect(errs(base + '@ A [filas 1-2, columnas 5-6, ampliación]\n')[0].message).toContain('va en el «más»')
+    expect(errs(base.replace('ayuda [categoría: otros, fila 4, columna 6]', 'ayuda [filas 3-4, columna 6]'))[0].message).toContain('una sola casilla')
   })
 
   it('también con espacios en vez de tabuladores', () => {

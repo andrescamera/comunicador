@@ -131,15 +131,17 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
             </button>
           )
         })}
-        {editing && board.expansion && (
-          <div
-            className="group-outline group-expansion"
-            style={{ gridRow: `${board.expansion.area.r0 + 1} / ${board.expansion.area.r1 + 2}`, gridColumn: `${board.expansion.area.c0 + 1} / ${board.expansion.area.c1 + 2}` }}
-            aria-hidden
-          >
-            <span>{board.expansion.name} · donde se abren los «más»</span>
-          </div>
-        )}
+        {editing &&
+          [...new Map(board.cells.filter((c) => c.expansion).map((c) => [JSON.stringify(c.expansion), c])).values()].map((c) => (
+            <div
+              key={`exp-${c.id}`}
+              className="group-outline group-expansion"
+              style={{ gridRow: `${c.expansion!.r0 + 1} / ${c.expansion!.r1 + 2}`, gridColumn: `${c.expansion!.c0 + 1} / ${c.expansion!.c1 + 2}` }}
+              aria-hidden
+            >
+              <span>Ampliación · aquí se abre «{c.label}»</span>
+            </div>
+          ))}
         {editing &&
           board.groups?.map((g) => (
             <div

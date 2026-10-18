@@ -23,6 +23,7 @@ export interface Cell {
   col: number
   hidden?: boolean // oculta pero conservando su hueco
   folderColor?: Category | 'folder' // carpeta: color elegido ('folder' = marrón); sin él, el de su grupo
+  expansion?: { r0: number; c0: number; r1: number; c1: number } // carpeta del principal (p. ej. un «más»): zona donde se abre, tapando lo que haya debajo
   textOnly?: boolean // solo la palabra, en grande, sin pictograma (artículos, preposiciones...)
 }
 
@@ -43,7 +44,6 @@ export interface Board {
   cells: Cell[]
   dynamic?: DynamicConfig // solo el tablero principal: modo dinámico (por momentos de la frase)
   quickChat?: string // solo el principal: id del tablero de «Charla rápida» (botón fijo junto a Borrar y Todo)
-  expansion?: { name: string; area: Group['area'] } // solo el principal: zona de ampliación, donde se abren los «más» (puede tapar otros grupos)
   groups?: Group[] // grupos de fichas (rectángulos con nombre); si no hay, los de las columnas (zones)
   inZone?: boolean // carpeta: sus fichas están colocadas dentro de la zona de carpetas (se ven tal cual, con huecos)
 }

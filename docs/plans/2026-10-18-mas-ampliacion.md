@@ -20,13 +20,14 @@ el de Verbos, de verbos (tener, hay, pintar…). Las columnas 1-5 no cambian.
 - **Zona de ampliación:** el rectángulo del tablero donde aparece el contenido de un «más».
 
 ## Decisiones
-- **D1 · La zona de ampliación es propia:** un grupo con la opción `[ampliación]`, por ejemplo
-  `@ Ampliación [filas 1-7, columnas 6-11, ampliación]`.
-  - No tiene fichas propias y es el único grupo que puede **solaparse** con otros, porque mientras
-    está abierto tapa lo que hay debajo (carpetas, palabras pequeñas…).
-  - Como mucho hay una, y solo en el tablero principal.
-  - Si no hay ninguna, se usa la zona de carpetas; si tampoco hay zona de carpetas, el «más» se abre
-    a pantalla completa, como hoy.
+- **D1 · Cada «más» dice dónde se abre:** `más [ampliación, filas 1-7, columnas 6-11]`.
+  - La zona puede **solaparse** con otros grupos, porque mientras está abierta tapa lo que hay
+    debajo.
+  - Con `ampliación`, las filas y columnas son la zona donde se abre, no la posición de la ficha.
+  - Solo va en carpetas del tablero principal; sus subcarpetas se abren en la misma zona.
+  - Un «más» sin `ampliación` se abre en la zona de carpetas; si no hay zona de carpetas, a pantalla
+    completa, como hoy.
+  - Se descartó un grupo global `@ … [ampliación]`: si aparece, da error y explica dónde va.
 - **D2 · No se cierra sola:** queda abierta hasta pulsar el mismo «más», «Volver» o «🏠». El ajuste
   «Volver al inicio tras elegir» no la cierra.
 - **D3 · Una sola cosa abierta a la vez:** abrir una carpeta normal cierra la ampliación, y abrir un
@@ -56,18 +57,18 @@ el de Verbos, de verbos (tener, hay, pintar…). Las columnas 1-5 no cambian.
 - Al editar un «más», su contenido se ve en la zona de ampliación, con el resto del tablero
   alrededor. Solo se pueden colocar fichas dentro de la zona; las casillas de fuera salen apagadas,
   como ahora con las carpetas de la zona de carpetas.
-- La zona de ampliación se dibuja con un borde discontinuo y su nombre.
+- Cada zona de ampliación se dibuja con un borde discontinuo: «Ampliación · aquí se abre «más»».
 
 ### Lo que ya hay en tu tablero
 - Hoy tus «más» tienen sus fichas repartidas por la pantalla completa. Al abrirse en la zona,
   pasarán a verse en orden dentro de ella, por columnas, como ya pasó con las carpetas.
-- Mientras no definas la zona de ampliación, usarán la zona de carpetas (4×4).
-- Para que se parezca a tus capturas, se añade una línea en «📝 Texto»:
-  `@ Ampliación [filas 1-7, columnas 6-11, ampliación]`.
+- Mientras no tengan `[ampliación, …]`, usarán la zona de carpetas (4×4).
+- Para que se parezca a tus capturas, en «📝 Texto» se escribe en cada «más»:
+  `más [ampliación, filas 1-7, columnas 6-11]`.
 
 ### Tablero escrito
 - Sin cambios de formato para los «más»: una línea con su contenido debajo, con sangría.
-- Nueva opción de grupo: `[ampliación]`. Un grupo así no lleva fichas debajo; si las lleva, da error.
+- Nueva opción de ficha, solo para carpetas del principal: `[ampliación, filas a-b, columnas c-d]`.
 - El contenido de un «más» se llena en orden en la zona de ampliación; si no cabe, por páginas.
 - El mapa resalta la zona de ampliación al editar el contenido de un «más».
 
@@ -78,7 +79,7 @@ el de Verbos, de verbos (tener, hay, pintar…). Las columnas 1-5 no cambian.
 - `folderArea` / `inlineFolder`: una carpeta de un grupo de color se abre en la zona de ampliación.
   Hoy solo se abren dentro las de la zona de carpetas.
 - Cada «más» guarda su grupo de origen, para resaltarlo y para su color.
-- `Group.expansion?: boolean` y la opción `[ampliación]` en el texto (puede solaparse, no lleva fichas).
+- `Cell.expansion?: Area` en la carpeta, y la opción `[ampliación, filas…, columnas…]` en el texto.
 - Normalizar: el contenido de los «más» se coloca dentro de la zona de ampliación, como hoy
   `anchorFolder` con las carpetas.
 - Pruebas: abrir y cerrar, cambiar de «más», páginas, subcarpetas, edición dentro de la zona y
