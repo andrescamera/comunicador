@@ -45,7 +45,7 @@ export function ExpansionPicker({ rows, cols, groups, at, value, onChange }: Pro
             {first ? 'Ahora pulsa la esquina opuesta.' : 'Pulsa una esquina de la zona y luego la opuesta.'}{' '}
             <strong>{value && `${range('fila', value.r0, value.r1)}, ${range('columna', value.c0, value.c1)}`}</strong>
           </p>
-          <div className="board-map-grid expansion-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)`, aspectRatio: `${cols} / ${rows}` }}>
+          <div className="board-map-grid expansion-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)`, aspectRatio: `${cols} / ${rows}`, ['--map-ratio' as string]: cols / rows }}>
             {Array.from({ length: rows * cols }, (_, i) => {
               const row = Math.floor(i / cols), col = i % cols
               const isAt = row === at.row && col === at.col

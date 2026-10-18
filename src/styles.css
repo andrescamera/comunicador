@@ -1488,7 +1488,9 @@ p.ok {
   padding: 0 4px;
 }
 .expansion-grid {
-  max-width: 520px;
+  /* pequeña: que el editor quepa entero en pantalla */
+  width: min(100%, 300px, calc(26vh * var(--map-ratio, 1.6)));
+  gap: 2px;
 }
 .expansion-grid .board-map-group {
   pointer-events: none;
