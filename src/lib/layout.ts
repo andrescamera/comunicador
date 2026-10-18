@@ -611,6 +611,8 @@ export interface ImportResult {
   moved: string[] // su casilla de la foto estaba ocupada o fuera de la zona: van a un hueco de su grupo
   outside: string[] // de las que se mueven, las que caían fuera de la zona (o del tablero)
   noRoom: string[] // no queda ningún hueco
+  replaced: string[] // al sobrescribir: las que había en esas casillas y se sustituyen
+  removed?: string[] // ids de las fichas que se quitan (sustituidas o movidas a la casilla de la imagen)
 }
 
 /**
@@ -618,36 +620,56 @@ export interface ImportResult {
  * (memoria motora), si no en el primer hueco de su grupo (o de la zona de la carpeta), y si no,
  * en cualquier hueco. Las que ya están en el tablero no se repiten. Nada de lo que hay se mueve.
  */
-export function importCells(board: Board, cells: Cell[], opts: { isRoot: boolean; zone: Area | null }): ImportResult {
+export function importCells(board: Board, cells: Cell[], opts: { isRoot: boolean; zone: Area | null; overwrite?: boolean }): ImportResult {
   const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
   const groups = boardGroups(board, opts.isRoot)
-  const known = new Set(board.cells.map((c) => fold(c.label)))
-  const taken = new Set(board.cells.map((c) => key(c.row, c.col)))
   const area = opts.zone ?? { r0: 0, c0: 0, r1: board.rows - 1, c1: board.cols - 1 }
-  const ok = (s: { row: number; col: number }) => insideArea(area, s.row, s.col) && !taken.has(key(s.row, s.col))
-  const result: ImportResult = { board, added: [], skipped: [], moved: [], outside: [], noRoom: [] }
+  const removed = new Set<string>() // fichas que había y se sustituyen (solo al sobrescribir)
+  const live = () => board.cells.filter((c) => !removed.has(c.id))
+  const takenByNew = new Set<string>()
+  const occupant = (s: { row: number; col: number }) => live().find((c) => c.row === s.row && c.col === s.col)
+  const free = (s: { row: number; col: number }) => insideArea(area, s.row, s.col) && !takenByNew.has(key(s.row, s.col)) && !occupant(s)
+  const result: ImportResult = { board, added: [], skipped: [], moved: [], outside: [], noRoom: [], replaced: [] }
+  const seen = new Set<string>()
   for (const cell of [...cells].sort((a, b) => a.col - b.col || a.row - b.row)) {
-    if (known.has(fold(cell.label))) {
+    const k = fold(cell.label)
+    if (seen.has(k)) continue // repetida en la propia imagen
+    seen.add(k)
+    const same = board.cells.find((c) => fold(c.label) === k && !removed.has(c.id))
+    if (same && (!opts.overwrite || same.kind === 'folder')) {
       result.skipped.push(cell.label)
       continue
     }
-    known.add(fold(cell.label))
-    let slot: { row: number; col: number } | undefined = ok(cell) ? { row: cell.row, col: cell.col } : undefined
+    // Al sobrescribir, la que ya estaba con esa palabra (en otra casilla) deja su sitio a la nueva
+    if (same) removed.add(same.id)
+    const desired = { row: cell.row, col: cell.col }
+    let slot: { row: number; col: number } | undefined
+    if (insideArea(area, desired.row, desired.col) && !takenByNew.has(key(desired.row, desired.col))) {
+      const occ = occupant(desired)
+      if (!occ) slot = desired
+      else if (opts.overwrite && occ.kind !== 'folder') {
+        removed.add(occ.id) // se sustituye (las carpetas nunca, para no perder lo que tienen dentro)
+        result.replaced.push(occ.label)
+        slot = desired
+      }
+    }
     if (!slot) {
       const group = opts.zone ? undefined : groups.find((g) => !g.folders && g.color === colorKey(cell))
-      slot = (group ? groupSlots(group) : []).find(ok) ?? fillOrder(area).find(ok)
+      slot = (group ? groupSlots(group) : []).find(free) ?? fillOrder(area).find(free)
       if (slot) {
         result.moved.push(cell.label)
         if (!insideArea(area, cell.row, cell.col)) result.outside.push(cell.label)
       }
     }
     if (!slot) {
+      if (same) removed.delete(same.id) // no cabe: la que había se queda
       result.noRoom.push(cell.label)
       continue
     }
-    taken.add(key(slot.row, slot.col))
-    result.added.push({ ...cell, ...slot })
+    takenByNew.add(key(slot.row, slot.col))
+    result.added.push({ ...cell, ...(same ? { id: same.id } : {}), ...slot })
   }
-  result.board = { ...board, cells: [...board.cells, ...result.added] }
+  result.removed = [...removed]
+  result.board = { ...board, cells: [...live(), ...result.added] }
   return result
 }

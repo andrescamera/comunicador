@@ -62,7 +62,11 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
     }
   }
 
-  const result = preview ? importCells(board, preview.cells, { isRoot, zone }) : null
+  // Qué hacer con lo que ya hay: por defecto, la imagen manda (sobrescribe esas casillas)
+  const [overwrite, setOverwrite] = useState(true)
+  const result = preview ? importCells(board, preview.cells, { isRoot, zone, overwrite }) : null
+  const kept = new Set(board.cells.map((c) => c.id))
+  const updated = result ? result.added.filter((c) => kept.has(c.id)).length : 0
   const update = (fn: (cells: Cell[]) => Cell[]) => {
     setPreview((p) => (p ? { ...p, cells: fn(p.cells) } : p))
     setEditing(null)
@@ -100,21 +104,36 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
         {preview && result && (
           <>
             <p className="muted">Revisa lo leído: pulsa una ficha para corregir su texto o pictograma, o para quitarla.</p>
-            <div className="preview-grid import-preview">
+            <div className={`preview-grid import-preview${board.cells.length ? ' with-mode' : ''}`}>
               <BoardGrid board={previewShown(preview, zone)} editing onTap={() => {}} onEdit={setEditing} />
             </div>
+            {board.cells.length > 0 && (
+              <fieldset className="import-mode">
+                <legend>«{board.name}» ya tiene fichas. ¿Qué hago con ellas?</legend>
+                <label className="check">
+                  <input type="radio" checked={overwrite} onChange={() => setOverwrite(true)} />
+                  Sobrescribir: cada ficha de la imagen va a su casilla y sustituye a la que haya (las carpetas no se tocan)
+                </label>
+                <label className="check">
+                  <input type="radio" checked={!overwrite} onChange={() => setOverwrite(false)} />
+                  Conservarlas: solo añadir en los huecos libres
+                </label>
+              </fieldset>
+            )}
             <ul className="import-summary">
               <li>
-                <strong>{result.added.length}</strong> fichas nuevas para «{board.name}»
+                <strong>{result.added.length - updated}</strong> fichas nuevas para «{board.name}»
+                {updated > 0 && <> · {updated} que ya estaban pasan a su casilla de la imagen</>}
+                {result.replaced.length > 0 && <> · sustituyen a: {list(result.replaced)}</>}
                 {result.moved.length > result.outside.length && (
-                  <> · {result.moved.length - result.outside.length} van a otro hueco porque su casilla ya está ocupada: {result.moved.filter((l) => !result.outside.includes(l)).join(', ')}</>
+                  <> · {result.moved.length - result.outside.length} van a otro hueco porque su casilla ya está ocupada: {list(result.moved.filter((l) => !result.outside.includes(l)))}</>
                 )}
                 {result.outside.length > 0 && (
-                  <> · {result.outside.length} van a otro hueco porque su casilla queda fuera de {zone ? 'la zona donde se abre' : 'el tablero'}: {result.outside.join(', ')}</>
+                  <> · {result.outside.length} van a otro hueco porque su casilla queda fuera {zone ? 'de la zona donde se abre' : 'del tablero'}: {list(result.outside)}</>
                 )}
               </li>
-              {result.skipped.length > 0 && <li className="muted">Ya están en «{board.name}» (no se repiten): {result.skipped.join(', ')}</li>}
-              {result.noRoom.length > 0 && <li className="error">No caben (no quedan huecos{zone ? ' en la zona donde se abre' : ''}): {result.noRoom.join(', ')}</li>}
+              {result.skipped.length > 0 && <li className="muted">Ya están en «{board.name}» (no se repiten): {list(result.skipped)}</li>}
+              {result.noRoom.length > 0 && <li className="error">No caben (no quedan huecos{zone ? ' en la zona donde se abre' : ''}): {list(result.noRoom)}</li>}
             </ul>
             <p className="muted">Si alguna es una carpeta, márcala después en el tablero (pulsa la ficha → Tipo: carpeta) o en «📝 Texto».</p>
           </>
@@ -123,7 +142,7 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
           <span className="spacer" />
           <button type="button" onClick={onClose}>Cancelar</button>
           <button type="button" className="primary" disabled={!result?.added.length} onClick={() => result && onAdd(result)}>
-            Añadir {result?.added.length ? `${result.added.length} fichas` : ''} a «{board.name}»
+            {overwrite && board.cells.length ? 'Cargar' : 'Añadir'} {result?.added.length ? `${result.added.length} fichas` : ''} en «{board.name}»
           </button>
         </footer>
       </div>
@@ -137,6 +156,11 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
       )}
     </Modal>
   )
+}
+
+/** Lista corta: las primeras y «y N más» */
+function list(labels: string[], max = 8): string {
+  return labels.length <= max ? labels.join(', ') : `${labels.slice(0, max).join(', ')} y ${labels.length - max} más`
 }
 
 /** La vista previa, solo con la zona (las posiciones ya están desplazadas a ella) */

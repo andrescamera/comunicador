@@ -657,9 +657,11 @@ export default function App() {
           category={openIsExpansion ? originColor : undefined}
           onClose={() => setShowPhoto(false)}
           onAdd={(r) => {
-            updateBoard(board.id, (b) => ({ ...b, cells: [...b.cells, ...r.added.filter((c) => !b.cells.some((x) => x.id === c.id))] }))
+            updateBoard(board.id, (b) => ({ ...b, cells: r.board.cells }))
             setShowPhoto(false)
-            setNotice(`${r.added.length} fichas añadidas a «${board.name}»${r.moved.length ? ` (${r.moved.length} en otro hueco porque su casilla estaba ocupada)` : ''}. Se puede deshacer con «↶» o Ctrl+Z.`)
+            setNotice(
+              `${r.added.length} fichas cargadas en «${board.name}»${r.replaced.length ? `, sustituyendo a ${r.replaced.length}` : ''}${r.moved.length ? ` (${r.moved.length} en otro hueco)` : ''}. Se puede deshacer con «↶» o Ctrl+Z.`,
+            )
           }}
         />
       )}

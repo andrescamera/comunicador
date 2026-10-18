@@ -289,6 +289,15 @@ describe('fichas desde una foto', async () => {
     expect(r.board.cells.find((c) => c.id === 'gato')).toMatchObject({ row: 0, col: 2 }) // lo que había no se mueve
   })
 
+  it('sobrescribir: cada una en su casilla, sustituye a la que había y mueve la misma palabra; las carpetas no se tocan', () => {
+    const withFolder: Board = { ...board, cells: [...board.cells, { ...mk('f', 'granja', 2, 0), kind: 'folder', target: 'x' }] }
+    const r = importCells(withFolder, [mk('a', 'vaca', 0, 2), mk('b', 'perro', 1, 1), mk('c', 'oveja', 2, 0)], { isRoot: false, zone: null, overwrite: true })
+    expect(r.replaced).toEqual(['gato'])
+    expect(r.added.map((c) => [c.id, c.label, c.row, c.col])).toEqual([['c', 'oveja', 1, 2], ['perro', 'perro', 1, 1], ['a', 'vaca', 0, 2]])
+    expect(r.moved).toEqual(['oveja']) // su casilla es una carpeta: va a un hueco
+    expect(r.board.cells.map((c) => c.label).sort()).toEqual(['granja', 'oveja', 'perro', 'vaca'])
+  })
+
   it('en una carpeta de la zona de carpetas: solo dentro de la zona', () => {
     const zone = { r0: 0, r1: 1, c0: 0, c1: 1 }
     const r = importCells({ ...board, groups: [] }, [mk('a', 'vaca', 2, 3), mk('b', 'oveja', 0, 1), mk('c', 'pez', 1, 1), mk('d', 'pato', 0, 0)], { isRoot: false, zone })

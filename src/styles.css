@@ -748,6 +748,10 @@ textarea {
   height: min(42vh, 420px);
   overflow: hidden;
 }
+/* con la pregunta de sobrescribir debajo: algo más baja, para que quepan los botones */
+.import-preview.with-mode {
+  height: min(34vh, 380px);
+}
 .import-preview {
   display: flex;
   justify-content: center;
@@ -1545,6 +1549,16 @@ p.ok {
   border-color: #6b4fbb;
   border-style: dashed;
   background: rgba(107, 79, 187, 0.18);
+}
+.import-mode {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px 12px 8px;
+  font-size: 0.9rem;
+}
+.import-mode legend {
+  font-weight: 700;
+  padding: 0 4px;
 }
 .import-summary {
   margin: 0;
