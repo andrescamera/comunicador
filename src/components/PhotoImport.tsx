@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { generateLibrary, parseText } from '../lib/generator'
 import { type Area, importCells, type ImportResult } from '../lib/layout'
 import { gridToText } from '../lib/photo'
-import type { Board, Cell } from '../lib/types'
+import type { Board, Category, Cell } from '../lib/types'
 import { readBoardPhoto } from '../lib/webOcr'
 import { BoardGrid } from './BoardGrid'
 import { CellEditor } from './CellEditor'
@@ -14,12 +14,14 @@ interface Props {
   isRoot: boolean
   /** Si es una carpeta que se abre en la zona de carpetas: solo dentro de ella */
   zone: Area | null
+  /** Un «más»: todas sus fichas son de la categoría de su grupo (p. ej. Social) */
+  category?: Category
   onAdd: (result: ImportResult) => void
   onClose: () => void
 }
 
 /** Fichas desde una foto: se leen (en este ordenador), se revisan y se añaden al tablero abierto, cada una en su casilla */
-export function PhotoImport({ board, isRoot, zone, onAdd, onClose }: Props) {
+export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: Props) {
   const [reading, setReading] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
@@ -41,7 +43,18 @@ export function PhotoImport({ board, isRoot, zone, onAdd, onClose }: Props) {
       const lib = await generateLibrary(parseText(gridToText(grid), { grid: true }), (done, total) =>
         setReading(`Buscando pictogramas… ${Math.round((done / total) * 100)}%`),
       )
-      setPreview(lib.boards[lib.rootId])
+      const read = lib.boards[lib.rootId]
+      // Las posiciones de la imagen cuentan desde la esquina de la zona donde se abre (si la hay),
+      // y en un «más», todas son de la categoría de su grupo
+      setPreview({
+        ...read,
+        cells: read.cells.map((c) => ({
+          ...c,
+          ...(category && c.kind !== 'folder' ? { category } : {}),
+          row: c.row + (zone?.r0 ?? 0),
+          col: c.col + (zone?.c0 ?? 0),
+        })),
+      })
     } catch (e) {
       setError(`No se pudo leer la foto: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
@@ -88,15 +101,20 @@ export function PhotoImport({ board, isRoot, zone, onAdd, onClose }: Props) {
           <>
             <p className="muted">Revisa lo leído: pulsa una ficha para corregir su texto o pictograma, o para quitarla.</p>
             <div className="preview-grid">
-              <BoardGrid board={preview} editing onTap={() => {}} onEdit={setEditing} />
+              <BoardGrid board={previewShown(preview, zone)} editing onTap={() => {}} onEdit={setEditing} />
             </div>
             <ul className="import-summary">
               <li>
                 <strong>{result.added.length}</strong> fichas nuevas para «{board.name}»
-                {result.moved.length > 0 && <> · {result.moved.length} van a otro hueco de su grupo porque su casilla ya está ocupada: {result.moved.join(', ')}</>}
+                {result.moved.length > result.outside.length && (
+                  <> · {result.moved.length - result.outside.length} van a otro hueco porque su casilla ya está ocupada: {result.moved.filter((l) => !result.outside.includes(l)).join(', ')}</>
+                )}
+                {result.outside.length > 0 && (
+                  <> · {result.outside.length} van a otro hueco porque su casilla queda fuera de {zone ? 'la zona donde se abre' : 'el tablero'}: {result.outside.join(', ')}</>
+                )}
               </li>
               {result.skipped.length > 0 && <li className="muted">Ya están en «{board.name}» (no se repiten): {result.skipped.join(', ')}</li>}
-              {result.noRoom.length > 0 && <li className="error">No caben (no quedan huecos{zone ? ' en la zona de carpetas' : ''}): {result.noRoom.join(', ')}</li>}
+              {result.noRoom.length > 0 && <li className="error">No caben (no quedan huecos{zone ? ' en la zona donde se abre' : ''}): {result.noRoom.join(', ')}</li>}
             </ul>
             <p className="muted">Si alguna es una carpeta, márcala después en el tablero (pulsa la ficha → Tipo: carpeta) o en «📝 Texto».</p>
           </>
@@ -112,11 +130,19 @@ export function PhotoImport({ board, isRoot, zone, onAdd, onClose }: Props) {
       {editing && (
         <CellEditor
           cell={editing}
-          onSave={(c) => update((cells) => cells.map((x) => (x.id === c.id ? c : x)))}
+          onSave={(c) => update((cells) => cells.map((x) => (x.id === c.id ? { ...c, row: x.row, col: x.col } : x)))}
           onDelete={() => update((cells) => cells.filter((x) => x.id !== editing.id))}
           onClose={() => setEditing(null)}
         />
       )}
     </Modal>
   )
+}
+
+/** La vista previa, solo con la zona (las posiciones ya están desplazadas a ella) */
+function previewShown(preview: Board, zone: Area | null): Board {
+  if (!zone) return preview
+  const rows = Math.max(zone.r1 - zone.r0 + 1, ...preview.cells.map((c) => c.row - zone.r0 + 1))
+  const cols = Math.max(zone.c1 - zone.c0 + 1, ...preview.cells.map((c) => c.col - zone.c0 + 1))
+  return { ...preview, rows, cols, cells: preview.cells.map((c) => ({ ...c, row: c.row - zone.r0, col: c.col - zone.c0 })) }
 }

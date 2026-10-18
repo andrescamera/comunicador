@@ -608,7 +608,8 @@ export interface ImportResult {
   board: Board
   added: Cell[]
   skipped: string[] // ya estaban en el tablero
-  moved: string[] // su casilla de la foto estaba ocupada (o fuera): van a un hueco de su grupo
+  moved: string[] // su casilla de la foto estaba ocupada o fuera de la zona: van a un hueco de su grupo
+  outside: string[] // de las que se mueven, las que caían fuera de la zona (o del tablero)
   noRoom: string[] // no queda ningún hueco
 }
 
@@ -624,7 +625,7 @@ export function importCells(board: Board, cells: Cell[], opts: { isRoot: boolean
   const taken = new Set(board.cells.map((c) => key(c.row, c.col)))
   const area = opts.zone ?? { r0: 0, c0: 0, r1: board.rows - 1, c1: board.cols - 1 }
   const ok = (s: { row: number; col: number }) => insideArea(area, s.row, s.col) && !taken.has(key(s.row, s.col))
-  const result: ImportResult = { board, added: [], skipped: [], moved: [], noRoom: [] }
+  const result: ImportResult = { board, added: [], skipped: [], moved: [], outside: [], noRoom: [] }
   for (const cell of [...cells].sort((a, b) => a.col - b.col || a.row - b.row)) {
     if (known.has(fold(cell.label))) {
       result.skipped.push(cell.label)
@@ -635,7 +636,10 @@ export function importCells(board: Board, cells: Cell[], opts: { isRoot: boolean
     if (!slot) {
       const group = opts.zone ? undefined : groups.find((g) => !g.folders && g.color === colorKey(cell))
       slot = (group ? groupSlots(group) : []).find(ok) ?? fillOrder(area).find(ok)
-      if (slot) result.moved.push(cell.label)
+      if (slot) {
+        result.moved.push(cell.label)
+        if (!insideArea(area, cell.row, cell.col)) result.outside.push(cell.label)
+      }
     }
     if (!slot) {
       result.noRoom.push(cell.label)

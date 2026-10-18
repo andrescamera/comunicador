@@ -1,6 +1,8 @@
 import { type CellRect, detectGrid } from './gridDetect'
 import type { PSM } from 'tesseract.js'
 import { cellCandidate, cleanOcrLines, type LabelCandidate, pickLabel, type ScoredLine } from './ocrClean'
+import { isKnownWord } from './grammar'
+import { isPictoWord, loadWords } from './suggest'
 import { gridFromCells, gridFromLines, type PhotoCell, type PhotoGrid, type TextLine } from './photo'
 
 type Worker = Awaited<ReturnType<typeof import('tesseract.js')['createWorker']>>
@@ -24,11 +26,13 @@ const PADDING = 16
  * lee mejor letras de unos 30–40 px. 1) La casilla entera como texto disperso (dibujo +
  * etiqueta); 2) la franja de abajo, donde suele ir la etiqueta, como una línea y con más
  * contraste (fondos grises de carpeta, palabras cortas); 3) la casilla entera como un bloque
- * (letras grandes solas: «EL», «A»).
+ * (letras grandes solas: «EL», «A»); 4) solo la etiqueta, una franja más estrecha.
  */
 const PASSES = [
   { psm: '11', from: 0, to: 1, height: 160, filter: 'grayscale(1) contrast(1.2)' },
   { psm: '7', from: 0.6, to: 1, height: 100, filter: 'grayscale(1) contrast(2)' },
+  // la etiqueta sola (franja de abajo, más estrecha): letras finas en mayúsculas («PRIMERO»)
+  { psm: '7', from: 0.7, to: 1, height: 80, filter: 'grayscale(1) contrast(1.5)' },
   { psm: '6', from: 0, to: 1, height: 160, filter: 'grayscale(1) contrast(1.2)' },
 ] as const
 
@@ -96,7 +100,7 @@ export async function readBoardPhoto(file: Blob, onProgress?: (p: number) => voi
   if (!found) return gridFromLines(await recognizeImage(bitmap, onProgress))
 
   const { createWorker } = await import('tesseract.js')
-  const worker = await createWorker('spa', 1)
+  const [worker] = await Promise.all([createWorker('spa', 1), loadWords().catch(() => undefined)])
   try {
     const read: PhotoCell[] = []
     for (const [i, c] of found.cells.entries()) {
@@ -106,7 +110,8 @@ export async function readBoardPhoto(file: Blob, onProgress?: (p: number) => voi
         const cand = cellCandidate(await lines(worker, cellImage(bitmap, c, pass)))
         if (cand) candidates.push(cand)
       }
-      const label = pickLabel(candidates)
+      // Gana una lectura que sea palabra conocida o con pictograma («primero» antes que «imero»)
+      const label = pickLabel(candidates, (w) => isKnownWord(w) || isPictoWord(w))
       read.push({ row: c.row, col: c.col, label })
       onProgress?.((i + 1) / found.cells.length)
     }

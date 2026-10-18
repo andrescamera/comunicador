@@ -653,7 +653,8 @@ export default function App() {
         <PhotoImport
           board={board}
           isRoot={board.id === lib.rootId}
-          zone={editArea}
+          zone={editArea ?? (board.cells.length === 0 ? zoneArea : null)}
+          category={openIsExpansion ? originColor : undefined}
           onClose={() => setShowPhoto(false)}
           onAdd={(r) => {
             updateBoard(board.id, (b) => ({ ...b, cells: [...b.cells, ...r.added.filter((c) => !b.cells.some((x) => x.id === c.id))] }))

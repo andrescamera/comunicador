@@ -85,9 +85,9 @@ export function cellCandidate(lines: ScoredLine[]): LabelCandidate | null {
  * Entre varias lecturas de la misma casilla: la de más confianza, pero si alguna es una palabra
  * conocida gana esa (una lectura muy segura de un trozo de dibujo no debe tapar a «yo»).
  */
-export function pickLabel(candidates: LabelCandidate[]): string {
+export function pickLabel(candidates: LabelCandidate[], isKnown: (word: string) => boolean = isKnownWord): string {
   const bare = (t: string) => t.replace(/^[¿¡"“(]+|[?!.,;:"”)]+$/g, '').toLowerCase()
-  const known = candidates.filter((c) => isKnownWord(bare(c.text)))
+  const known = candidates.filter((c) => isKnown(bare(c.text)))
   const pool = known.length ? known : candidates
   return [...pool].sort((a, b) => b.score - a.score)[0]?.text ?? ''
 }

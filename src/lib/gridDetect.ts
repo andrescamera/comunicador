@@ -33,7 +33,7 @@ const quant = (d: Uint8ClampedArray, i: number) => ((d[i] >> 4) << 8) | ((d[i + 
  * (o columnas) de casillas es casi toda; una línea que atraviesa casillas cruza colores,
  * dibujos y bordes.
  */
-function uniformity(d: Uint8ClampedArray, start: number, step: number, count: number): number {
+export function uniformity(d: Uint8ClampedArray, start: number, step: number, count: number): number {
   const freq = new Map<number, number>()
   let best = 0
   for (let k = 0; k < count; k++) {
@@ -50,7 +50,7 @@ function uniformity(d: Uint8ClampedArray, start: number, step: number, count: nu
  * típica (la mayoría cruzan casillas) y la más uniforme. Las sombras y las pestañas de
  * carpeta hacen que un hueco no sea del todo de un color.
  */
-function gapLines(values: number[]): boolean[] {
+export function gapLines(values: number[]): boolean[] {
   const sorted = [...values].sort((a, b) => a - b)
   const median = sorted[Math.floor(sorted.length / 2)]
   const threshold = Math.min(0.9, (median + sorted[sorted.length - 1]) / 2)
@@ -58,7 +58,7 @@ function gapLines(values: number[]): boolean[] {
 }
 
 /** Tramos seguidos de líneas "no uniformes": cada tramo es una fila (o columna) de casillas. */
-function bands(isGap: boolean[], minSize: number): Band[] {
+export function bands(isGap: boolean[], minSize: number): Band[] {
   const out: Band[] = []
   let start = -1
   for (let i = 0; i <= isGap.length; i++) {
@@ -78,7 +78,7 @@ const size = (b: Band) => b.end - b.start
  * Se queda con la serie más larga de tramos seguidos de tamaño parecido (las casillas miden
  * todas lo mismo): descarta pestañas, barras de frase y otros elementos de la pantalla.
  */
-function regularRun(list: Band[]): Band[] {
+export function regularRun(list: Band[]): Band[] {
   let best: Band[] = []
   for (const ref of list) {
     const similar = (b: Band) => Math.abs(size(b) - size(ref)) <= size(ref) * 0.25
@@ -104,7 +104,7 @@ const EDGE = 60 // salto de brillo (suma RGB, 0–765) que cuenta como borde
  * dibujos y las letras, solo en alguna. Entre dos lados seguidos queda una casilla (ancha)
  * o un hueco (estrecho, se descarta después por tamaño).
  */
-function edgeBands(img: Pixels, rowBands: Band[]): Band[] {
+export function edgeBands(img: Pixels, rowBands: Band[]): Band[] {
   const { width, data } = img
   const lum = (x: number, y: number) => {
     const i = (y * width + x) * 4
@@ -136,6 +136,10 @@ function edgeBands(img: Pixels, rowBands: Band[]): Band[] {
  * de color uniforme que las separan. Devuelve null si no hay una cuadrícula clara.
  */
 export function detectGrid(img: Pixels): DetectedGrid | null {
+  return detectByGaps(img) ?? detectByPeriod(img)
+}
+
+function detectByGaps(img: Pixels): DetectedGrid | null {
   const { width, height, data } = img
   const rowValues: number[] = []
   for (let y = 0; y < height; y++) rowValues.push(uniformity(data, y * width * 4, 4, width))
@@ -153,5 +157,99 @@ export function detectGrid(img: Pixels): DetectedGrid | null {
       cells.push({ row, col, x: c.start, y: r.start, width: size(c), height: size(r) }),
     ),
   )
+  return { rows: rowBands.length, cols: colBands.length, cells }
+}
+
+// ---------- Por repetición: casillas con sombra, huecos vacíos, fondos de varios colores ----------
+
+/**
+ * Cuántos bordes hay en cada línea: para las filas, saltos de brillo en vertical (los lados de
+ * arriba y abajo de las casillas); para las columnas, en horizontal.
+ */
+function edgeProfile(img: Pixels, along: 'y' | 'x'): number[] {
+  const { width, height, data } = img
+  const lum = (x: number, y: number) => {
+    const i = (y * width + x) * 4
+    return data[i] + data[i + 1] + data[i + 2]
+  }
+  const n = along === 'y' ? height : width
+  const out = new Array<number>(n).fill(0)
+  for (let y = 1; y < height - 1; y++)
+    for (let x = 1; x < width - 1; x++) {
+      const d = along === 'y' ? Math.abs(lum(x, y + 1) - lum(x, y - 1)) : Math.abs(lum(x + 1, y) - lum(x - 1, y))
+      if (d > EDGE) out[along === 'y' ? y : x]++
+    }
+  return out
+}
+
+/** Distancia a la que se repite el perfil (alto o ancho de casilla + hueco), por autocorrelación */
+export function period(p: number[]): number | null {
+  const n = p.length
+  const mean = p.reduce((a, b) => a + b, 0) / n
+  const q = p.map((v) => v - mean)
+  const minK = Math.max(12, Math.round(n * 0.05))
+  const maxK = Math.round(n * 0.5)
+  const r: number[] = []
+  let top = 0
+  for (let k = minK; k <= maxK; k++) {
+    let acc = 0
+    for (let i = 0; i + k < n; i++) acc += q[i] * q[i + k]
+    r[k] = acc / (n - k)
+    if (r[k] > top) top = r[k]
+  }
+  if (top <= 0) return null
+  // El primer máximo local fuerte (los múltiplos del periodo también correlan)
+  for (let k = minK + 1; k < maxK; k++) if (r[k] >= top * 0.8 && r[k] >= r[k - 1] && r[k] >= r[k + 1]) return k
+  return null
+}
+
+/**
+ * Casillas a lo largo de un eje con periodo `k`: plegando el perfil sobre sí mismo salen dos picos
+ * (el borde de entrada y el de salida de cada casilla); entre ellos, el tramo largo es la casilla y
+ * el corto, el hueco. Solo se cuentan las casillas que tienen bordes de verdad (no la pantalla vacía).
+ */
+export function periodicBands(p: number[], k: number): Band[] {
+  const n = p.length
+  const max = Math.max(...p)
+  // Lados claros (muchos bordes en esa línea) y los tramos entre ellos que miden casi un periodo:
+  // esos son casillas enteras. Votan dónde empieza cada casilla (su posición módulo el periodo).
+  const sides: number[] = []
+  for (let i = 0; i < n; i++) if (p[i] >= max * 0.35) sides.push(i)
+  const votes = new Map<number, { weight: number; lens: number[] }>()
+  for (let j = 1; j < sides.length; j++) {
+    const len = sides[j] - sides[j - 1]
+    if (len < k * 0.55 || len > k * 0.97) continue
+    const phase = Math.round(((sides[j - 1] % k) + k) % k / 3) * 3 // con un margen de ±3 px
+    const v = votes.get(phase) ?? { weight: 0, lens: [] }
+    v.weight += p[sides[j - 1]] + p[sides[j]]
+    v.lens.push(len)
+    votes.set(phase, v)
+  }
+  const best = [...votes.entries()].sort((x, y) => y[1].weight - x[1].weight)[0]
+  if (!best) return []
+  const lens = best[1].lens.sort((x, y) => x - y)
+  const len = lens[Math.floor(lens.length / 2)]
+  const strength = (i: number) => Math.max(p[i] ?? 0, p[i - 1] ?? 0, p[i + 1] ?? 0, p[i - 2] ?? 0, p[i + 2] ?? 0)
+  const out: Band[] = []
+  for (let s = best[0] % k; s < n; s += k) {
+    const band = { start: s + 1, end: Math.min(n, s + len) }
+    if (size(band) < len * 0.8) continue
+    // Una casilla de verdad tiene un borde marcado al menos a un lado (no la pantalla vacía)
+    if (Math.max(strength(s), strength(s + len)) >= max * 0.2) out.push(band)
+  }
+  return out
+}
+
+function detectByPeriod(img: Pixels): DetectedGrid | null {
+  const py = edgeProfile(img, 'y')
+  const px = edgeProfile(img, 'x')
+  const ky = period(py)
+  const kx = period(px)
+  if (!ky || !kx) return null
+  const rowBands = periodicBands(py, ky)
+  const colBands = periodicBands(px, kx)
+  if (rowBands.length < 2 || colBands.length < 2) return null
+  const cells: CellRect[] = []
+  rowBands.forEach((r, row) => colBands.forEach((c, col) => cells.push({ row, col, x: c.start, y: r.start, width: size(c), height: size(r) })))
   return { rows: rowBands.length, cols: colBands.length, cells }
 }

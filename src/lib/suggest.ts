@@ -96,3 +96,8 @@ export function suggestWords(text: string, limit = 8, exclude: Iterable<string> 
 export function _setWordsForTest(list: string[]) {
   setWords(list)
 }
+
+/** ¿Es una palabra con pictograma en ARASAAC (o del catálogo)? Sin tildes ni mayúsculas. */
+export function isPictoWord(text: string): boolean {
+  return folded.includes(fold(text))
+}
