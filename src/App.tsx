@@ -43,7 +43,15 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
-  const [showPhoto, setShowPhoto] = useState(false) // «Fichas desde foto» en el tablero que se edita
+  const [openMenu, setOpenMenu] = useState<'size' | 'dyn' | null>(null) // desplegables de la barra de edición
+  const [showPhoto, setShowPhoto] = useState(false)
+  // Los desplegables se cierran al pulsar fuera
+  useEffect(() => {
+    if (!openMenu) return
+    const close = (e: PointerEvent) => !(e.target as Element).closest?.('.popover-wrap') && setOpenMenu(null)
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [openMenu]) // «Fichas desde foto» en el tablero que se edita
   const [showText, setShowText] = useState(false) // «Tablero escrito»: todo el tablero como texto
   const [showSettings, setShowSettings] = useState(false)
   // «Mis tableros» es otra página (con dirección propia: #tableros, y el botón Atrás del navegador vuelve)
@@ -441,57 +449,89 @@ export default function App() {
                 onChange={(e) => updateBoard(board.id, (b) => ({ ...b, name: e.target.value }))}
                 aria-label="Nombre del tablero"
               />
-              <span className="muted">Filas</span>
-              <button type="button" onClick={() => resize(board.rows - 1, board.cols)} aria-label="Quitar fila">−</button>
-              <strong>{board.rows}</strong>
-              <button type="button" onClick={() => resize(board.rows + 1, board.cols)} aria-label="Añadir fila">+</button>
-              <span className="muted">Columnas</span>
-              <button type="button" onClick={() => resize(board.rows, board.cols - 1)} aria-label="Quitar columna">−</button>
-              <strong>{board.cols}</strong>
-              <button type="button" onClick={() => resize(board.rows, Math.min(16, board.cols + 1))} aria-label="Añadir columna">+</button>
+              <span className="popover-wrap">
+                <button type="button" onClick={() => setOpenMenu((m) => (m === 'size' ? null : 'size'))} title="Filas y columnas (las mismas en todos los tableros)" aria-expanded={openMenu === 'size'}>
+                  ▦ {board.rows} × {board.cols}
+                </button>
+                {openMenu === 'size' && (
+                  <div className="popover" role="dialog" aria-label="Filas y columnas">
+                    <div className="row">
+                      <span className="muted">Filas</span>
+                      <button type="button" onClick={() => resize(board.rows - 1, board.cols)} aria-label="Quitar fila">−</button>
+                      <strong>{board.rows}</strong>
+                      <button type="button" onClick={() => resize(board.rows + 1, board.cols)} aria-label="Añadir fila">+</button>
+                    </div>
+                    <div className="row">
+                      <span className="muted">Columnas</span>
+                      <button type="button" onClick={() => resize(board.rows, board.cols - 1)} aria-label="Quitar columna">−</button>
+                      <strong>{board.cols}</strong>
+                      <button type="button" onClick={() => resize(board.rows, Math.min(16, board.cols + 1))} aria-label="Añadir columna">+</button>
+                    </div>
+                  </div>
+                )}
+              </span>
               {board.id === lib.rootId && (
                 <span className="dyn-switch">
-                  <button
-                    type="button"
-                    className={dynCfg ? 'primary' : ''}
-                    onClick={() => {
-                      updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))
-                      setPreview(null)
-                    }}
-                    title="Modo predictivo: en cada momento se resalta lo que tiene sentido decir a continuación (nada cambia de sitio)"
-                  >
-                    {dynCfg ? '✓ Predictivo' : 'Modo predictivo'}
-                  </button>
+                  <label className="switch" title="Modo predictivo: en cada momento se resalta lo que tiene sentido decir a continuación (nada cambia de sitio)">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={!!dynCfg}
+                      onChange={() => {
+                        updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))
+                        setPreview(null)
+                      }}
+                    />
+                    <span className="switch-track" aria-hidden />
+                    <span>Predictivo</span>
+                  </label>
                   {dynCfg && (
-                    <>
-                      <select
-                        value={preview === null ? 'edit' : preview.length === 0 ? 'start' : preview.length === 1 ? 'subject' : preview[1].id}
-                        onChange={(e) => {
-                          const v = e.target.value
-                          const subject = board.cells.find((c) => c.category === 'pronoun') ?? board.cells.find((c) => c.category === 'person')
-                          const verb = buildPool(lib).find((p) => p.cell.id === v)?.cell
-                          setPreview(v === 'edit' ? null : v === 'start' ? [] : v === 'subject' ? (subject ? [subject] : []) : subject && verb ? [subject, verb] : verb ? [verb] : [])
-                        }}
-                        aria-label="Probar el modo predictivo"
+                    <span className="popover-wrap">
+                      <button
+                        type="button"
+                        className={preview !== null ? 'primary' : ''}
+                        onClick={() => setOpenMenu((m) => (m === 'dyn' ? null : 'dyn'))}
+                        aria-label="Modo predictivo: probar y configurar"
+                        title="Probar y configurar el modo predictivo"
+                        aria-expanded={openMenu === 'dyn'}
                       >
-                        <option value="edit">Editar fichas</option>
-                        <option value="start">Probar: al empezar</option>
-                        <option value="subject">Probar: tras la persona</option>
-                        {buildPool(lib)
-                          .filter((p) => p.cell.category === 'verb')
-                          .map((p) => (
-                            <option key={p.cell.id} value={p.cell.id}>
-                              Probar: tras «{p.cell.label}»
-                            </option>
-                          ))}
-                      </select>
-                      <button type="button" onClick={() => setShowDynConfig(true)} aria-label="Configurar modo dinámico">⚙︎</button>
-                    </>
+                        ⚙︎
+                      </button>
+                      {openMenu === 'dyn' && (
+                        <div className="popover" role="dialog" aria-label="Modo predictivo">
+                          <label>
+                            Ver el tablero como
+                            <select
+                              value={preview === null ? 'edit' : preview.length === 0 ? 'start' : preview.length === 1 ? 'subject' : preview[1].id}
+                              onChange={(e) => {
+                                const v = e.target.value
+                                const subject = board.cells.find((c) => c.category === 'pronoun') ?? board.cells.find((c) => c.category === 'person')
+                                const verb = buildPool(lib).find((p) => p.cell.id === v)?.cell
+                                setPreview(v === 'edit' ? null : v === 'start' ? [] : v === 'subject' ? (subject ? [subject] : []) : subject && verb ? [subject, verb] : verb ? [verb] : [])
+                              }}
+                              aria-label="Probar el modo predictivo"
+                            >
+                              <option value="edit">Editar fichas (sin probar)</option>
+                              <option value="start">Probar: al empezar</option>
+                              <option value="subject">Probar: tras la persona</option>
+                              {buildPool(lib)
+                                .filter((p) => p.cell.category === 'verb')
+                                .map((p) => (
+                                  <option key={p.cell.id} value={p.cell.id}>
+                                    Probar: tras «{p.cell.label}»
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                          <button type="button" onClick={() => (setShowDynConfig(true), setOpenMenu(null))}>Configurar…</button>
+                        </div>
+                      )}
+                    </span>
                   )}
                 </span>
               )}
-              <button type="button" onClick={reorganize} title="Vuelve a colocar las celdas por columnas de categoría">
-                ⇅<span className="btn-text"> Reordenar por categorías</span>
+              <button type="button" onClick={reorganize} title="Reordenar por categorías: vuelve a colocar las celdas por columnas de categoría" aria-label="Reordenar por categorías">
+                ⇅
               </button>
             </div>
           )}
@@ -507,8 +547,8 @@ export default function App() {
               </button>
             )}
             {editing && (
-              <button type="button" onClick={() => setShowPhoto(true)} title="Cargar en este tablero las fichas de una foto">
-                📷<span className="btn-text"> Fichas desde imagen</span>
+              <button type="button" onClick={() => setShowPhoto(true)} title="Cargar fichas desde una imagen en este tablero">
+                📷<span className="btn-text"> Imagen</span>
               </button>
             )}
             {editing && (

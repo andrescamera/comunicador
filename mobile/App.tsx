@@ -3,7 +3,7 @@ import { useKeepAwake } from 'expo-keep-awake'
 import { NavigationBar } from 'expo-navigation-bar'
 import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { BoardView } from './src/components/BoardView'
 import { CellEditor } from './src/components/CellEditor'
 import { Creator } from './src/components/Creator'
@@ -476,11 +476,13 @@ export default function App() {
                 <ToolBtn text="↷" onPress={() => cloud.redo()} small />
                 <ToolBtn text={compact ? '⇅' : '⇅ Reordenar'} onPress={reorganize} />
                 {board.id === lib.rootId && (
-                  <ToolBtn
-                    text={board.dynamic?.enabled ? '✓ Predictivo' : 'Predictivo'}
-                    primary={!!board.dynamic?.enabled}
-                    onPress={() => updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: !b.dynamic?.enabled } }))}
-                  />
+                  <View style={styles.switchTool}>
+                    <Switch
+                      value={!!board.dynamic?.enabled}
+                      onValueChange={(on) => updateBoard(board.id, (b) => ({ ...b, dynamic: { ...DEFAULT_DYNAMIC, ...b.dynamic, enabled: on } }))}
+                    />
+                    <Text style={styles.switchToolText}>Predictivo</Text>
+                  </View>
                 )}
                 <ToolBtn text={compact ? '✨' : '✨ Crear tablero'} onPress={() => setShowCreator(true)} />
                 <ToolBtn
@@ -599,6 +601,8 @@ function ToolBtn({ text, onPress, primary, small }: { text: string; onPress: () 
 }
 
 const styles = StyleSheet.create({
+  switchTool: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  switchToolText: { fontSize: 15, fontWeight: '600', color: '#2b2f36' },
   app: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
   row: { flex: 1, flexDirection: 'row' },

@@ -112,7 +112,11 @@ button.danger {
   align-items: center;
   gap: 8px;
   flex: 1;
-  flex-wrap: wrap;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.edit-toolbar > * {
+  flex: none;
 }
 .board-name-input {
   font-size: 1.1rem;
@@ -120,7 +124,9 @@ button.danger {
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  min-width: 180px;
+  min-width: 90px;
+  width: 200px;
+  flex: 0 1 200px !important;
 }
 
 /* Elementos pulsables del comunicador (gestionados por TapManager).
@@ -1584,4 +1590,92 @@ p.ok {
   flex-direction: column;
   gap: 4px;
   font-size: 0.92rem;
+}
+
+/* Barra de edición: desplegables pequeños e interruptor */
+.popover-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+}
+.popover .row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+.popover .row > * {
+  flex: none;
+  width: auto;
+}
+.popover .row .muted {
+  min-width: 72px;
+}
+.popover label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.switch {
+  display: inline-flex;
+  flex-direction: row;
+  white-space: nowrap;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.switch-track {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: #c7ccd4;
+  position: relative;
+  transition: background 0.15s;
+  flex: none;
+}
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+.switch input:checked + .switch-track {
+  background: var(--accent);
+}
+.switch input:checked + .switch-track::after {
+  transform: translateX(18px);
+}
+.switch input:focus-visible + .switch-track {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 2px;
 }
