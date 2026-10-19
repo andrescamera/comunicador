@@ -102,11 +102,12 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
         </div>
 
         {preview && result && (
-          <>
-            <p className="muted">Revisa lo leído: pulsa una ficha para corregir su texto o pictograma, o para quitarla.</p>
-            <div className={`preview-grid import-preview${board.cells.length ? ' with-mode' : ''}`}>
+          <div className="import-layout">
+            <div className="preview-grid import-preview">
               <BoardGrid board={previewShown(preview, zone)} editing onTap={() => {}} onEdit={setEditing} />
             </div>
+            <div className="import-side">
+            <p className="muted">Revisa lo leído: pulsa una ficha para corregir su texto o pictograma, o para quitarla.</p>
             {board.cells.length > 0 && (
               <fieldset className="import-mode">
                 <legend>«{board.name}» ya tiene fichas. ¿Qué hago con ellas?</legend>
@@ -136,7 +137,8 @@ export function PhotoImport({ board, isRoot, zone, category, onAdd, onClose }: P
               {result.noRoom.length > 0 && <li className="error">No caben (no quedan huecos{zone ? ' en la zona donde se abre' : ''}): {list(result.noRoom)}</li>}
             </ul>
             <p className="muted">Si alguna es una carpeta, márcala después en el tablero (pulsa la ficha → Tipo: carpeta) o en «📝 Texto».</p>
-          </>
+            </div>
+          </div>
         )}
         <footer className="modal-footer">
           <span className="spacer" />

@@ -361,7 +361,7 @@ button.danger {
   padding: 1px 6px;
   border-radius: 6px;
   color: white;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -743,18 +743,26 @@ textarea {
 .preview-grid {
   height: min(52vh, 480px);
 }
-/* Fichas desde imagen: vista previa pequeña, para que quepan el resumen y los botones */
-.import-preview {
-  height: min(42vh, 420px);
-  overflow: hidden;
+/* Fichas desde imagen: la vista previa a la izquierda (casillas cuadradas) y el resumen a su derecha */
+.import-layout {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr);
+  gap: 16px;
+  align-items: start;
 }
-/* con la pregunta de sobrescribir debajo: algo más baja, para que quepan los botones */
-.import-preview.with-mode {
-  height: min(34vh, 380px);
-}
-.import-preview {
+.import-side {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.import-side p {
+  margin: 0;
+}
+.import-preview {
+  height: min(60vh, 600px);
+  overflow: hidden;
+  display: flex;
 }
 /* Casillas cuadradas: el ancho sale del alto según filas y columnas */
 .import-preview .grid-wrap {
@@ -765,6 +773,15 @@ textarea {
   min-width: 0;
   min-height: 0;
 }
+@media (max-width: 900px) {
+  .import-layout {
+    grid-template-columns: 1fr;
+  }
+  .import-preview {
+    height: min(42vh, 420px);
+    justify-content: center;
+  }
+}
 .import-preview .grid {
   gap: 4px;
 }
@@ -772,7 +789,7 @@ textarea {
   display: none;
 }
 .import-preview .cell-label {
-  font-size: 0.68rem;
+  font-size: 0.8rem;
 }
 .import-preview .cell {
   padding: 2px;
