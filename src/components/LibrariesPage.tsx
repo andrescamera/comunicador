@@ -3,7 +3,7 @@ import { pictoUrl } from '../lib/arasaac'
 import { cellColors } from '../lib/colors'
 import { emptyLibrary, starterLibrary } from '../lib/generator'
 import { boardGroups, groupAt } from '../lib/layout'
-import type { LibraryInfo, Role } from '../lib/libraries'
+import type { LibraryInfo, LibraryVersion, Role } from '../lib/libraries'
 import type { Board, Library } from '../lib/types'
 import { type CloudSync, STARTER_NAME } from '../lib/useCloudSync'
 import { Modal } from './Modal'
@@ -26,6 +26,7 @@ export function LibrariesPage({ cloud, onBack, onCreateFromText }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [sharing, setSharing] = useState<LibraryInfo | null>(null)
+  const [versionsOf, setVersionsOf] = useState<LibraryInfo | null>(null)
   const items = Object.values(cloud.registry?.items ?? {})
   const mine = items.filter((i) => i.role === 'owner')
   const shared = items.filter((i) => i.role !== 'owner')
@@ -83,6 +84,11 @@ export function LibrariesPage({ cloud, onBack, onCreateFromText }: Props) {
             </button>
           )}
           <button type="button" disabled={busy} onClick={() => void run(() => cloud.duplicate(info.id))}>Duplicar</button>
+          {info.synced && info.role !== 'viewer' && (
+            <button type="button" disabled={busy || !cloud.email} title="Volver a un estado anterior (se guardan las 5 últimas versiones)" onClick={() => setVersionsOf(info)}>
+              🕓 Versiones
+            </button>
+          )}
           {info.role === 'owner' && (
             <button type="button" disabled={busy || !cloud.email} title={cloud.email ? undefined : 'Inicia sesión para compartir'} onClick={() => setSharing(info)}>
               Compartir
@@ -134,6 +140,7 @@ export function LibrariesPage({ cloud, onBack, onCreateFromText }: Props) {
         {!cloud.email && <p className="muted">Sin sesión iniciada: los tableros solo están en este dispositivo.</p>}
       </main>
       {sharing && <SharePanel cloud={cloud} info={sharing} onClose={() => setSharing(null)} />}
+      {versionsOf && <VersionsPanel cloud={cloud} info={versionsOf} onClose={() => setVersionsOf(null)} onRestored={onBack} />}
     </div>
   )
 }
@@ -153,6 +160,11 @@ function BoardThumb({ id, cloud }: { id: string; cloud: CloudSync }) {
 
   if (board === undefined) return <div className="thumb thumb-empty">Cargando…</div>
   if (!board) return <div className="thumb thumb-empty">Sin vista previa</div>
+  return <BoardThumbView board={board} />
+}
+
+/** La miniatura de un tablero principal */
+function BoardThumbView({ board }: { board: Board }) {
   return (
     <>
     {board.dynamic?.enabled && <span className="thumb-badge">Dinámico</span>}
@@ -276,6 +288,70 @@ function SharePanel({ cloud, info, onClose }: { cloud: CloudSync; info: LibraryI
           Listo
         </button>
       </footer>
+    </Modal>
+  )
+}
+
+const when = (iso: string) =>
+  new Date(iso).toLocaleString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+/** Las 5 últimas versiones de un tablero: cómo estaba, cuándo y quién; «Restaurar» vuelve a ella */
+function VersionsPanel({ cloud, info, onClose, onRestored }: { cloud: CloudSync; info: LibraryInfo; onClose: () => void; onRestored: () => void }) {
+  const [list, setList] = useState<LibraryVersion[] | null>(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    cloud
+      .versions(info.id)
+      .then(setList)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+  }, [info.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const restore = async (v: LibraryVersion) => {
+    if (!confirm(`¿Volver «${info.name}» a como estaba el ${when(v.created_at)}? Antes se guarda cómo está ahora, así que podrás deshacerlo desde aquí.`)) return
+    setBusy(true)
+    try {
+      if (cloud.activeId !== info.id) await cloud.open(info.id)
+      await cloud.restoreVersion(v)
+      onClose()
+      onRestored()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={`Versiones de «${info.name}»`} onClose={onClose} wide>
+      <p className="muted">
+        Se guarda una versión cada vez que sales de «Editar» con cambios (cómo estaba antes) y antes de restaurar. Se conservan las 5 últimas.
+      </p>
+      {error && <p className="error">{error}</p>}
+      {!list && !error && <p>Cargando…</p>}
+      {list && !list.length && <p>Todavía no hay versiones: se guardará la primera la próxima vez que edites y guardes.</p>}
+      {list && list.length > 0 && (
+        <ul className="versions-list">
+          {list.map((v) => {
+            const root = v.data.boards?.[v.data.rootId]
+            return (
+              <li key={v.id} className="version-card">
+                <div className="version-thumb">{root ? <BoardThumbView board={root} /> : <div className="thumb thumb-empty">Sin vista previa</div>}</div>
+                <div className="version-info">
+                  <strong>{when(v.created_at)}</strong>
+                  <small className="muted">
+                    {v.reason}
+                    {v.author_email ? ` · ${v.author_email}` : ''} · {Object.keys(v.data.boards ?? {}).length - 1} carpetas
+                  </small>
+                </div>
+                <button type="button" className="primary" disabled={busy} onClick={() => void restore(v)}>
+                  Restaurar
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </Modal>
   )
 }

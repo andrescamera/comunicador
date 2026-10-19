@@ -5,7 +5,9 @@ import {
   deleteRemote,
   fetchMyLibraries,
   fetchRootBoard,
+  fetchVersions,
   leaveRemote,
+  type LibraryVersion,
   type LibraryInfo,
   libraryAccess,
   migrateLibrary,
@@ -14,6 +16,7 @@ import {
   type Registry,
   renameRemote,
   type Role,
+  saveVersionRemote,
   shareLibrary,
   unshareLibrary,
 } from './libraries'
@@ -463,6 +466,28 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
       if (!next.activeId) next = addLocal(next, await makeStarter(), STARTER_NAME)
       saveRegistry(next)
       if (curRef.current?.id !== next.activeId) await openLocal(next.activeId)
+    },
+    // Versiones: las 5 últimas de cada tablero de la cuenta, para volver a un estado anterior
+    /** Guarda una versión del tablero abierto (o de `lib`, p. ej. cómo estaba antes de editar). false si no está en la cuenta. */
+    saveVersion: async (reason: string, lib?: Library): Promise<boolean> => {
+      const c = curRef.current
+      const info = c ? regRef.current?.items[c.id] : undefined
+      const data = lib ?? c?.lib
+      if (!c || !data || !userId || !info?.synced || info.role === 'viewer') return false
+      await saveVersionRemote(supabase, c.id, data, reason, userId)
+      return true
+    },
+    versions: (id: string): Promise<LibraryVersion[]> => {
+      requireOnline()
+      return fetchVersions(supabase, id)
+    },
+    /** Vuelve el tablero abierto a una versión (antes guarda cómo estaba, para poder deshacerlo) */
+    restoreVersion: async (version: LibraryVersion) => {
+      const uid = requireOnline()
+      const c = curRef.current
+      if (!c?.lib) return
+      await saveVersionRemote(supabase, c.id, c.lib, 'Antes de restaurar', uid)
+      setLib(migrateLibrary(version.data))
     },
     /** Volver a pedir la lista a la cuenta (p. ej. al abrir la vista de tableros) */
     refresh: async () => {

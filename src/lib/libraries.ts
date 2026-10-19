@@ -122,3 +122,21 @@ export async function fetchRootBoard(sb: SupabaseClient, libraryId: string, root
   const rows = (await check(sb.from('boards').select('data').eq('library_id', libraryId).eq('id', rootId).eq('deleted', false))) as { data: Board | null }[]
   return rows[0]?.data ?? null
 }
+
+// ---------- Versiones (las 5 últimas de cada tablero; se recortan en el servidor) ----------
+
+export interface LibraryVersion {
+  id: number
+  created_at: string
+  author_email: string | null
+  reason: string
+  data: Library
+}
+
+export const saveVersionRemote = (sb: SupabaseClient, libraryId: string, data: Library, reason: string, userId: string) =>
+  check(sb.from('library_versions').insert({ library_id: libraryId, data, reason, created_by: userId }))
+
+export const fetchVersions = async (sb: SupabaseClient, libraryId: string) =>
+  ((await check(
+    sb.from('library_versions').select('id, created_at, author_email, reason, data').eq('library_id', libraryId).order('created_at', { ascending: false }),
+  )) ?? []) as LibraryVersion[]

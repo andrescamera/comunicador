@@ -496,7 +496,16 @@ export default function App() {
                       : discardEdits()
                   }
                 />
-                <ToolBtn text="✓ Guardar" primary onPress={() => (setEditing(false), setMovingId(null))} />
+                <ToolBtn
+                  text="✓ Guardar"
+                  primary
+                  onPress={() => {
+                    // Al guardar con cambios: versión de cómo estaba antes de editar (para poder volver a ella)
+                    if (editChanged() && beforeEdit.current) void cloud.saveVersion('Antes de editar', beforeEdit.current).catch(() => undefined)
+                    setEditing(false)
+                    setMovingId(null)
+                  }}
+                />
               </View>
             )}
 

@@ -565,6 +565,8 @@ export default function App() {
               type="button"
               className={editing ? 'primary' : ''}
               onClick={() => {
+                // Al guardar con cambios: versión de cómo estaba antes de editar (para poder volver a ella)
+                if (editing && editChanged() && beforeEdit.current) void cloud.saveVersion('Antes de editar', beforeEdit.current).catch(() => undefined)
                 setEditing((e) => !e)
                 setMovingId(null)
                 cancelAutoClear()
