@@ -198,6 +198,19 @@ describe('tablero escrito: cambios', () => {
     expect(ctx('\tvosotros')).toMatchObject({ title: 'Inicio › más (en la zona de carpetas)', highlight: { r0: 0, r1: 1, c0: 1, c1: 2 } })
   })
 
+  it('una subcarpeta de una carpeta por páginas se abre en la misma zona: ida y vuelta sin cambios', () => {
+    const lib = sample()
+    // «Comida» no cabe en su zona (4 casillas): va por páginas; su subcarpeta «Frutas» sí cabe y se abre en la zona
+    lib.boards['b-comida'].cells = ['agua', 'leche', 'pan', 'sal', 'uva'].map((l, i) => w(l, l, i, 0))
+    lib.boards['b-comida'].inZone = false
+    lib.boards['b-comida'].cells.push(folder('frutas', 'Frutas', 0, 3, 'b-frutas'))
+    lib.boards['b-frutas'] = { ...lib.boards['b-comida'], id: 'b-frutas', name: 'Frutas', inZone: true, cells: [w('pera', 'pera', 1, 1), w('kiwi', 'kiwi', 0, 2)] }
+    const p = plan(lib, boardToText(lib))
+    expect(p.errors).toEqual([])
+    expect(p.changes).toEqual([])
+    expect(pos(p.lib!, 'b-frutas', 'pera')).toEqual([1, 1])
+  })
+
   it('también con espacios en vez de tabuladores', () => {
     const lib = sample()
     const p = plan(lib, boardToText(lib).replace(/\t/g, '        '))

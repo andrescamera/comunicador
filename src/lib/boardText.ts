@@ -487,8 +487,9 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
 
   const streamCount = (t: TBoard) => t.items.filter((it) => it.group < 0 && !(it.type === 'cell' && it.opts.row !== undefined)).length
 
-  // `paged`: carpeta de la zona de carpetas que no cabe en ella (por páginas: su orden es lo que cuenta, no su casilla)
-  function buildBoard(t: TBoard, old: Board | undefined, path: string, isRoot: boolean, zone: Area | undefined, paged = false): Board {
+  // `paged`: carpeta de la zona de carpetas que no cabe en ella (por páginas: su orden es lo que cuenta, no su casilla).
+  // `opensIn`: la zona en la que se abre (aunque vaya por páginas); sus subcarpetas se abren en la misma.
+  function buildBoard(t: TBoard, old: Board | undefined, path: string, isRoot: boolean, zone: Area | undefined, paged = false, opensIn = zone): Board {
     const id = old?.id ?? uid('b')
     used.add(id)
     const groups = buildGroups(t, old, isRoot, zone)
@@ -587,16 +588,17 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
         // En el principal: en la zona de carpetas si está en ella; un «más» (en un grupo de color), en la de ampliación
         const at = (g: Group) => insideArea(g.area, slot.row, slot.col)
         let childZone = !isRoot
-          ? zone
+          ? opensIn
           : (groups.find((g) => g.folders && at(g))?.area ??
             (groups.some((g) => !g.folders && g.color && at(g)) ? groups.find((g) => g.folders)?.area : undefined))
         if (isRoot && it.opts.expansion) childZone = it.opts.expansion
         let paged = false
+        const childOpensIn = childZone
         if (childZone && !children.groups.length && streamCount(children) > areaSize(childZone)) {
           childZone = undefined
           paged = true
         }
-        const sub = buildBoard(children, prevBoard, `${path} › ${it.label}`, false, childZone, paged)
+        const sub = buildBoard(children, prevBoard, `${path} › ${it.label}`, false, childZone, paged, childOpensIn)
         cell = { ...(prev?.kind === 'folder' ? prev : {}), id: prev?.id ?? uid('c'), kind: 'folder', label: it.label, category: prev?.category ?? 'misc', picto: prev?.picto, target: sub.id, row: slot.row, col: slot.col }
         delete cell.textOnly
         if (it.opts.color) cell.folderColor = it.opts.color
