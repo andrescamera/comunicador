@@ -3,7 +3,7 @@ import { useKeepAwake } from 'expo-keep-awake'
 import { NavigationBar } from 'expo-navigation-bar'
 import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native'
+import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { BoardView } from './src/components/BoardView'
 import { CellEditor } from './src/components/CellEditor'
 import { Creator } from './src/components/Creator'
@@ -105,6 +105,13 @@ export default function App() {
     onOpened: () => (setHistory([]), setSentence([]), setEditing(false)),
   })
   const { lib, setLib, readOnly } = cloud
+  // Al volver a la app (estaba en segundo plano): sincronizar ya, sin esperar a un aviso del servidor
+  const syncNow = useRef(cloud.syncNow)
+  syncNow.current = cloud.syncNow
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => state === 'active' && void syncNow.current())
+    return () => sub.remove()
+  }, [])
 
   // Edición: copia al entrar, para poder salir sin guardar («Cancelar» la recupera)
   const beforeEdit = useRef<typeof lib>(null)

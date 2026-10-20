@@ -269,6 +269,23 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
     engine.current?.notifyLocalChange()
   }, [current, store])
 
+  // Al volver a la pestaña o a la app, o al recuperar la conexión: sincronizar ya (en segundo plano el
+  // navegador puede cortar la conexión en directo y se perderían los avisos de cambios de otros sitios)
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof window === 'undefined' || !window.addEventListener) return
+    const resync = () => {
+      if (document.visibilityState !== 'hidden') void engine.current?.sync()
+    }
+    document.addEventListener('visibilitychange', resync)
+    window.addEventListener('online', resync)
+    window.addEventListener('focus', resync)
+    return () => {
+      document.removeEventListener('visibilitychange', resync)
+      window.removeEventListener('online', resync)
+      window.removeEventListener('focus', resync)
+    }
+  }, [])
+
   // Alguien me comparte un tablero: la lista se actualiza sola
   useEffect(() => {
     if (!linked || !userId) return
