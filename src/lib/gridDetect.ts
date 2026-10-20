@@ -136,10 +136,15 @@ export function edgeBands(img: Pixels, rowBands: Band[]): Band[] {
  * de color uniforme que las separan. Devuelve null si no hay una cuadrícula clara.
  */
 export function detectGrid(img: Pixels): DetectedGrid | null {
-  return detectByGaps(img) ?? detectByPeriod(img)
+  // Dos métodos: por los huecos de un color y por la repetición de los bordes. Cada uno falla en
+  // imágenes distintas (sombras, fondos claros, casillas que faltan): gana el que encuentra más casillas.
+  const byGaps = detectByGaps(img)
+  const byPeriod = detectByPeriod(img)
+  if (!byGaps || !byPeriod) return byGaps ?? byPeriod
+  return byPeriod.cells.length > byGaps.cells.length ? byPeriod : byGaps
 }
 
-function detectByGaps(img: Pixels): DetectedGrid | null {
+export function detectByGaps(img: Pixels): DetectedGrid | null {
   const { width, height, data } = img
   const rowValues: number[] = []
   for (let y = 0; y < height; y++) rowValues.push(uniformity(data, y * width * 4, 4, width))
@@ -240,7 +245,7 @@ export function periodicBands(p: number[], k: number): Band[] {
   return out
 }
 
-function detectByPeriod(img: Pixels): DetectedGrid | null {
+export function detectByPeriod(img: Pixels): DetectedGrid | null {
   const py = edgeProfile(img, 'y')
   const px = edgeProfile(img, 'x')
   const ky = period(py)

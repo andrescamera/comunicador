@@ -111,7 +111,10 @@ export async function readBoardPhoto(file: Blob, onProgress?: (p: number) => voi
         if (cand) candidates.push(cand)
       }
       // Gana una lectura que sea palabra conocida o con pictograma («primero» antes que «imero»)
-      const label = pickLabel(candidates, (w) => isKnownWord(w) || isPictoWord(w))
+      const known = (w: string) => isKnownWord(w) || isPictoWord(w)
+      let label = pickLabel(candidates, known)
+      // Restos de un dibujo o de un botón encima de la captura («ae», «ii»): muy corto y no es una palabra
+      if (label && label.replace(/[^\p{L}]/gu, '').length <= 3 && !known(label.toLowerCase())) label = ''
       read.push({ row: c.row, col: c.col, label })
       onProgress?.((i + 1) / found.cells.length)
     }
