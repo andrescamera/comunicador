@@ -245,6 +245,33 @@ export function periodicBands(p: number[], k: number): Band[] {
   return out
 }
 
+/**
+ * Lados verticales de verdad: para cada x, en cuántas filas de casillas hay una línea de borde que
+ * cubre buena parte de su alto (los bordes, aunque sean discontinuos). Los dibujos, aunque estén
+ * alineados en columna, no llegan: así no parten las casillas por la mitad.
+ */
+function longVerticalEdges(img: Pixels, rowBands: Band[]): number[] {
+  const { width, data } = img
+  const lum = (x: number, y: number) => {
+    const i = (y * width + x) * 4
+    return data[i] + data[i + 1] + data[i + 2]
+  }
+  const out = new Array<number>(width).fill(0)
+  for (const band of rowBands) {
+    const h = size(band)
+    for (let x = 1; x < width - 1; x++) {
+      let covered = 0
+      let lastEdge = -100
+      for (let y = band.start; y < band.end; y++) {
+        if (Math.abs(lum(x + 1, y) - lum(x - 1, y)) > EDGE) lastEdge = y
+        if (y - lastEdge <= 4) covered++ // los huecos de un borde discontinuo cuentan
+      }
+      if (covered >= h * 0.6) out[x]++
+    }
+  }
+  return out
+}
+
 export function detectByPeriod(img: Pixels): DetectedGrid | null {
   const py = edgeProfile(img, 'y')
   const px = edgeProfile(img, 'x')
@@ -252,7 +279,14 @@ export function detectByPeriod(img: Pixels): DetectedGrid | null {
   const kx = period(px)
   if (!ky || !kx) return null
   const rowBands = periodicBands(py, ky)
-  const colBands = periodicBands(px, kx)
+  if (rowBands.length < 2) return null
+  let colBands = periodicBands(px, kx)
+  // Con dibujos alineados en columna, los lados se buscan solo con las líneas largas
+  const sides = longVerticalEdges(img, rowBands)
+  if (Math.max(...sides) >= 2) {
+    const byLong = periodicBands(sides, kx)
+    if (byLong.length > colBands.length) colBands = byLong
+  }
   if (rowBands.length < 2 || colBands.length < 2) return null
   const cells: CellRect[] = []
   rowBands.forEach((r, row) => colBands.forEach((c, col) => cells.push({ row, col, x: c.start, y: r.start, width: size(c), height: size(r) })))

@@ -86,8 +86,19 @@ export function cellCandidate(lines: ScoredLine[]): LabelCandidate | null {
  * conocida gana esa (una lectura muy segura de un trozo de dibujo no debe tapar a «yo»).
  */
 export function pickLabel(candidates: LabelCandidate[], isKnown: (word: string) => boolean = isKnownWord): string {
+  return pickCandidate(candidates, isKnown)?.text ?? ''
+}
+
+/**
+ * Como `pickLabel`, con su puntuación. Si una lectura es el principio de otra igual de segura
+ * («sal» y «salir»), gana la larga: al leer se pierden letras del final más que se inventan.
+ */
+export function pickCandidate(candidates: LabelCandidate[], isKnown: (word: string) => boolean = isKnownWord): LabelCandidate | null {
   const bare = (t: string) => t.replace(/^[¿¡"“(]+|[?!.,;:"”)]+$/g, '').toLowerCase()
   const known = candidates.filter((c) => isKnown(bare(c.text)))
-  const pool = known.length ? known : candidates
-  return [...pool].sort((a, b) => b.score - a.score)[0]?.text ?? ''
+  const pool = [...(known.length ? known : candidates)].sort((a, b) => b.score - a.score)
+  const best = pool[0]
+  if (!best) return null
+  const longer = pool.find((c) => c.text.length > best.text.length && bare(c.text).startsWith(bare(best.text)) && c.score >= best.score - 10)
+  return longer ?? best
 }

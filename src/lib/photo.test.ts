@@ -221,3 +221,11 @@ describe('casillas leídas una a una', async () => {
     expect(cleanLabel('Quiero', false)).toBe('querer')
   })
 })
+
+describe('elegir la lectura de una casilla', async () => {
+  const { pickCandidate } = await import('./ocrClean')
+  it('si una lectura es el principio de otra igual de segura, gana la larga («sal» → «salir»)', () => {
+    expect(pickCandidate([{ text: 'sal', score: 96 }, { text: 'salir', score: 94 }], () => true)?.text).toBe('salir')
+    expect(pickCandidate([{ text: 'sal', score: 96 }, { text: 'salir', score: 60 }], () => true)?.text).toBe('sal')
+  })
+})

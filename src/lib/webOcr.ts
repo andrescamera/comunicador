@@ -1,6 +1,6 @@
 import { type CellRect, detectGrid } from './gridDetect'
 import type { PSM } from 'tesseract.js'
-import { cellCandidate, cleanOcrLines, type LabelCandidate, pickLabel, type ScoredLine } from './ocrClean'
+import { cellCandidate, cleanOcrLines, type LabelCandidate, pickCandidate, type ScoredLine } from './ocrClean'
 import { isKnownWord } from './grammar'
 import { isPictoWord, loadWords } from './suggest'
 import { gridFromCells, gridFromLines, type PhotoCell, type PhotoGrid, type TextLine } from './photo'
@@ -112,9 +112,10 @@ export async function readBoardPhoto(file: Blob, onProgress?: (p: number) => voi
       }
       // Gana una lectura que sea palabra conocida o con pictograma («primero» antes que «imero»)
       const known = (w: string) => isKnownWord(w) || isPictoWord(w)
-      let label = pickLabel(candidates, known)
-      // Restos de un dibujo o de un botón encima de la captura («ae», «ii»): muy corto y no es una palabra
-      if (label && label.replace(/[^\p{L}]/gu, '').length <= 3 && !known(label.toLowerCase())) label = ''
+      const best = pickCandidate(candidates, known)
+      let label = best?.text ?? ''
+      // Restos de un dibujo o de un botón encima de la captura («ae», «ii»): corto, desconocido y poco seguro
+      if (best && label.replace(/[^\p{L}]/gu, '').length <= 3 && !known(label.toLowerCase()) && best.score < 85) label = ''
       read.push({ row: c.row, col: c.col, label })
       onProgress?.((i + 1) / found.cells.length)
     }
