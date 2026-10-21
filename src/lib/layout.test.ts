@@ -306,3 +306,31 @@ describe('fichas desde una foto', async () => {
     expect(r.noRoom).toEqual(['vaca'])
   })
 })
+
+describe('cambiar la zona de carpetas', async () => {
+  const { setFolderZone, boardGroups: groupsOf, folderArea: zoneOfFolder } = await import('./layout')
+  const mk = (id: string, label: string, row: number, col: number, kind: Cell['kind'] = 'word', category: Cell['category'] = 'misc'): Cell => ({ id, label, kind, category, row, col, ...(kind === 'folder' ? { target: 'x' } : {}) })
+  const root: Board = {
+    id: 'r', name: 'Inicio', rows: 4, cols: 6, zones: computeZones({ A: 1, B: 1, C: 1, D: 1, E: 1 }, 4, 6),
+    groups: [
+      { id: 'g1', name: 'Palabras', area: { r0: 0, r1: 3, c0: 0, c1: 3 }, color: 'misc' },
+      { id: 'g2', name: 'Carpetas', area: { r0: 0, r1: 1, c0: 4, c1: 5 }, folders: true },
+    ],
+    cells: [mk('a', 'a', 0, 0), mk('b', 'b', 3, 3), mk('f1', 'animales', 0, 4, 'folder'), mk('f2', 'comida', 2, 5, 'folder')],
+  }
+
+  it('recorta los grupos que pisa, avisa de lo que queda dentro o fuera y no mueve nada', () => {
+    const r = setFolderZone(root, { r0: 2, r1: 3, c0: 3, c1: 5 })
+    expect(r.trimmed).toEqual(['Palabras'])
+    expect(r.outside).toEqual(['animales'])
+    expect(r.inside).toEqual(['b'])
+    const g = groupsOf(r.board, true)
+    expect(g.filter((x) => x.folders).map((x) => x.area)).toEqual([{ r0: 2, r1: 3, c0: 3, c1: 5 }])
+    expect(g.filter((x) => !x.folders).map((x) => [x.name, x.area])).toEqual([
+      ['Palabras', { r0: 0, r1: 1, c0: 0, c1: 3 }],
+      ['Palabras 2', { r0: 2, r1: 3, c0: 0, c1: 2 }],
+    ])
+    expect(r.board.cells).toBe(root.cells)
+    expect(zoneOfFolder(r.board, 'f2')).toEqual({ r0: 2, r1: 3, c0: 3, c1: 5 })
+  })
+})

@@ -1714,3 +1714,15 @@ p.ok {
     grid-template-columns: 1fr;
   }
 }
+.folder-zone-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  white-space: normal;
+  width: 320px;
+}
+.folder-zone-editor p {
+  margin: 0;
+}

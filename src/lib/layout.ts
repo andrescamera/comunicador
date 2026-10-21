@@ -673,3 +673,68 @@ export function importCells(board: Board, cells: Cell[], opts: { isRoot: boolean
   result.board = { ...board, cells: [...live(), ...result.added] }
   return result
 }
+
+// ---------- Cambiar la zona de carpetas ----------
+
+/** Rectángulo `a` menos `b`: los trozos que quedan (hasta 4, sin solaparse) */
+function subtractArea(a: Area, b: Area): Area[] {
+  if (!overlaps(a, b)) return [a]
+  const out: Area[] = []
+  if (b.r0 > a.r0) out.push({ ...a, r1: b.r0 - 1 })
+  if (b.r1 < a.r1) out.push({ ...a, r0: b.r1 + 1 })
+  const r0 = Math.max(a.r0, b.r0), r1 = Math.min(a.r1, b.r1)
+  if (b.c0 > a.c0) out.push({ r0, r1, c0: a.c0, c1: b.c0 - 1 })
+  if (b.c1 < a.c1) out.push({ r0, r1, c0: b.c1 + 1, c1: a.c1 })
+  return out
+}
+
+export interface FolderZoneChange {
+  board: Board
+  trimmed: string[] // grupos que se recortan para dejarle sitio
+  removed: string[] // grupos que quedan dentro del todo y desaparecen
+  outside: string[] // carpetas que quedan fuera de la zona
+  inside: string[] // fichas (no carpetas) que quedan dentro de la zona
+}
+
+/**
+ * Pone la zona de carpetas del principal en `area` (una sola): los grupos que pisa se recortan
+ * para dejarle sitio. Ninguna ficha se mueve; se avisa de lo que queda dentro o fuera.
+ */
+export function setFolderZone(root: Board, area: Area): FolderZoneChange {
+  const before = boardGroups(root, true)
+  const out: FolderZoneChange = { board: root, trimmed: [], removed: [], outside: [], inside: [] }
+  const groups: Group[] = []
+  for (const g of before) {
+    if (g.folders) continue
+    const pieces = subtractArea(g.area, area)
+    if (!pieces.length) {
+      out.removed.push(g.name)
+      continue
+    }
+    if (pieces.length !== 1 || pieces[0] !== g.area) out.trimmed.push(g.name)
+    pieces.forEach((p, i) => groups.push({ ...g, id: i ? `${g.id}-${i}` : g.id, name: g.name, area: p }))
+  }
+  // Nombres sin repetir: «Social», «Social 2»… (sin «Social 2 2»)
+  const taken = new Set<string>()
+  for (const g of groups) {
+    if (!taken.has(g.name)) {
+      taken.add(g.name)
+      continue
+    }
+    const base = g.name.replace(/ \d+$/, '')
+    let n = 2
+    while (taken.has(`${base} ${n}`)) n++
+    g.name = `${base} ${n}`
+    taken.add(g.name)
+  }
+  const old = before.find((g) => g.folders)
+  groups.push({ id: old && !old.id.startsWith('auto-') ? old.id : `g-carpetas-${Date.now().toString(36)}`, name: old?.name ?? 'Carpetas', area, folders: true })
+  groups.sort((a, b) => a.area.c0 - b.area.c0 || a.area.r0 - b.area.r0)
+  for (const c of root.cells) {
+    const inZone = insideArea(area, c.row, c.col)
+    if (c.kind === 'folder' && !inZone && !c.expansion && !groups.some((g) => g.color && insideArea(g.area, c.row, c.col))) out.outside.push(c.label)
+    if (c.kind !== 'folder' && inZone) out.inside.push(c.label)
+  }
+  out.board = { ...root, groups: groups.map((g) => (g.id.startsWith('auto-') ? { ...g, id: `g-${g.id.slice(5)}-${Date.now().toString(36)}` } : g)) }
+  return out
+}

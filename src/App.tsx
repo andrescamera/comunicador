@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BoardTextPage } from './components/BoardTextPage'
+import { FolderZoneEditor } from './components/FolderZoneEditor'
 import { PhotoImport } from './components/PhotoImport'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
@@ -450,7 +451,7 @@ export default function App() {
                 aria-label="Nombre del tablero"
               />
               <span className="popover-wrap">
-                <button type="button" onClick={() => setOpenMenu((m) => (m === 'size' ? null : 'size'))} title="Filas y columnas (las mismas en todos los tableros)" aria-expanded={openMenu === 'size'}>
+                <button type="button" onClick={() => setOpenMenu((m) => (m === 'size' ? null : 'size'))} title="Filas y columnas (las mismas en todos los tableros) y zona de carpetas" aria-expanded={openMenu === 'size'}>
                   ▦ {board.rows} × {board.cols}
                 </button>
                 {openMenu === 'size' && (
@@ -467,6 +468,17 @@ export default function App() {
                       <strong>{board.cols}</strong>
                       <button type="button" onClick={() => resize(board.rows, Math.min(16, board.cols + 1))} aria-label="Añadir columna">+</button>
                     </div>
+                    {board.id === lib.rootId && (
+                      <FolderZoneEditor
+                        key={board.rows * 100 + board.cols}
+                        root={board}
+                        onApply={(next) => {
+                          updateBoard(board.id, () => next)
+                          setOpenMenu(null)
+                          setNotice('Zona de carpetas guardada. Las carpetas se abren ahora ahí. Se puede deshacer con «↶» o Ctrl+Z.')
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </span>
