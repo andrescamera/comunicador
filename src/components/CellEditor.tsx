@@ -4,7 +4,7 @@ import { FOLDER_TEMPLATES } from '../lib/generator'
 import { classify, normalizeText } from '../lib/grammar'
 import { CATEGORY_LABELS, type Category, type Cell, type Group } from '../lib/types'
 import { ExpansionPicker } from './ExpansionPicker'
-import { squareJpeg } from '../lib/imageResize'
+import { PhotoCropper } from './PhotoCropper'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
 import { WordInput } from './WordInput'
@@ -44,12 +44,14 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
   const [results, setResults] = useState<PictoResult[]>([])
   const [uploading, setUploading] = useState(false)
   const [photoError, setPhotoError] = useState('')
-  const pickPhoto = async (file: File) => {
+  const [cropping, setCropping] = useState<File | null>(null) // foto elegida: primero se recorta
+  const pickPhoto = async (jpeg: Blob) => {
+    setCropping(null)
     if (!onUploadPhoto) return
     setUploading(true)
     setPhotoError('')
     try {
-      const photo = await onUploadPhoto(await squareJpeg(file))
+      const photo = await onUploadPhoto(jpeg)
       setDraft((d) => ({ ...d, photo }))
     } catch (e) {
       setPhotoError(e instanceof Error ? e.message : String(e))
@@ -105,7 +107,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                   onChange={(e) => {
                     const f = e.target.files?.[0]
                     e.target.value = ''
-                    if (f) void pickPhoto(f)
+                    if (f) setCropping(f)
                   }}
                 />
               </label>
@@ -258,6 +260,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         </button>
       </footer>
       <p className="credit">Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA</p>
+      {cropping && <PhotoCropper file={cropping} onDone={(jpeg) => void pickPhoto(jpeg)} onCancel={() => setCropping(null)} />}
     </Modal>
   )
 }
