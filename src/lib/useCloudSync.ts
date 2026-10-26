@@ -266,7 +266,8 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
   useEffect(() => {
     if (!current?.lib) return
     store.set(libKey(current.id), JSON.stringify(current.lib))
-    engine.current?.notifyLocalChange()
+    engine.current?.notifyLocalChange(automaticChange.current)
+    automaticChange.current = false
   }, [current, store])
 
   // Al volver a la pestaña o a la app, o al recuperar la conexión: sincronizar ya (en segundo plano el
@@ -341,12 +342,15 @@ export function useLibraries({ supabase, store, makeStarter, onOpened, onSignedO
    * Cambiar el tablero abierto. Por defecto se puede deshacer; los ajustes automáticos
    * (cuadrícula común, pictogramas que se completan solos) pasan `{ record: false }`.
    */
+  const automaticChange = useRef(false)
   const setLib = useCallback(
     (update: LibUpdate, opts: { record?: boolean } = {}) => {
       const c = curRef.current
       if (!c) return
       const lib = typeof update === 'function' ? update(c.lib) : update
       if (lib === c.lib) return
+      // record: false = ajuste automático de la app (no se deshace y no gana conflictos al sincronizar)
+      automaticChange.current = opts.record === false
       if (opts.record !== false && c.lib) {
         const h = history.current
         if (h.id !== c.id) history.current = { id: c.id, past: [], future: [], last: 0 }

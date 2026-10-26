@@ -71,6 +71,15 @@ describe('planSync', () => {
     expect(kinds(planSync(lib(mine), [remote(theirs, 'a', T2)], meta2))).toEqual(['backup:a', 'pull:a'])
   })
 
+  it('conflicto con un ajuste automático (copia vieja abierta en otro dispositivo): gana el servidor, sin copia', () => {
+    const base = board('a', 'base')
+    const old = board('a', 'copia vieja recolocada al abrir')
+    const edited = board('a', 'editado hace días en la web')
+    // el ajuste automático se anota con 0, aunque ocurra «ahora»: pierde ante lo editado días antes
+    const meta = { ...synced([base, T1]), dirtySince: { a: 0 } }
+    expect(kinds(planSync(lib(old), [remote(edited, 'a', T2)], meta))).toEqual(['pull:a'])
+  })
+
   it('same content on both sides only settles the metadata', () => {
     const a = board('a')
     expect(kinds(planSync(lib(a), [remote(a, 'a', T2)], emptyMeta()))).toEqual(['settle:a'])
@@ -100,5 +109,15 @@ describe('markDirty', () => {
     expect(markDirty(edited, meta, 1000)).toBe(true)
     expect(markDirty(edited, meta, 5000)).toBe(false)
     expect(meta.dirtySince.a).toBe(1000)
+  })
+
+  it('un ajuste automático se anota con 0; si después la persona edita ese tablero, cuenta su hora', () => {
+    const meta = synced([board('a'), T1], [board('b'), T1])
+    const auto = lib(board('a', 'recolocado'), board('b', 'recolocado'))
+    expect(markDirty(auto, meta, 0)).toBe(true)
+    expect(meta.dirtySince).toEqual({ a: 0, b: 0 })
+    // la persona edita «a»: su hora cuenta; «b» sigue siendo automático
+    expect(markDirty(lib(board('a', 'editado'), board('b', 'recolocado')), meta, 5000, new Set(['a']))).toBe(true)
+    expect(meta.dirtySince).toEqual({ a: 5000, b: 0 })
   })
 })

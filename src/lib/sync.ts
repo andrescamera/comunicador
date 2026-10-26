@@ -22,7 +22,7 @@ export interface SyncMeta {
   libraryId?: string
   rootSynced?: string
   boards: Record<string, SyncedBoard>
-  dirtySince: Record<string, number> // primer cambio local todavía sin subir
+  dirtySince: Record<string, number> // primer cambio local todavía sin subir (0 = solo ajustes automáticos: pierde los conflictos)
 }
 
 export const emptyMeta = (): SyncMeta => ({ boards: {}, dirtySince: {} })
@@ -99,35 +99,40 @@ export function planSync(local: Library, remote: RemoteBoard[], meta: SyncMeta, 
     }
 
     // Conflicto: cambió en los dos lados. Gana el más reciente; el otro se guarda como copia.
-    const localTime = meta.dirtySince[id] ?? now
+    // Un ajuste automático (dirtySince 0: colocar fichas, completar pictogramas…) nunca gana: se
+    // vuelve a hacer sobre lo que llega (así una copia vieja de otro dispositivo no pisa lo editado)
+    const localTime = meta.dirtySince[id] ?? 0
     const remoteTime = Date.parse(R!.updated_at)
     if (localTime > remoteTime) {
       if (remoteAlive) actions.push({ type: 'backup', id, board: R!.data!, at: R!.updated_at })
       actions.push(L ? { type: 'push', id, board: L } : { type: 'pushDelete', id })
     } else {
-      if (L) actions.push({ type: 'backup', id, board: L, at: new Date(localTime).toISOString() })
+      if (L && localTime > 0) actions.push({ type: 'backup', id, board: L, at: new Date(localTime).toISOString() })
       actions.push(remoteAlive ? { type: 'pull', id, board: R!.data!, remoteAt: R!.updated_at } : { type: 'pullDelete', id, remoteAt: R!.updated_at })
     }
   }
   return actions
 }
 
-/** Anota cuándo empezó cada cambio local pendiente (sirve para decidir conflictos). */
-export function markDirty(local: Library, meta: SyncMeta, now = Date.now()): boolean {
+/**
+ * Anota cuándo empezó cada cambio local pendiente (sirve para decidir conflictos). `stamp` 0 =
+ * cambio automático o de origen desconocido: pierde ante cualquier cambio del servidor.
+ * `edited`: tableros que la persona acaba de cambiar (su hora cuenta aunque antes hubiera un ajuste automático).
+ */
+export function markDirty(local: Library, meta: SyncMeta, stamp = 0, edited?: Set<string>): boolean {
   let changed = false
+  const mark = (id: string) => {
+    const prev = meta.dirtySince[id]
+    if (prev === undefined || (prev === 0 && stamp > 0 && edited?.has(id))) {
+      meta.dirtySince[id] = edited && !edited.has(id) ? (prev ?? 0) : stamp
+      changed = prev !== meta.dirtySince[id] || changed
+    }
+  }
   for (const [id, b] of Object.entries(local.boards)) {
     const S = meta.boards[id]
-    if ((!S || S.hash !== hashBoard(b)) && meta.dirtySince[id] === undefined) {
-      meta.dirtySince[id] = now
-      changed = true
-    }
+    if (!S || S.hash !== hashBoard(b)) mark(id)
   }
-  for (const id of Object.keys(meta.boards)) {
-    if (!local.boards[id] && meta.dirtySince[id] === undefined) {
-      meta.dirtySince[id] = now
-      changed = true
-    }
-  }
+  for (const id of Object.keys(meta.boards)) if (!local.boards[id]) mark(id)
   return changed
 }
 
@@ -166,6 +171,16 @@ export class SyncEngine {
   private again = false
   private channel: RealtimeChannel | null = null
   private stopped = false
+  private seen = new Map<string, string>() // huella de cada tablero la última vez que se avisó de un cambio
+  private editedAt = new Map<string, number>() // tableros editados por la persona (y cuándo) aún sin anotar
+
+  /** Anota las ediciones de la persona con su hora (y el resto de cambios, como automáticos) */
+  private markEdits(lib: Library): boolean {
+    let changed = false
+    for (const [id, at] of this.editedAt) changed = markDirty(lib, this.meta, at, new Set([id])) || changed
+    this.editedAt.clear()
+    return changed
+  }
 
   constructor(
     private sb: SupabaseClient,
@@ -174,6 +189,8 @@ export class SyncEngine {
 
   async start(): Promise<void> {
     this.stopped = false
+    const lib = this.io.getLibrary()
+    if (lib) this.seen = new Map(Object.entries(lib.boards).map(([id, b]) => [id, hashBoard(b)]))
     this.meta = await this.io.loadMeta()
     const { data } = await this.sb.auth.getSession()
     if (!data.session) return this.io.onStatus({ state: 'signed-out' })
@@ -189,11 +206,22 @@ export class SyncEngine {
     this.channel = null
   }
 
-  /** Llamar tras cada cambio local: se sube a los ~2 s, agrupando cambios seguidos. */
-  notifyLocalChange(): void {
+  /**
+   * Llamar tras cada cambio local: se sube a los ~2 s, agrupando cambios seguidos.
+   * `automatic`: un ajuste que hace la app sola (no la persona): no gana conflictos.
+   */
+  notifyLocalChange(automatic = false): void {
     const lib = this.io.getLibrary()
-    if (!lib || !this.meta.userId) return
-    if (markDirty(lib, this.meta)) this.io.saveMeta(this.meta)
+    if (!lib) return
+    // Qué tableros cambian respecto a la última vez (los que ha tocado la persona, si no es automático)
+    const edited = new Set<string>()
+    for (const [id, b] of Object.entries(lib.boards)) if (this.seen.get(id) !== hashBoard(b)) edited.add(id)
+    for (const id of this.seen.keys()) if (!lib.boards[id]) edited.add(id)
+    this.seen = new Map(Object.entries(lib.boards).map(([id, b]) => [id, hashBoard(b)]))
+    if (!automatic) for (const id of edited) if (!this.editedAt.has(id)) this.editedAt.set(id, Date.now())
+    if (!this.meta.userId) return // aún arrancando: se anotan al sincronizar
+    const changed = this.markEdits(lib) || (automatic ? markDirty(lib, this.meta, 0) : false)
+    if (changed) this.io.saveMeta(this.meta)
     this.schedule(2000)
   }
 
@@ -219,7 +247,8 @@ export class SyncEngine {
       const libId = await this.ensureLibrary(lib)
       const remote = await this.fetchBoards(libId)
 
-      markDirty(lib, this.meta)
+      this.markEdits(lib)
+      markDirty(lib, this.meta, 0) // lo que no se avisó como edición (p. ej. ajustes al abrir) es automático
       const actions = planSync(lib, remote, this.meta, Date.now(), this.io.readOnly)
       await this.apply(libId, actions)
       await this.syncRoot(libId, lib)
