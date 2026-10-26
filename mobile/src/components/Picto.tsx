@@ -19,7 +19,7 @@ export function Picto({ id, size, photo }: { id?: number; size?: number; photo?:
   if (photo) {
     // La foto se guarda en el dispositivo por su ruta (no por el enlace temporal): sin conexión también se ve
     const uri = url ?? `https://foto.local/${photo}`
-    return <Image source={{ uri, cacheKey: photo }} style={[style, styles.photo]} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+    return <Image source={{ uri, cacheKey: photo }} style={[style, styles.photo]} contentFit="contain" cachePolicy="memory-disk" transition={0} />
   }
   if (!id) return <View style={[style, styles.empty]} />
   // memoria + disco: tras la primera carga funciona sin conexión y sin parpadeos
@@ -29,5 +29,5 @@ export function Picto({ id, size, photo }: { id?: number; size?: number; photo?:
 const styles = StyleSheet.create({
   flex: { flex: 1, width: '100%' },
   empty: { backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 8 },
-  photo: { borderRadius: 8 },
+  photo: { borderRadius: 8 }, // entera: es la parte que se eligió al recortarla
 })

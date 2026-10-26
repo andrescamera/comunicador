@@ -1727,9 +1727,9 @@ p.ok {
   margin: 0;
 }
 
-/* Foto propia en lugar del pictograma */
+/* Foto propia en lugar del pictograma: entera (es la parte que se eligió al recortarla) */
 .picto-photo {
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
 }
 .photo-actions {
