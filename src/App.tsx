@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BoardTextPage } from './components/BoardTextPage'
 import { FolderZoneEditor } from './components/FolderZoneEditor'
+import { uploadPhoto } from './lib/photos'
 import { PhotoImport } from './components/PhotoImport'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
@@ -681,6 +682,9 @@ export default function App() {
           onClose={() => setEditTarget(null)}
           onCreateFolder={(name, words, picto, color) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto, color)}
           suggestions={editTarget.isNew ? folderSuggestions(board, lib) : undefined}
+          onUploadPhoto={
+            cloud.email && cloud.active?.synced && cloud.activeId && !readOnly ? (blob) => uploadPhoto(supabase, cloud.activeId!, blob) : undefined
+          }
           expansionBoard={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && board.id === lib.rootId
               ? { rows: board.rows, cols: board.cols, groups: boardGroups(board, true) }

@@ -51,7 +51,7 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs,
             const { bg, border } = cellColors(t.category, t.kind)
             return (
               <View key={start + i} style={[styles.token, { width: tokenW, height: tokenH, backgroundColor: bg, borderColor: border }]}>
-                <Picto id={t.picto} />
+                <Picto id={t.picto} photo={t.photo} />
                 <Text style={[styles.word, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
                   {words[start + i]}
                 </Text>

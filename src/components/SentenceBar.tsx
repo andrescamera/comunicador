@@ -26,7 +26,7 @@ export function SentenceBar({ tokens, onSpeak, onBackspace, onClear, clearingMs 
         )}
         {tokens.map((t, i) => (
           <div key={i} className="sentence-token">
-            <Picto id={t.picto} alt={t.label} />
+            <Picto id={t.picto} photo={t.photo} alt={t.label} />
             <span>{words[i]}</span>
           </div>
         ))}

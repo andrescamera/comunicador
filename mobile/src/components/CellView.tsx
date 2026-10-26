@@ -52,7 +52,7 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
         </Text>
       ) : (
         <>
-          <Picto id={cell.picto} />
+          <Picto id={cell.picto} photo={cell.photo} />
           <Text style={[styles.label, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {label}
           </Text>

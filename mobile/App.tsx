@@ -46,6 +46,7 @@ import {
   missingWords,
   zoneOf,
   boardGroups,
+  uploadPhoto,
   folderArea,
   groupAt,
   isExpansionFolder,
@@ -564,6 +565,9 @@ export default function App() {
           isNew={editTarget.isNew}
           onSave={(c) => saveCell(c, editTarget.isNew)}
           onDelete={editTarget.isNew ? undefined : () => deleteCell(editTarget.cell.id)}
+          onUploadPhoto={
+            cloud.email && cloud.active?.synced && cloud.activeId && !readOnly ? (jpeg) => uploadPhoto(supabase, cloud.activeId!, jpeg) : undefined
+          }
           onStartMove={editTarget.isNew ? undefined : () => (setMovingId(editTarget.cell.id), setEditTarget(null))}
           onClose={() => setEditTarget(null)}
           onCreateFolder={(name, words, picto, color) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto, color)}

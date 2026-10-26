@@ -17,6 +17,7 @@ export interface Cell {
   label: string
   category: Category
   picto?: number // id de pictograma ARASAAC
+  photo?: string // foto propia en lugar del pictograma (ruta en el almacenamiento de la cuenta)
   target?: string // id del tablero destino (solo carpetas)
   // Posición fija: una celda nunca cambia de sitio sola (planificación motora)
   row: number

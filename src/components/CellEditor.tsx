@@ -4,6 +4,7 @@ import { FOLDER_TEMPLATES } from '../lib/generator'
 import { classify, normalizeText } from '../lib/grammar'
 import { CATEGORY_LABELS, type Category, type Cell, type Group } from '../lib/types'
 import { ExpansionPicker } from './ExpansionPicker'
+import { squareJpeg } from '../lib/imageResize'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
 import { WordInput } from './WordInput'
@@ -24,11 +25,13 @@ interface Props {
   suggestions?: { category: string; words: string[] }
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
+  /** Subir una foto (de archivo) para usarla en lugar del pictograma; devuelve su ruta. Sin ella, no hay fotos (p. ej. sin sesión) */
+  onUploadPhoto?: (file: Blob) => Promise<string>
   /** Carpeta del principal: elegir dónde se abre (zona de carpetas o zona de ampliación propia) */
   expansionBoard?: { rows: number; cols: number; groups: Group[] }
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, expansionBoard }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, expansionBoard, onUploadPhoto }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
@@ -39,6 +42,21 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
   // Buscar un pictograma distinto del texto (p. ej. «Navidad» para la ficha «Papá Noel»)
   const [customQuery, setCustomQuery] = useState(false)
   const [results, setResults] = useState<PictoResult[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const pickPhoto = async (file: File) => {
+    if (!onUploadPhoto) return
+    setUploading(true)
+    setPhotoError('')
+    try {
+      const photo = await onUploadPhoto(await squareJpeg(file))
+      setDraft((d) => ({ ...d, photo }))
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setUploading(false)
+    }
+  }
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -73,8 +91,32 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
       )}
       <div className="editor">
         <div className="editor-preview">
-          {!draft.textOnly && <Picto id={draft.picto} alt={draft.label} />}
+          {!draft.textOnly && <Picto id={draft.picto} photo={draft.photo} alt={draft.label} />}
           <span className={draft.textOnly ? 'editor-preview-text' : undefined}>{draft.label || '—'}</span>
+          {!draft.textOnly && (
+            <div className="photo-actions">
+              <label className={`file-button small${onUploadPhoto ? '' : ' disabled'}`} title={onUploadPhoto ? 'Usar una foto en lugar del pictograma' : 'Para usar fotos, inicia sesión: el tablero tiene que estar en tu cuenta'}>
+                {uploading ? 'Subiendo…' : draft.photo ? '🖼️ Cambiar foto' : '🖼️ Poner foto'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={!onUploadPhoto || uploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ''
+                    if (f) void pickPhoto(f)
+                  }}
+                />
+              </label>
+              {draft.photo && (
+                <button type="button" className="small" onClick={() => setDraft(({ photo: _p, ...d }) => d)}>
+                  Quitar foto
+                </button>
+              )}
+              {photoError && <span className="error">{photoError}</span>}
+            </div>
+          )}
         </div>
         <div className="editor-fields">
           <label>
@@ -187,7 +229,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
             key={r.id}
             type="button"
             className={`picto-option ${draft.picto === r.id ? 'selected' : ''}`}
-            onClick={() => setDraft({ ...draft, picto: r.id })}
+            onClick={() => setDraft(({ photo: _p, ...d }) => ({ ...d, picto: r.id }))}
             title={r.keyword}
           >
             <Picto id={r.id} alt={r.keyword} />

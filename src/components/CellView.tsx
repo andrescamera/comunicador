@@ -27,7 +27,7 @@ export function CellView({ cell, editing, onTap, editProps, selected, displayLab
   const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}${open ? ' cell-open' : ''}`
   const body = (
     <>
-      {!cell.textOnly && <Picto id={cell.picto} alt={cell.label} />}
+      {!cell.textOnly && <Picto id={cell.picto} photo={cell.photo} alt={cell.label} />}
       <span className="cell-label">{displayLabel ?? cell.label}</span>
       {editing && cell.hidden && <span className="cell-badge">oculta</span>}
     </>

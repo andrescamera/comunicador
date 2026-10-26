@@ -7,6 +7,7 @@ import type { LibraryInfo, LibraryVersion, Role } from '../lib/libraries'
 import type { Board, Library } from '../lib/types'
 import { type CloudSync, STARTER_NAME } from '../lib/useCloudSync'
 import { Modal } from './Modal'
+import { Picto } from './Picto'
 
 interface Props {
   cloud: CloudSync
@@ -177,7 +178,7 @@ function BoardThumbView({ board }: { board: Board }) {
           const { bg, border } = cellColors(c.category, c.kind, c.folderColor, groupAt(groups, c.row, c.col)?.color)
           return (
             <div key={c.id} className="thumb-cell" style={{ gridRow: c.row + 1, gridColumn: c.col + 1, background: bg, borderColor: border }} title={c.label}>
-              {c.textOnly || !c.picto ? <span>{c.label}</span> : <img src={pictoUrl(c.picto)} alt="" loading="lazy" draggable={false} />}
+              {c.textOnly || (!c.picto && !c.photo) ? <span>{c.label}</span> : c.photo ? <Picto id={c.picto} photo={c.photo} alt="" /> : <img src={pictoUrl(c.picto!)} alt="" loading="lazy" draggable={false} />}
             </div>
           )
         })

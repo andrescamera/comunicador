@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { type Category, CATEGORY_LABELS, type Cell, cellColors, classify, FOLDER_TEMPLATES, fold, loadWords, normalizeText, type PictoResult, searchPictos, suggestWords } from '../shared'
 import { colors } from '../theme'
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
+import * as ImagePicker from 'expo-image-picker'
 import { Picto } from './Picto'
 import { Btn, Sheet } from './Sheet'
 
@@ -14,6 +16,8 @@ interface Props {
   onClose: () => void
   /** Crear una carpeta (vacía o con las palabras elegidas), nueva o en lugar de esta celda */
   onCreateFolder?: (name: string, words: string[], picto: number | undefined, folderColor?: Category | 'folder') => Promise<void>
+  /** Subir una foto (ya reducida, JPEG) para usarla en lugar del pictograma; devuelve su ruta. Sin ella, no hay fotos (p. ej. sin sesión) */
+  onUploadPhoto?: (jpeg: ArrayBuffer) => Promise<string>
   /** Casillas de cada tablero (para avisar si las palabras elegidas no caben) */
   capacity?: number
   /** Ficha nueva dentro de una carpeta: palabras de su categoría que aún no están */
@@ -22,7 +26,7 @@ interface Props {
   onOpenFolder?: () => void
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, onUploadPhoto }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
@@ -48,6 +52,29 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
   // Buscar un pictograma distinto del texto (p. ej. «Navidad» para la ficha «Papá Noel»)
   const [customQuery, setCustomQuery] = useState(false)
   const [results, setResults] = useState<PictoResult[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  // Foto de la cámara o de la galería: recortada en cuadrado, reducida a 600 px y subida a la cuenta
+  const pickPhoto = async (source: 'camera' | 'library') => {
+    if (!onUploadPhoto) return
+    setPhotoError('')
+    try {
+      const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) return setPhotoError(source === 'camera' ? 'Sin permiso para usar la cámara.' : 'Sin permiso para ver la galería.')
+      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 }
+      const picked = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts)
+      if (picked.canceled || !picked.assets[0]) return
+      setUploading(true)
+      const small = await manipulateAsync(picked.assets[0].uri, [{ resize: { width: 600 } }], { compress: 0.8, format: SaveFormat.JPEG })
+      const jpeg = await (await fetch(small.uri)).arrayBuffer()
+      const photo = await onUploadPhoto(jpeg)
+      setDraft((d) => ({ ...d, photo }))
+    } catch (e) {
+      setPhotoError(source === 'camera' && /camera|cámara|unavailable/i.test(String(e)) ? 'Este dispositivo no tiene cámara.' : e instanceof Error ? e.message : String(e))
+    } finally {
+      setUploading(false)
+    }
+  }
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -101,11 +128,27 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
         </>
       )}
       <View style={styles.top}>
-        <View style={[styles.preview, { backgroundColor: bg, borderColor: border }]}>
-          <Picto id={draft.picto} />
-          <Text style={styles.previewLabel} numberOfLines={1}>
-            {draft.label || '—'}
-          </Text>
+        <View style={styles.previewCol}>
+          <View style={[styles.preview, { backgroundColor: bg, borderColor: border }]}>
+            <Picto id={draft.picto} photo={draft.photo} />
+            <Text style={styles.previewLabel} numberOfLines={1}>
+              {draft.label || '—'}
+            </Text>
+          </View>
+          {!draft.textOnly && (
+            <View style={styles.photoBtns}>
+              {onUploadPhoto ? (
+                <>
+                  <Btn title={uploading ? 'Subiendo…' : '📷 Cámara'} disabled={uploading} onPress={() => void pickPhoto('camera')} />
+                  <Btn title="🖼️ Galería" disabled={uploading} onPress={() => void pickPhoto('library')} />
+                  {draft.photo && <Btn title="Quitar foto" onPress={() => setDraft(({ photo: _p, ...d }) => d)} />}
+                </>
+              ) : (
+                <Text style={styles.photoHint}>Para usar fotos, inicia sesión (el tablero tiene que estar en tu cuenta).</Text>
+              )}
+              {!!photoError && <Text style={styles.photoError}>{photoError}</Text>}
+            </View>
+          )}
         </View>
         <View style={styles.fields}>
           <Text style={styles.label}>Texto</Text>
@@ -240,7 +283,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
       {!loading && results.length === 0 && !!query.trim() && <Text style={styles.muted}>Sin resultados en ARASAAC.</Text>}
       <View style={styles.results}>
         {results.map((r) => (
-          <Pressable key={r.id} onPress={() => setDraft({ ...draft, picto: r.id })} style={[styles.option, draft.picto === r.id && styles.optionSel]}>
+          <Pressable key={r.id} onPress={() => setDraft(({ photo: _p, ...d }) => ({ ...d, picto: r.id }))} style={[styles.option, draft.picto === r.id && styles.optionSel]}>
             <Picto id={r.id} size={70} />
           </Pressable>
         ))}
@@ -273,6 +316,10 @@ function Chip({ text, active, onPress, color }: { text: string; active: boolean;
 const styles = StyleSheet.create({
   top: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
   preview: { width: 130, height: 150, borderWidth: 3, borderRadius: 14, padding: 8, alignItems: 'center' },
+  previewCol: { width: 130, gap: 6 },
+  photoBtns: { gap: 4 },
+  photoHint: { fontSize: 12, color: colors.muted },
+  photoError: { fontSize: 12, color: '#c62828' },
   previewLabel: { fontWeight: '700', fontSize: 16, color: colors.text },
   fields: { flex: 1, minWidth: 260, gap: 6 },
   label: { fontWeight: '600', color: colors.text, fontSize: 14 },

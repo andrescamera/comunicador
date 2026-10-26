@@ -1726,3 +1726,25 @@ p.ok {
 .folder-zone-editor p {
   margin: 0;
 }
+
+/* Foto propia en lugar del pictograma */
+.picto-photo {
+  object-fit: cover;
+  border-radius: 8px;
+}
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 6px;
+}
+.file-button.small,
+button.small {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+.file-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
