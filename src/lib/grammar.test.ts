@@ -37,8 +37,10 @@ describe('sentences', () => {
   it('conjugates the first verb and keeps the second as infinitive', () => {
     expect(say('yo', 'querer', 'comer', 'galletas')).toBe('yo quiero comer galletas')
   })
-  it('defaults to first person without subject', () => {
-    expect(say('querer', 'agua')).toBe('quiero agua')
+  it('keeps the infinitive without subject', () => {
+    expect(say('querer', 'agua')).toBe('querer agua')
+    expect(say('querer', 'comer')).toBe('querer comer')
+    expect(say('ducharse')).toBe('ducharse')
   })
   it('agrees with the pronoun', () => {
     expect(say('nosotros', 'ir', 'parque')).toBe('nosotros vamos parque')
@@ -47,7 +49,7 @@ describe('sentences', () => {
   it('handles gustar-like verbs', () => {
     expect(say('yo', 'gustar', 'pizza')).toBe('a mí me gusta pizza')
     expect(say('tú', 'no', 'gustar', 'galletas')).toBe('a ti no te gustan galletas')
-    expect(say('doler', 'cabeza')).toBe('me duele cabeza')
+    expect(say('doler', 'cabeza')).toBe('doler cabeza')
     expect(say('mamá', 'gustar', 'playa')).toBe('a mamá le gusta playa')
   })
   it('handles reflexive verbs', () => {

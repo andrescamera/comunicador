@@ -177,11 +177,12 @@ function isPlural(label: string): boolean {
 /**
  * Convierte la secuencia de celdas en palabras correctamente conjugadas,
  * al estilo de Verbo: "yo + querer + comer" -> "yo quiero comer".
+ * Sin sujeto (pronombre o persona) los verbos quedan en infinitivo.
  * Devuelve una forma por celda (puede ser "" si la celda se absorbe).
  */
 export function realize(tokens: Pick<Cell, 'label' | 'category' | 'kind'>[]): string[] {
   const out: string[] = tokens.map((t) => t.label)
-  let person: Person = 0 // sujeto implícito: yo
+  let person: Person = 0
   let subjectIdx = -1
   let verbDone = false
 
@@ -204,6 +205,8 @@ export function realize(tokens: Pick<Cell, 'label' | 'category' | 'kind'>[]): st
     }
 
     if (t.category !== 'verb' || !looksLikeVerb(label)) return
+    // Sin sujeto no se conjuga: «querer agua» se dice tal cual, sin suponer «yo»
+    if (subjectIdx < 0) return
 
     if (verbDone) {
       out[i] = infinitiveWithClitic(label, person)
