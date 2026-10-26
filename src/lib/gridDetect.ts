@@ -141,7 +141,15 @@ export function detectGrid(img: Pixels): DetectedGrid | null {
   const byGaps = detectByGaps(img)
   const byPeriod = detectByPeriod(img)
   if (!byGaps || !byPeriod) return byGaps ?? byPeriod
-  return byPeriod.cells.length > byGaps.cells.length ? byPeriod : byGaps
+  // Cada uno puede perder una fila o una columna distinta: las filas del que encuentra más filas y
+  // las columnas del que encuentra más columnas (en empate, el de los huecos)
+  const rowsOf = (g: DetectedGrid) => [...new Map(g.cells.map((c) => [c.row, { start: c.y, end: c.y + c.height }])).values()]
+  const colsOf = (g: DetectedGrid) => [...new Map(g.cells.map((c) => [c.col, { start: c.x, end: c.x + c.width }])).values()]
+  const rows = byPeriod.rows > byGaps.rows ? rowsOf(byPeriod) : rowsOf(byGaps)
+  const cols = byPeriod.cols > byGaps.cols ? colsOf(byPeriod) : colsOf(byGaps)
+  const cells: CellRect[] = []
+  rows.forEach((r, row) => cols.forEach((c, col) => cells.push({ row, col, x: c.start, y: r.start, width: size(c), height: size(r) })))
+  return { rows: rows.length, cols: cols.length, cells }
 }
 
 export function detectByGaps(img: Pixels): DetectedGrid | null {
