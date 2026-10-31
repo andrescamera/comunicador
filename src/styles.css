@@ -1793,3 +1793,32 @@ button.small {
   text-align: center;
   max-width: 340px;
 }
+
+/* La app solo funciona en horizontal. El navegador no deja bloquear el giro, así que en vertical
+   (solo en pantallas táctiles, para no molestar en una ventana estrecha del ordenador) se tapa con un aviso. */
+.gira-pantalla {
+  display: none;
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .gira-pantalla {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px;
+    background: var(--bg);
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+
+  .gira-icono {
+    font-size: 4rem;
+    color: var(--accent);
+  }
+}
