@@ -11,7 +11,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
 import { buildFolder, buildQuickChat, sortCells, starterLibrary } from './lib/generator'
-import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, groupAt, isExpansionFolder, inlineFolder, moveCellTo, normalizeLibrary, relayoutBoard, resizeLibrary } from './lib/layout'
+import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, groupAt, isExpansionFolder, inlineFolder, boardsInside, moveCellToBoard, moveTargets, normalizeLibrary, relayoutBoard, resizeLibrary } from './lib/layout'
 import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
 import { bestPicto } from './lib/arasaac'
 import { supabase, webStore } from './lib/cloud'
@@ -71,7 +71,7 @@ export default function App() {
       setShowLibrariesState(false)
     }
   }
-  const [movingId, setMovingId] = useState<string | null>(null)
+  const [moving, setMoving] = useState<{ id: string; from: string } | null>(null) // celda que se está moviendo y su tablero
   // Modo dinámico: página del momento actual y, en edición, vista previa de un momento
   // En edición: probar cómo se ve tras una frase (null = editar las fichas)
   const [preview, setPreview] = useState<Cell[] | null>(null)
@@ -117,7 +117,7 @@ export default function App() {
       setHistory((h) => h.filter((id) => before.boards[id])) // carpetas creadas al editar ya no existen
     }
     setEditing(false)
-    setMovingId(null)
+    setMoving(null)
     setEditTarget(null)
   }
   const settingsRef = useRef(settings)
@@ -380,9 +380,14 @@ export default function App() {
     updateBoard(board.id, (b) => ({ ...b, cells: b.cells.filter((c) => c.id !== id) }))
     setEditTarget(null)
   }
+  // El destino puede estar en otro tablero: se navega a él con la ficha «en la mano»
   const moveTo = (id: string, row: number, col: number) => {
-    updateBoard(board.id, (b) => moveCellTo(b, id, row, col))
-    setMovingId(null)
+    const from = moving?.id === id ? moving.from : board.id
+    const cell = lib.boards[from]?.cells.find((c) => c.id === id)
+    if (from !== board.id && cell?.kind === 'folder' && cell.target && boardsInside(lib, cell.target).has(board.id))
+      return setNotice('Una carpeta no se puede meter dentro de sí misma.')
+    setLib((l) => (l ? moveCellToBoard(l, from, id, board.id, row, col) : l))
+    setMoving(null)
   }
   // Filas y columnas son comunes a todos los tableros: las fichas miden lo mismo en todas partes
   const resize = (rows: number, cols: number) => {
@@ -581,7 +586,7 @@ export default function App() {
                 // Al guardar con cambios: versión de cómo estaba antes de editar (para poder volver a ella)
                 if (editing && editChanged() && beforeEdit.current) void cloud.saveVersion('Antes de editar', beforeEdit.current).catch(() => undefined)
                 setEditing((e) => !e)
-                setMovingId(null)
+                setMoving(null)
                 cancelAutoClear()
               }}
             >
@@ -596,11 +601,12 @@ export default function App() {
 
 
         {editing && (
-          <div className={`edit-hint ${movingId ? 'moving' : ''}`}>
-            {movingId ? (
+          <div className={`edit-hint ${moving ? 'moving' : ''}`}>
+            {moving ? (
               <>
                 Elige la casilla de destino (si está ocupada, se intercambian).
-                <button type="button" onClick={() => setMovingId(null)}>Cancelar</button>
+                <MoveDestination lib={lib} moving={moving} current={board.id} onGo={setHistory} />
+                <button type="button" onClick={() => setMoving(null)}>Cancelar</button>
               </>
             ) : (
               'Pulsa una celda para editarla, una casilla vacía para añadir, o arrastra para cambiar de sitio. Las celdas nunca se mueven solas.'
@@ -648,7 +654,7 @@ export default function App() {
             onAddAt={(row, col) =>
               setEditTarget({ cell: { id: uid('c'), kind: 'word', label: '', category: 'noun', row, col }, isNew: true })
             }
-            movingId={movingId}
+            movingId={moving?.id}
             onMoveTo={moveTo}
             onRenameZone={(zone, name) =>
               updateBoard(board.id, (b) => {
@@ -675,7 +681,7 @@ export default function App() {
             editTarget.isNew
               ? undefined
               : () => {
-                  setMovingId(editTarget.cell.id)
+                  setMoving({ id: editTarget.cell.id, from: board.id })
                   setEditTarget(null)
                 }
           }
@@ -743,5 +749,30 @@ export default function App() {
         />
       )}
     </div>
+  )
+}
+
+/** Mientras se mueve una ficha: ir a otro tablero para dejarla allí (no dentro de sí misma si es una carpeta) */
+function MoveDestination({ lib, moving, current, onGo }: { lib: Library; moving: { id: string; from: string }; current: string; onGo: (path: string[]) => void }) {
+  const targets = moveTargets(lib, moving.from, moving.id)
+  if (targets.length < 2) return null
+  return (
+    <label className="move-destination">
+      Llevar a:
+      <select
+        value={current}
+        onChange={(e) => {
+          const t = targets.find((x) => x.board.id === e.target.value)
+          if (t) onGo(t.path)
+        }}
+      >
+        {!targets.some((t) => t.board.id === current) && <option value={current}>(aquí no se puede)</option>}
+        {targets.map(({ board: b, path }) => (
+          <option key={b.id} value={b.id}>
+            {b.id === lib.rootId ? '🏠 Tablero principal' : `${'\u00a0\u00a0'.repeat(path.length - 1)}📁 ${b.name}`}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }

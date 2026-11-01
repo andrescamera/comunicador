@@ -3,7 +3,7 @@ import { useKeepAwake } from 'expo-keep-awake'
 import { NavigationBar } from 'expo-navigation-bar'
 import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native'
+import { ActivityIndicator, Alert, AppState, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { BoardView } from './src/components/BoardView'
 import { CellEditor } from './src/components/CellEditor'
 import { Creator } from './src/components/Creator'
@@ -23,7 +23,9 @@ import {
   starterLibrary,
   generateLibrary,
   type Library,
-  moveCellTo,
+  boardsInside,
+  moveCellToBoard,
+  moveTargets,
   type NewCell,
   parseText,
   pictoUrl,
@@ -87,7 +89,7 @@ export default function App() {
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [movingId, setMovingId] = useState<string | null>(null)
+  const [moving, setMoving] = useState<{ id: string; from: string } | null>(null) // celda que se está moviendo y su tablero
   const [folderPage, setFolderPage] = useState(0) // carpeta abierta en su zona: página
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0)
@@ -127,7 +129,7 @@ export default function App() {
       setHistory((h) => h.filter((id) => before.boards[id])) // carpetas creadas al editar ya no existen
     }
     setEditing(false)
-    setMovingId(null)
+    setMoving(null)
     setEditTarget(null)
   }
   const newStarter = async () => cloud.create(await starterLibrary(), STARTER_NAME)
@@ -368,9 +370,13 @@ export default function App() {
     ])
   const onTapSlot = (row: number, col: number, cell: Cell | undefined) => {
     if (!cell && editArea && !insideArea(editArea, row, col)) return // fuera de la zona de carpetas
-    if (movingId) {
-      updateBoard(board.id, (b) => moveCellTo(b, movingId, row, col))
-      setMovingId(null)
+    if (moving) {
+      // El destino puede estar en otro tablero (p. ej. sacar una ficha de una carpeta)
+      const cell = lib.boards[moving.from]?.cells.find((c) => c.id === moving.id)
+      if (moving.from !== board.id && cell?.kind === 'folder' && cell.target && boardsInside(lib, cell.target).has(board.id))
+        return setNotice('Una carpeta no se puede meter dentro de sí misma.')
+      setLib((l) => (l ? moveCellToBoard(l, moving.from, moving.id, board.id, row, col) : l))
+      setMoving(null)
     } else if (cell) setEditTarget({ cell, isNew: false })
     else setEditTarget({ cell: { id: uid('c'), kind: 'word', label: '', category: 'noun', row, col }, isNew: true })
   }
@@ -511,7 +517,7 @@ export default function App() {
                     // Al guardar con cambios: versión de cómo estaba antes de editar (para poder volver a ella)
                     if (editChanged() && beforeEdit.current) void cloud.saveVersion('Antes de editar', beforeEdit.current).catch(() => undefined)
                     setEditing(false)
-                    setMovingId(null)
+                    setMoving(null)
                   }}
                 />
               </View>
@@ -519,12 +525,21 @@ export default function App() {
 
           {editing && (
             <View style={styles.hintRow}>
-              <Text style={[styles.hint, movingId && { color: colors.accent, fontWeight: '700' }]}>
-                {movingId
-                  ? 'Toca la casilla de destino (si está ocupada, se intercambian).'
+              <Text style={[styles.hint, !!moving && { color: colors.accent, fontWeight: '700' }]}>
+                {moving
+                  ? 'Toca la casilla de destino (si está ocupada, se intercambian), aquí o en otro tablero:'
                   : 'Toca una celda para editarla o una casilla vacía para añadir. Las celdas nunca se mueven solas.'}
               </Text>
-              {movingId && <ToolBtn text="Cancelar" onPress={() => setMovingId(null)} />}
+              {moving && (
+                <ScrollView horizontal style={styles.moveTargets} contentContainerStyle={{ gap: 6 }}>
+                  {moveTargets(lib, moving.from, moving.id)
+                    .filter((t) => t.board.id !== board.id)
+                    .map((t) => (
+                      <ToolBtn key={t.board.id} small text={t.board.id === lib.rootId ? '🏠 Principal' : `📁 ${t.board.name}`} onPress={() => setHistory(t.path)} />
+                    ))}
+                </ScrollView>
+              )}
+              {moving && <ToolBtn text="Cancelar" onPress={() => setMoving(null)} />}
             </View>
           )}
           {!!notice && <Text style={styles.notice}>{notice}</Text>}
@@ -544,7 +559,7 @@ export default function App() {
               labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
               onTapCell={onCellTap}
               onTapSlot={onTapSlot}
-              movingId={movingId}
+              movingId={moving?.id}
               onRenameZone={(zone, name) =>
                 updateBoard(board.id, (b) => {
                   const zoneLabels = { ...b.zoneLabels }
@@ -568,7 +583,7 @@ export default function App() {
           onUploadPhoto={
             cloud.email && cloud.active?.synced && cloud.activeId && !readOnly ? (jpeg) => uploadPhoto(supabase, cloud.activeId!, jpeg) : undefined
           }
-          onStartMove={editTarget.isNew ? undefined : () => (setMovingId(editTarget.cell.id), setEditTarget(null))}
+          onStartMove={editTarget.isNew ? undefined : () => (setMoving({ id: editTarget.cell.id, from: board.id }), setEditTarget(null))}
           onClose={() => setEditTarget(null)}
           onCreateFolder={(name, words, picto, color) => createFolder(editTarget.cell, !editTarget.isNew, name, words, picto, color)}
           suggestions={editTarget.isNew ? folderSuggestions(board, lib) : undefined}
@@ -641,6 +656,7 @@ const styles = StyleSheet.create({
   toolText: { fontSize: 15, fontWeight: '600', color: colors.text },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   hint: { flex: 1, color: colors.muted, fontSize: 13 },
+  moveTargets: { flexGrow: 0, maxWidth: '50%' },
   notice: { backgroundColor: '#fff4d6', borderColor: '#f0c75e', borderWidth: 1, borderRadius: 10, padding: 8, marginBottom: 6, color: colors.text },
   boardArea: { flex: 1 },
   muted: { color: colors.muted },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classify } from './grammar'
-import { computeZones, layoutAt, layoutCells, moveCellTo, type NewCell, normalizeLibrary, pickSize, placeCell, resizeBoard, resizeLibrary, zoneOf } from './layout'
+import { computeZones, layoutAt, layoutCells, moveCellTo, moveCellToBoard, moveTargets, type NewCell, normalizeLibrary, pickSize, placeCell, resizeBoard, resizeLibrary, zoneOf } from './layout'
 import type { Board, Cell } from './types'
 
 let n = 0
@@ -73,6 +73,24 @@ describe('layout', () => {
     const moved = moveCellTo(b, b.cells.find((c) => c.label === 'yo')!.id, r2, c2)
     expect(at(moved, 'yo')).toEqual([r2, c2])
     expect(at(moved, 'querer')).toEqual([r1, c1])
+  })
+
+  it('moves a cell out of a folder into another board, swapping with what was there', () => {
+    const root = board(['yo', 'querer'], { rows: 2, cols: 4 })
+    const sub = { ...board(['agua', 'pan'], { rows: 2, cols: 4 }), id: 'sub' }
+    const folder: Cell = { id: 'f', kind: 'folder', label: 'comida', category: 'noun', target: 'sub', row: 1, col: 3, expansion: { r0: 0, c0: 0, r1: 1, c1: 1 } }
+    const lib = { rootId: 'b', boards: { b: { ...root, cells: [...root.cells, folder] }, sub } }
+    const agua = sub.cells.find((c) => c.label === 'agua')!
+    const [r, c] = at(root, 'yo')
+    const moved = moveCellToBoard(lib, 'sub', agua.id, 'b', r, c)
+    expect(at(moved.boards.b, 'agua')).toEqual([r, c])
+    expect(at(moved.boards.sub, 'yo')).toEqual([agua.row, agua.col])
+    expect(moved.boards.sub.cells).toHaveLength(2)
+    // La carpeta no puede ir dentro de sí misma; al salir del principal pierde su zona de ampliación
+    expect(moveTargets(lib, 'b', 'f').map((t) => t.board.id)).toEqual(['b'])
+    const inside = moveCellToBoard({ ...lib, boards: { ...lib.boards, other: { ...sub, id: 'other', cells: [] as Cell[] } } }, 'b', 'f', 'other', 0, 0)
+    expect(inside.boards.other.cells[0].expansion).toBeUndefined()
+    expect(inside.boards.b.cells.some((x) => x.id === 'f')).toBe(false)
   })
 
   it('refuses to shrink when there is no empty column or row left', () => {

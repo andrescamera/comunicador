@@ -222,6 +222,79 @@ export function moveCellTo(board: Board, id: string, row: number, col: number): 
   }
 }
 
+/**
+ * Lleva una celda a una casilla de otro tablero (p. ej. sacarla de una carpeta). Si la casilla
+ * está ocupada, la que había pasa al sitio y al tablero de origen. Solo el principal guarda la
+ * zona de ampliación de una carpeta.
+ */
+export function moveCellToBoard<L extends Lib>(lib: L, fromId: string, id: string, toId: string, row: number, col: number): L {
+  const from = lib.boards[fromId]
+  const to = lib.boards[toId]
+  const moving = from?.cells.find((c) => c.id === id)
+  if (!from || !to || !moving) return lib
+  if (fromId === toId) return { ...lib, boards: { ...lib.boards, [fromId]: moveCellTo(from, id, row, col) } }
+  const other = cellAt(to, row, col)
+  const forBoard = (c: Cell, boardId: string): Cell => {
+    if (boardId === lib.rootId || !c.expansion) return c
+    const { expansion: _, ...rest } = c
+    return rest
+  }
+  return {
+    ...lib,
+    boards: {
+      ...lib.boards,
+      [fromId]: {
+        ...from,
+        cells: [...from.cells.filter((c) => c.id !== id), ...(other ? [forBoard({ ...other, row: moving.row, col: moving.col }, fromId)] : [])],
+      },
+      [toId]: { ...to, cells: [...to.cells.filter((c) => c !== other), forBoard({ ...moving, row, col }, toId)] },
+    },
+  }
+}
+
+/** Tableros que cuelgan de este (sus carpetas, las de dentro…), él incluido. */
+export function boardsInside(lib: Lib, id: string): Set<string> {
+  const seen = new Set<string>()
+  const visit = (b: string) => {
+    if (seen.has(b) || !lib.boards[b]) return
+    seen.add(b)
+    for (const c of lib.boards[b].cells) if (c.kind === 'folder' && c.target) visit(c.target)
+  }
+  visit(id)
+  return seen
+}
+
+/** Carpetas que hay que abrir desde el principal para llegar a un tablero ([] = el principal). */
+export function pathToBoard(lib: Lib, id: string): string[] | null {
+  const queue: string[][] = [[]]
+  const seen = new Set([lib.rootId])
+  while (queue.length) {
+    const path = queue.shift()!
+    const at = path[path.length - 1] ?? lib.rootId
+    if (at === id) return path
+    for (const c of lib.boards[at]?.cells ?? [])
+      if (c.kind === 'folder' && c.target && lib.boards[c.target] && !seen.has(c.target)) {
+        seen.add(c.target)
+        queue.push([...path, c.target])
+      }
+  }
+  return null
+}
+
+/**
+ * Tableros a los que se puede llevar una celda que se está moviendo, con el camino para abrirlos:
+ * todos los que se alcanzan desde el principal salvo, si es una carpeta, ella misma y lo de dentro.
+ */
+export function moveTargets(lib: Lib, fromId: string, id: string): { board: Board; path: string[] }[] {
+  const cell = lib.boards[fromId]?.cells.find((c) => c.id === id)
+  const inside = cell?.kind === 'folder' && cell.target ? boardsInside(lib, cell.target) : new Set<string>()
+  return Object.values(lib.boards)
+    .filter((b) => !inside.has(b.id))
+    .map((b) => ({ board: b, path: pathToBoard(lib, b.id) }))
+    .filter((t): t is { board: Board; path: string[] } => t.path !== null)
+    .sort((a, b) => a.path.length - b.path.length || a.board.name.localeCompare(b.board.name))
+}
+
 /** Quita una columna vacía: las celdas de su derecha se desplazan una columna a la izquierda. */
 function removeColumn(board: Board, c: number): Board {
   const zones = { ...board.zones }

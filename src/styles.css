@@ -443,6 +443,15 @@ button.danger {
 .edit-hint button {
   padding: 4px 10px;
 }
+.move-destination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.move-destination select {
+  font: inherit;
+  padding: 3px 6px;
+}
 .notice {
   background: #fff4d6;
   border: 1px solid #f0c75e;
