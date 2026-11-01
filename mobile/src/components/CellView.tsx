@@ -58,6 +58,7 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
           </Text>
         </>
       )}
+      {cell.kind === 'sound' && <Text style={[styles.soundIcon, { fontSize: Math.max(12, Math.min(22, width * 0.14)) }, !cell.sound && { opacity: 0.35 }]}>🔊</Text>}
       {editing && cell.hidden && <Text style={styles.badge}>oculta</Text>}
     </View>
   )
@@ -88,6 +89,7 @@ const styles = StyleSheet.create({
   selected: { borderColor: colors.accent, borderWidth: 5 },
   label: { fontWeight: '700', color: colors.text, marginTop: 2, textAlign: 'center' },
   bigText: { flex: 1, marginTop: 0, fontWeight: '600', textAlignVertical: 'center', includeFontPadding: false },
+  soundIcon: { position: 'absolute', top: 3, left: 5 },
   badge: {
     position: 'absolute',
     top: 4,

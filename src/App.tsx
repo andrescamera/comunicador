@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BoardTextPage } from './components/BoardTextPage'
 import { FolderZoneEditor } from './components/FolderZoneEditor'
 import { uploadPhoto } from './lib/photos'
+import { copySound, searchSounds, soundUrl } from './lib/sounds'
 import { PhotoImport } from './components/PhotoImport'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
@@ -191,6 +192,8 @@ export default function App() {
   }, [lib])
 
   // La web es para el terapeuta: sin sesión iniciada solo se muestra el acceso
+  const player = useRef<HTMLAudioElement | null>(null) // fichas «Sonido» (antes de los return: es un hook)
+
   if (!cloud.authReady) {
     return (
       <div className="loading">
@@ -344,9 +347,23 @@ export default function App() {
     setHistory([chat.id])
   }
 
+  const playSound = async (path: string) => {
+    const url = await soundUrl(supabase, path)
+    if (!url) return setNotice('No se pudo cargar el sonido (hace falta conexión y sesión iniciada).')
+    player.current?.pause()
+    player.current = new Audio(url)
+    void player.current.play().catch(() => {})
+  }
+
   const onCellTap = (cell: Cell) => {
     if (cell.id === FOLDER_NEXT || cell.id === FOLDER_PREV) {
       setFolderPage((p) => p + (cell.id === FOLDER_NEXT ? 1 : -1))
+      return
+    }
+    if (cell.kind === 'sound') {
+      // Solo suena: no entra en la frase ni se vuelve al principal (se pueden tocar varias seguidas)
+      if (cell.sound) void playSound(cell.sound)
+      scheduleIdleClear(sentence.length)
       return
     }
     if (cell.kind === 'folder') {
@@ -690,6 +707,11 @@ export default function App() {
           suggestions={editTarget.isNew ? folderSuggestions(board, lib) : undefined}
           onUploadPhoto={
             cloud.email && cloud.active?.synced && cloud.activeId && !readOnly ? (blob) => uploadPhoto(supabase, cloud.activeId!, blob) : undefined
+          }
+          sounds={
+            cloud.email && cloud.active?.synced && cloud.activeId && !readOnly
+              ? { search: (q) => searchSounds(supabase, q), pick: (r) => copySound(supabase, cloud.activeId!, r), play: (path) => void playSound(path) }
+              : undefined
           }
           expansionBoard={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && board.id === lib.rootId

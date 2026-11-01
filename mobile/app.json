@@ -39,7 +39,16 @@
         {
           "hidden": true
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-asset"
     ],
     "backgroundColor": "#eef1f5"
   }

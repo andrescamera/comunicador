@@ -1,0 +1,178 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elegir sonidos</title>
+<style>body{font-family:system-ui;margin:16px;max-width:900px;background:#fafafa;color:#222}h2{margin:18px 0 6px;font-size:18px}
+.c{display:flex;gap:10px;align-items:center;padding:6px 10px;border:1px solid #ddd;border-radius:10px;margin:4px 0;background:#fff}
+.c:has(input:checked){border-color:#2a7;background:#efe}button{font-size:16px;padding:6px 14px;border-radius:8px;border:1px solid #888;background:#fff;cursor:pointer}
+small{color:#777}#out{position:sticky;bottom:0;background:#fff;border-top:2px solid #2a7;padding:10px}textarea{width:100%;height:60px}</style>
+<h1>Elegir sonidos (Pixabay)</h1><p>Pulsa ▶ para escuchar y marca el que prefieras de cada uno. Abajo se va escribiendo tu elección: cópiala y pégamela.</p>
+<h2>vaca</h2>
+<label class="c"><input type="radio" name="vaca" value="515267" checked><button type="button" onclick="play('2026/04/06/audio_e9bd5f8e8f.mp3')">▶</button> Herd of Cows Mooing <small>7 s · #515267</small></label>
+<label class="c"><input type="radio" name="vaca" value="343423" ><button type="button" onclick="play('2025/05/18/audio_6b56df2a69.mp3')">▶</button> cow mooing <small>2 s · #343423</small></label>
+<label class="c"><input type="radio" name="vaca" value="390282" ><button type="button" onclick="play('2025/08/15/audio_33677af228.mp3')">▶</button> Cow Moo <small>1 s · #390282</small></label>
+<label class="c"><input type="radio" name="vaca" value="472361" ><button type="button" onclick="play('2026/01/24/audio_fdbfe50148.mp3')">▶</button> Cow Moo 1 <small>1 s · #472361</small></label>
+<label class="c"><input type="radio" name="vaca" value="122255" ><button type="button" onclick="play('2022/10/09/audio_8eab15649f.mp3')">▶</button> Cow Moo <small>2 s · #122255</small></label>
+<h2>perro</h2>
+<label class="c"><input type="radio" name="perro" value="419014" checked><button type="button" onclick="play('2025/10/12/audio_c89bb7f7f9.mp3')">▶</button> Free Dog Bark <small>1 s · #419014</small></label>
+<label class="c"><input type="radio" name="perro" value="450454" ><button type="button" onclick="play('2025/12/12/audio_6608542e46.mp3')">▶</button> Dog Bark Sound <small>5 s · #450454</small></label>
+<label class="c"><input type="radio" name="perro" value="382732" ><button type="button" onclick="play('2025/07/30/audio_928f09e5b2.mp3')">▶</button> Dog Bark <small><1 s · #382732</small></label>
+<label class="c"><input type="radio" name="perro" value="179915" ><button type="button" onclick="play('2023/12/05/audio_6370981eda.mp3')">▶</button> dog bark <small><1 s · #179915</small></label>
+<label class="c"><input type="radio" name="perro" value="494308" ><button type="button" onclick="play('2026/03/02/audio_dbacb1c581.mp3')">▶</button> Dog Bark <small><1 s · #494308</small></label>
+<h2>gato</h2>
+<label class="c"><input type="radio" name="gato" value="401729" checked><button type="button" onclick="play('2025/09/15/audio_97518e4c2e.mp3')">▶</button> Cat Meow <small>1 s · #401729</small></label>
+<label class="c"><input type="radio" name="gato" value="472372" ><button type="button" onclick="play('2026/01/24/audio_761a22043a.mp3')">▶</button> Cute Cat Meow <small>2 s · #472372</small></label>
+<label class="c"><input type="radio" name="gato" value="306184" ><button type="button" onclick="play('2025/02/26/audio_6c95941b94.mp3')">▶</button> Cat Meow 8 FX <small><1 s · #306184</small></label>
+<label class="c"><input type="radio" name="gato" value="383823" ><button type="button" onclick="play('2025/08/02/audio_e14cea7f00.mp3')">▶</button> Cat Meow Sound <small>4 s · #383823</small></label>
+<label class="c"><input type="radio" name="gato" value="321642" ><button type="button" onclick="play('2025/04/01/audio_db602789de.mp3')">▶</button> Cat Meow <small>8 s · #321642</small></label>
+<h2>oveja</h2>
+<label class="c"><input type="radio" name="oveja" value="352668" checked><button type="button" onclick="play('2025/06/02/audio_1f539d645d.mp3')">▶</button> SHEEP <small>1 s · #352668</small></label>
+<label class="c"><input type="radio" name="oveja" value="122256" ><button type="button" onclick="play('2022/10/09/audio_78a133db61.mp3')">▶</button> Sheep Bleat <small>1 s · #122256</small></label>
+<label class="c"><input type="radio" name="oveja" value="223324" ><button type="button" onclick="play('2024/07/09/audio_cfc596bcb9.mp3')">▶</button> Sheep bleating <small>2 s · #223324</small></label>
+<label class="c"><input type="radio" name="oveja" value="293306" ><button type="button" onclick="play('2025/01/27/audio_dbf954120e.mp3')">▶</button> sheep baaing type 01 <small>3 s · #293306</small></label>
+<label class="c"><input type="radio" name="oveja" value="352868" ><button type="button" onclick="play('2025/06/02/audio_74dc13c430.mp3')">▶</button> Small SHEEP <small><1 s · #352868</small></label>
+<h2>caballo</h2>
+<label class="c"><input type="radio" name="caballo" value="390297" checked><button type="button" onclick="play('2025/08/15/audio_5bafc3af72.mp3')">▶</button> Horse Neigh <small>1 s · #390297</small></label>
+<label class="c"><input type="radio" name="caballo" value="390296" ><button type="button" onclick="play('2025/08/15/audio_62dcba9705.mp3')">▶</button> Horse Neigh 2 <small>1 s · #390296</small></label>
+<label class="c"><input type="radio" name="caballo" value="390299" ><button type="button" onclick="play('2025/08/15/audio_0b94d72193.mp3')">▶</button> Horse Neigh SFX <small>1 s · #390299</small></label>
+<label class="c"><input type="radio" name="caballo" value="515279" ><button type="button" onclick="play('2026/04/06/audio_02a0161aad.mp3')">▶</button> Horse Neigh <small>2 s · #515279</small></label>
+<label class="c"><input type="radio" name="caballo" value="261131" ><button type="button" onclick="play('2024/11/07/audio_167d994a73.mp3')">▶</button> Horse Neigh <small>2 s · #261131</small></label>
+<h2>burro</h2>
+<label class="c"><input type="radio" name="burro" value="441136" checked><button type="button" onclick="play('2025/11/22/audio_d93f37bcec.mp3')">▶</button> Donkey <small>5 s · #441136</small></label>
+<label class="c"><input type="radio" name="burro" value="352696" ><button type="button" onclick="play('2025/06/02/audio_eeea37fce2.mp3')">▶</button> DONKEY <small>2 s · #352696</small></label>
+<label class="c"><input type="radio" name="burro" value="352697" ><button type="button" onclick="play('2025/06/02/audio_229caa3b84.mp3')">▶</button> DONKEY 1 <small>3 s · #352697</small></label>
+<label class="c"><input type="radio" name="burro" value="36757" ><button type="button" onclick="play('2022/03/10/audio_f2bd1afa9c.mp3')">▶</button> Donkey Bray <small>1 s · #36757</small></label>
+<label class="c"><input type="radio" name="burro" value="506204" ><button type="button" onclick="play('2026/03/21/audio_8a48335b9b.mp3')">▶</button> Donkey Braying <small>7 s · #506204</small></label>
+<h2>cabra</h2>
+<label class="c"><input type="radio" name="cabra" value="390298" checked><button type="button" onclick="play('2025/08/15/audio_f2d39af870.mp3')">▶</button> Goat Sound <small>1 s · #390298</small></label>
+<label class="c"><input type="radio" name="cabra" value="390303" ><button type="button" onclick="play('2025/08/15/audio_55150f03fd.mp3')">▶</button> Goat Baa <small>1 s · #390303</small></label>
+<label class="c"><input type="radio" name="cabra" value="259473" ><button type="button" onclick="play('2024/11/03/audio_4858b2454f.mp3')">▶</button> goat sound effect <small>10 s · #259473</small></label>
+<label class="c"><input type="radio" name="cabra" value="403453" ><button type="button" onclick="play('2025/09/12/audio_b97612d69c.mp3')">▶</button> Goat sound <small>8 s · #403453</small></label>
+<label class="c"><input type="radio" name="cabra" value="390305" ><button type="button" onclick="play('2025/08/15/audio_7f27fd9752.mp3')">▶</button> Goat Sound Effect <small>1 s · #390305</small></label>
+<h2>gallina</h2>
+<label class="c"><input type="radio" name="gallina" value="487676" checked><button type="button" onclick="play('2026/02/19/audio_c1684e9253.mp3')">▶</button> Chicken Sounds <small>2 s · #487676</small></label>
+<label class="c"><input type="radio" name="gallina" value="293320" ><button type="button" onclick="play('2025/01/27/audio_6fe0d7c88d.mp3')">▶</button> chicken cluking type 3 <small>7 s · #293320</small></label>
+<label class="c"><input type="radio" name="gallina" value="402826" ><button type="button" onclick="play('2025/09/11/audio_8004a7eaaa.mp3')">▶</button> chicken sound <small>5 s · #402826</small></label>
+<label class="c"><input type="radio" name="gallina" value="196746" ><button type="button" onclick="play('2024/03/18/audio_6044ec1566.mp3')">▶</button> Chicken Noise <small>1 s · #196746</small></label>
+<h2>gallo</h2>
+<label class="c"><input type="radio" name="gallo" value="364473" checked><button type="button" onclick="play('2025/06/23/audio_d88350e9c0.mp3')">▶</button> Rooster Crowing <small>2 s · #364473</small></label>
+<label class="c"><input type="radio" name="gallo" value="305576" ><button type="button" onclick="play('2025/02/25/audio_f38ac4d6c3.mp3')">▶</button> rooster cry, chicken, rooster <small>2 s · #305576</small></label>
+<label class="c"><input type="radio" name="gallo" value="364474" ><button type="button" onclick="play('2025/06/23/audio_23e817cd06.mp3')">▶</button> Rooster Call <small>2 s · #364474</small></label>
+<label class="c"><input type="radio" name="gallo" value="233738" ><button type="button" onclick="play('2024/08/20/audio_a717b34fdd.mp3')">▶</button> Rooster <small>2 s · #233738</small></label>
+<h2>pato</h2>
+<label class="c"><input type="radio" name="pato" value="40345" checked><button type="button" onclick="play('2022/03/10/audio_5adfa08633.mp3')">▶</button> 075176_Duck Quack <small>3 s · #40345</small></label>
+<label class="c"><input type="radio" name="pato" value="112941" ><button type="button" onclick="play('2022/06/08/audio_98351be2c8.mp3')">▶</button> Duck Quack <small>1 s · #112941</small></label>
+<label class="c"><input type="radio" name="pato" value="37392" ><button type="button" onclick="play('2022/03/10/audio_036d2a8310.mp3')">▶</button> Duck quacking <small>1 s · #37392</small></label>
+<label class="c"><input type="radio" name="pato" value="14494" ><button type="button" onclick="play('2022/01/18/audio_28a2ffa93a.mp3')">▶</button> single quack from a duck <small><1 s · #14494</small></label>
+<h2>pájaro</h2>
+<label class="c"><input type="radio" name="pájaro" value="485390" checked><button type="button" onclick="play('2026/02/15/audio_de442d5552.mp3')">▶</button> Bird Chirp <small>2 s · #485390</small></label>
+<label class="c"><input type="radio" name="pájaro" value="597465" ><button type="button" onclick="play('2026/09/04/audio_4451fd4dc7.mp3')">▶</button> Bird Chirp <small>3 s · #597465</small></label>
+<label class="c"><input type="radio" name="pájaro" value="482865" ><button type="button" onclick="play('2026/02/10/audio_004926ac57.mp3')">▶</button> Bird Chirping <small>2 s · #482865</small></label>
+<label class="c"><input type="radio" name="pájaro" value="88706" ><button type="button" onclick="play('2022/03/15/audio_e6534c92ed.mp3')">▶</button> Bird Chirp <small>4 s · #88706</small></label>
+<h2>búho</h2>
+<label class="c"><input type="radio" name="búho" value="223549" checked><button type="button" onclick="play('2024/07/10/audio_812a8f1c09.mp3')">▶</button> owl hooting <small>3 s · #223549</small></label>
+<label class="c"><input type="radio" name="búho" value="48028" ><button type="button" onclick="play('2022/03/10/audio_e4aab884a5.mp3')">▶</button> Owl Hooting <small>5 s · #48028</small></label>
+<label class="c"><input type="radio" name="búho" value="144750" ><button type="button" onclick="play('2023/04/02/audio_94dd8f7912.mp3')">▶</button> Owl Hoot <small>3 s · #144750</small></label>
+<label class="c"><input type="radio" name="búho" value="99897" ><button type="button" onclick="play('2022/03/24/audio_cb93bc9d9c.mp3')">▶</button> Tawny Owl in Molkom, Sweden <small>8 s · #99897</small></label>
+<h2>rana</h2>
+<label class="c"><input type="radio" name="rana" value="322956" checked><button type="button" onclick="play('2025/04/04/audio_1ef41a228b.mp3')">▶</button> Frog Croaking Sound Effect <small>8 s · #322956</small></label>
+<label class="c"><input type="radio" name="rana" value="568831" ><button type="button" onclick="play('2026/07/17/audio_4e1ec5ff92.mp3')">▶</button> Frog Sound <small>6 s · #568831</small></label>
+<label class="c"><input type="radio" name="rana" value="352709" ><button type="button" onclick="play('2025/06/02/audio_878155824b.mp3')">▶</button> FROG 1 <small><1 s · #352709</small></label>
+<label class="c"><input type="radio" name="rana" value="85649" ><button type="button" onclick="play('2022/03/15/audio_a86489278d.mp3')">▶</button> frog <small><1 s · #85649</small></label>
+<h2>abeja</h2>
+<label class="c"><input type="radio" name="abeja" value="6254" checked><button type="button" onclick="play('2021/08/04/audio_8ca1177d7e.mp3')">▶</button> Bee Buzzing <small>2 s · #6254</small></label>
+<label class="c"><input type="radio" name="abeja" value="374609" ><button type="button" onclick="play('2025/07/14/audio_028eefe629.mp3')">▶</button> Bee landing on flower <small>4 s · #374609</small></label>
+<label class="c"><input type="radio" name="abeja" value="427554" ><button type="button" onclick="play('2025/10/29/audio_67be659737.mp3')">▶</button> Buzz Cartoon Bug SFX <small><1 s · #427554</small></label>
+<label class="c"><input type="radio" name="abeja" value="103494" ><button type="button" onclick="play('2022/03/24/audio_a48dd30390.mp3')">▶</button> insect_bee_fly_buzz <small>6 s · #103494</small></label>
+<h2>cerdo</h2>
+<label class="c"><input type="radio" name="cerdo" value="47167" checked><button type="button" onclick="play('2022/03/10/audio_bd90b91efe.mp3')">▶</button> Pig Oink <small><1 s · #47167</small></label>
+<label class="c"><input type="radio" name="cerdo" value="40664" ><button type="button" onclick="play('2022/03/10/audio_1d0ef3b7be.mp3')">▶</button> oink <small>1 s · #40664</small></label>
+<label class="c"><input type="radio" name="cerdo" value="100272" ><button type="button" onclick="play('2022/03/24/audio_8323227027.mp3')">▶</button> Pig Grunt <small><1 s · #100272</small></label>
+<label class="c"><input type="radio" name="cerdo" value="47168" ><button type="button" onclick="play('2022/03/10/audio_3b2e63a5ba.mp3')">▶</button> Pig Sound <small><1 s · #47168</small></label>
+<h2>león</h2>
+<label class="c"><input type="radio" name="león" value="444190" checked><button type="button" onclick="play('2025/11/28/audio_a83280ddfa.mp3')">▶</button> Powerful Lion Roar <small>2 s · #444190</small></label>
+<label class="c"><input type="radio" name="león" value="324751" ><button type="button" onclick="play('2025/04/09/audio_7e076a0c0d.mp3')">▶</button> Lion Roar Sound Effect <small>8 s · #324751</small></label>
+<label class="c"><input type="radio" name="león" value="487672" ><button type="button" onclick="play('2026/02/19/audio_6036421857.mp3')">▶</button> Cartoon Lion Roar <small>2 s · #487672</small></label>
+<h2>elefante</h2>
+<label class="c"><input type="radio" name="elefante" value="6047" checked><button type="button" onclick="play('2021/08/04/audio_19faff7fe5.mp3')">▶</button> Elephant Trumpets Growls <small>1 s · #6047</small></label>
+<label class="c"><input type="radio" name="elefante" value="494313" ><button type="button" onclick="play('2026/03/02/audio_e771c70338.mp3')">▶</button> Elephant Trumpeting <small>2 s · #494313</small></label>
+<label class="c"><input type="radio" name="elefante" value="225994" ><button type="button" onclick="play('2024/07/21/audio_4f5f559a59.mp3')">▶</button> elephant <small>2 s · #225994</small></label>
+<label class="c"><input type="radio" name="elefante" value="352698" ><button type="button" onclick="play('2025/06/01/audio_27f5c749b8.mp3')">▶</button> ELEPHANT <small>2 s · #352698</small></label>
+<h2>mono</h2>
+<label class="c"><input type="radio" name="mono" value="128368" checked><button type="button" onclick="play('2022/12/06/audio_8b07d5599d.mp3')">▶</button> monkey <small>2 s · #128368</small></label>
+<label class="c"><input type="radio" name="mono" value="352770" ><button type="button" onclick="play('2025/06/02/audio_003ff95dff.mp3')">▶</button> MONKEY <small>5 s · #352770</small></label>
+<label class="c"><input type="radio" name="mono" value="454462" ><button type="button" onclick="play('2025/12/26/audio_612bdf360b.mp3')">▶</button> Monkey Laugh <small>8 s · #454462</small></label>
+<label class="c"><input type="radio" name="mono" value="6407" ><button type="button" onclick="play('2021/08/04/audio_69b90804eb.mp3')">▶</button> monkey scream <small>4 s · #6407</small></label>
+<h2>lobo</h2>
+<label class="c"><input type="radio" name="lobo" value="140235" checked><button type="button" onclick="play('2023/02/22/audio_1a8db6ecda.mp3')">▶</button> Wolf Howl <small>7 s · #140235</small></label>
+<label class="c"><input type="radio" name="lobo" value="359870" ><button type="button" onclick="play('2025/06/13/audio_070952934d.mp3')">▶</button> Wolf Howl 2 <small>7 s · #359870</small></label>
+<label class="c"><input type="radio" name="lobo" value="359873" ><button type="button" onclick="play('2025/06/13/audio_ae6f756e2b.mp3')">▶</button> Wolf Howl <small>7 s · #359873</small></label>
+<label class="c"><input type="radio" name="lobo" value="6310" ><button type="button" onclick="play('2021/08/04/audio_2bfd75db49.mp3')">▶</button> Wolf howl <small>7 s · #6310</small></label>
+<h2>serpiente</h2>
+<label class="c"><input type="radio" name="serpiente" value="95241" checked><button type="button" onclick="play('2022/03/18/audio_8a49e4cc49.mp3')">▶</button> Snake Hiss <small>3 s · #95241</small></label>
+<label class="c"><input type="radio" name="serpiente" value="6092" ><button type="button" onclick="play('2021/08/04/audio_32feb21d00.mp3')">▶</button> Snake hissing <small>2 s · #6092</small></label>
+<label class="c"><input type="radio" name="serpiente" value="103123" ><button type="button" onclick="play('2022/03/24/audio_15a00ce31c.mp3')">▶</button> hiss3 <small><1 s · #103123</small></label>
+<label class="c"><input type="radio" name="serpiente" value="240150" ><button type="button" onclick="play('2024/09/12/audio_44c262ad68.mp3')">▶</button> Snake Rattle Sound HQ <small>1 s · #240150</small></label>
+<h2>coche</h2>
+<label class="c"><input type="radio" name="coche" value="6408" checked><button type="button" onclick="play('2021/08/04/audio_e2d32806d3.mp3')">▶</button> car horn <small>4 s · #6408</small></label>
+<label class="c"><input type="radio" name="coche" value="153260" ><button type="button" onclick="play('2023/06/11/audio_1777c08c36.mp3')">▶</button> Car Horn 02 <small>1 s · #153260</small></label>
+<label class="c"><input type="radio" name="coche" value="192751" ><button type="button" onclick="play('2024/02/24/audio_8718828cee.mp3')">▶</button> Car engine pass by <small>3 s · #192751</small></label>
+<label class="c"><input type="radio" name="coche" value="352443" ><button type="button" onclick="play('2025/05/31/audio_1704fa63e4.mp3')">▶</button> Double Car Honk <small>1 s · #352443</small></label>
+<label class="c"><input type="radio" name="coche" value="386166" ><button type="button" onclick="play('2025/08/07/audio_bbccbeb8a8.mp3')">▶</button> Car Honk <small>1 s · #386166</small></label>
+<h2>moto</h2>
+<label class="c"><input type="radio" name="moto" value="337870" checked><button type="button" onclick="play('2025/05/07/audio_096f24fddc.mp3')">▶</button> Motorcycle Engine Rev 2 <small>1 s · #337870</small></label>
+<label class="c"><input type="radio" name="moto" value="567209" ><button type="button" onclick="play('2026/07/14/audio_2ba3fba3fc.mp3')">▶</button> Motorcycle Pass By <small>2 s · #567209</small></label>
+<label class="c"><input type="radio" name="moto" value="559409" ><button type="button" onclick="play('2026/06/29/audio_f410d465fd.mp3')">▶</button> Fast Motorcycle Pass By <small>3 s · #559409</small></label>
+<label class="c"><input type="radio" name="moto" value="394700" ><button type="button" onclick="play('2025/08/25/audio_7414a3604a.mp3')">▶</button> Big motorcycle sound <small>8 s · #394700</small></label>
+<h2>camión</h2>
+<label class="c"><input type="radio" name="camión" value="153263" checked><button type="button" onclick="play('2023/06/11/audio_6bc6f187b1.mp3')">▶</button> Truck Horn <small>1 s · #153263</small></label>
+<label class="c"><input type="radio" name="camión" value="298077" ><button type="button" onclick="play('2025/02/07/audio_a13f4a6786.mp3')">▶</button> Truck signal <small>3 s · #298077</small></label>
+<label class="c"><input type="radio" name="camión" value="280800" ><button type="button" onclick="play('2024/12/26/audio_6b62ee2018.mp3')">▶</button> Truck Horn #2 <small>1 s · #280800</small></label>
+<label class="c"><input type="radio" name="camión" value="280798" ><button type="button" onclick="play('2024/12/26/audio_9023cc527d.mp3')">▶</button> Truck Horn #1 <small>1 s · #280798</small></label>
+<h2>autobús</h2>
+<label class="c"><input type="radio" name="autobús" value="426900" checked><button type="button" onclick="play('2025/10/27/audio_8960c74023.mp3')">▶</button> Bus Horn <small>1 s · #426900</small></label>
+<label class="c"><input type="radio" name="autobús" value="307489" ><button type="button" onclick="play('2025/02/28/audio_e4864bde12.mp3')">▶</button> Motorbus Horn <small><1 s · #307489</small></label>
+<h2>tren</h2>
+<label class="c"><input type="radio" name="tren" value="306031" checked><button type="button" onclick="play('2025/02/25/audio_f161a084c6.mp3')">▶</button> train whistle <small>1 s · #306031</small></label>
+<label class="c"><input type="radio" name="tren" value="102834" ><button type="button" onclick="play('2022/03/24/audio_d3a7b6155e.mp3')">▶</button> Train whistle <small>2 s · #102834</small></label>
+<label class="c"><input type="radio" name="tren" value="256872" ><button type="button" onclick="play('2024/10/29/audio_e4a0a5cf2b.mp3')">▶</button> Old train-steam-whistle <small>6 s · #256872</small></label>
+<label class="c"><input type="radio" name="tren" value="99274" ><button type="button" onclick="play('2022/03/22/audio_a6ebdaf6df.mp3')">▶</button> Train-steam whistle #1 <small>3 s · #99274</small></label>
+<label class="c"><input type="radio" name="tren" value="99265" ><button type="button" onclick="play('2022/03/22/audio_13991a986f.mp3')">▶</button> Train #1 <small>10 s · #99265</small></label>
+<h2>avión</h2>
+<label class="c"><input type="radio" name="avión" value="326783" checked><button type="button" onclick="play('2025/04/13/audio_3c0ffb9557.mp3')">▶</button> Airplane sfx <small>3 s · #326783</small></label>
+<label class="c"><input type="radio" name="avión" value="293829" ><button type="button" onclick="play('2025/01/28/audio_cc7da8640f.mp3')">▶</button> Airplane <small>6 s · #293829</small></label>
+<label class="c"><input type="radio" name="avión" value="95615" ><button type="button" onclick="play('2022/03/19/audio_cda40110f3.mp3')">▶</button> Airplane <small>10 s · #95615</small></label>
+<h2>helicóptero</h2>
+<label class="c"><input type="radio" name="helicóptero" value="372462" checked><button type="button" onclick="play('2025/07/09/audio_c5c1371b87.mp3')">▶</button> Helicopter Sound 1 <small>2 s · #372462</small></label>
+<label class="c"><input type="radio" name="helicóptero" value="515262" ><button type="button" onclick="play('2026/04/06/audio_3087f770ca.mp3')">▶</button> Helicopter Flying By <small>4 s · #515262</small></label>
+<label class="c"><input type="radio" name="helicóptero" value="372458" ><button type="button" onclick="play('2025/07/09/audio_07b3a8e64a.mp3')">▶</button> Helicopter Sound 2 <small>1 s · #372458</small></label>
+<label class="c"><input type="radio" name="helicóptero" value="41975" ><button type="button" onclick="play('2022/03/10/audio_e7d756133a.mp3')">▶</button> Helicopter Sound <small>10 s · #41975</small></label>
+<h2>barco</h2>
+<label class="c"><input type="radio" name="barco" value="352063" checked><button type="button" onclick="play('2025/05/30/audio_062c020a8c.mp3')">▶</button> Cargo Ship Horn <small>2 s · #352063</small></label>
+<label class="c"><input type="radio" name="barco" value="386178" ><button type="button" onclick="play('2025/08/07/audio_41f02d757a.mp3')">▶</button> Boat Horn <small>1 s · #386178</small></label>
+<label class="c"><input type="radio" name="barco" value="386170" ><button type="button" onclick="play('2025/08/07/audio_c2600b3997.mp3')">▶</button> Boat Horn 3 <small>1 s · #386170</small></label>
+<label class="c"><input type="radio" name="barco" value="14642" ><button type="button" onclick="play('2022/01/18/audio_9adeb05abe.mp3')">▶</button> ship horn very close <small>5 s · #14642</small></label>
+<h2>ambulancia</h2>
+<label class="c"><input type="radio" name="ambulancia" value="543408" checked><button type="button" onclick="play('2026/05/29/audio_4316376ab9.mp3')">▶</button> Ambulance siren in a big city <small>10 s · #543408</small></label>
+<label class="c"><input type="radio" name="ambulancia" value="364900" ><button type="button" onclick="play('2025/06/24/audio_73358e9f83.mp3')">▶</button> Ambulance siren <small>10 s · #364900</small></label>
+<h2>bomberos</h2>
+<label class="c"><input type="radio" name="bomberos" value="307510" checked><button type="button" onclick="play('2025/02/28/audio_7867640b42.mp3')">▶</button> Fire Truck Siren <small>4 s · #307510</small></label>
+<label class="c"><input type="radio" name="bomberos" value="106986" ><button type="button" onclick="play('2022/03/26/audio_536bb2f64b.mp3')">▶</button> Parisian fire truck siren <small>5 s · #106986</small></label>
+<label class="c"><input type="radio" name="bomberos" value="521118" ><button type="button" onclick="play('2026/04/24/audio_e84c54a7b3.mp3')">▶</button> Fire truck siren <small>10 s · #521118</small></label>
+<label class="c"><input type="radio" name="bomberos" value="307511" ><button type="button" onclick="play('2025/02/28/audio_9121fa1596.mp3')">▶</button> Fire Truck Siren 2 <small>10 s · #307511</small></label>
+<h2>policía</h2>
+<label class="c"><input type="radio" name="policía" value="397963" checked><button type="button" onclick="play('2025/09/01/audio_1b51f0cb48.mp3')">▶</button> Police Siren <small>5 s · #397963</small></label>
+<label class="c"><input type="radio" name="policía" value="99029" ><button type="button" onclick="play('2022/03/21/audio_a8987592a8.mp3')">▶</button> police siren <small>3 s · #99029</small></label>
+<label class="c"><input type="radio" name="policía" value="104019" ><button type="button" onclick="play('2022/03/24/audio_9933644733.mp3')">▶</button> police siren loop <small><1 s · #104019</small></label>
+<label class="c"><input type="radio" name="policía" value="371856" ><button type="button" onclick="play('2025/07/08/audio_3d583330ed.mp3')">▶</button> Police Siren Cinematic HD <small>8 s · #371856</small></label>
+<h2>bicicleta</h2>
+<label class="c"><input type="radio" name="bicicleta" value="382718" checked><button type="button" onclick="play('2025/07/30/audio_14c8468369.mp3')">▶</button> Bicycle Bell <small><1 s · #382718</small></label>
+<label class="c"><input type="radio" name="bicicleta" value="545997" ><button type="button" onclick="play('2026/06/02/audio_9ebaf0773b.mp3')">▶</button> bicycle bell #1 <small>4 s · #545997</small></label>
+<label class="c"><input type="radio" name="bicicleta" value="105044" ><button type="button" onclick="play('2022/03/24/audio_3dbff75c4b.mp3')">▶</button> Bicycle Bell <small>6 s · #105044</small></label>
+<label class="c"><input type="radio" name="bicicleta" value="40094" ><button type="button" onclick="play('2022/03/10/audio_245663aa25.mp3')">▶</button> Bike bell <small>6 s · #40094</small></label>
+<h2>tractor</h2>
+<label class="c"><input type="radio" name="tractor" value="106362" checked><button type="button" onclick="play('2022/03/25/audio_2ef995da24.mp3')">▶</button> Minitractor <small>6 s · #106362</small></label>
+<label class="c"><input type="radio" name="tractor" value="82912" ><button type="button" onclick="play('2022/03/15/audio_ac3f52d51d.mp3')">▶</button> Tractor whirring <small>4 s · #82912</small></label>
+<label class="c"><input type="radio" name="tractor" value="80168" ><button type="button" onclick="play('2022/03/15/audio_dba4c3bc45.mp3')">▶</button> TRACTOR START <small>9 s · #80168</small></label>
+<label class="c"><input type="radio" name="tractor" value="304963" ><button type="button" onclick="play('2025/02/23/audio_6f5d4c8058.mp3')">▶</button> Tractor passing on street <small>10 s · #304963</small></label>
+<div id="out"><b>Tu elección</b><textarea id="t" readonly></textarea></div>
+<script>let a=new Audio();function play(s){a.pause();a=new Audio('https://cdn.pixabay.com/audio/'+s);a.play()}
+function upd(){const m={};document.querySelectorAll('input:checked').forEach(i=>m[i.name]=+i.value);document.getElementById('t').value=Object.entries(m).map(([k,v])=>k+' '+v).join(', ')}
+document.addEventListener('change',upd);upd()</script>

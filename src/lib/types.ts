@@ -9,7 +9,7 @@ export type Category =
   | 'negation'
   | 'misc'
 
-export type CellKind = 'word' | 'phrase' | 'folder'
+export type CellKind = 'word' | 'phrase' | 'folder' | 'sound' // sound: al tocarla solo suena (no entra en la frase)
 
 export interface Cell {
   id: string
@@ -18,6 +18,8 @@ export interface Cell {
   category: Category
   picto?: number // id de pictograma ARASAAC
   photo?: string // foto propia en lugar del pictograma (ruta en el almacenamiento de la cuenta)
+  sound?: string // ficha «Sonido»: su sonido (ruta en el almacenamiento de la cuenta)
+  soundCredit?: string // de dónde sale el sonido (autor y Freesound)
   target?: string // id del tablero destino (solo carpetas)
   // Posición fija: una celda nunca cambia de sitio sola (planificación motora)
   row: number

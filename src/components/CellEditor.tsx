@@ -5,6 +5,7 @@ import { classify, normalizeText } from '../lib/grammar'
 import { CATEGORY_LABELS, type Category, type Cell, type Group } from '../lib/types'
 import { ExpansionPicker } from './ExpansionPicker'
 import { PhotoCropper } from './PhotoCropper'
+import { SoundPicker, type SoundsApi } from './SoundPicker'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
 import { WordInput } from './WordInput'
@@ -29,9 +30,11 @@ interface Props {
   onUploadPhoto?: (file: Blob) => Promise<string>
   /** Carpeta del principal: elegir dónde se abre (zona de carpetas o zona de ampliación propia) */
   expansionBoard?: { rows: number; cols: number; groups: Group[] }
+  /** Fichas «Sonido»: buscar, guardar y escuchar sonidos. Sin ella (p. ej. sin sesión) no se pueden elegir */
+  sounds?: SoundsApi
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, expansionBoard, onUploadPhoto }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, expansionBoard, onUploadPhoto, sounds }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
@@ -132,6 +135,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                 <select value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as Cell['kind'] })}>
                   <option value="word">Palabra (se conjuga)</option>
                   <option value="phrase">Frase hecha</option>
+                  <option value="sound">Sonido (al tocarla solo suena)</option>
                   {onCreateFolder && <option value="folder">Carpeta (abre otro tablero)</option>}
                 </select>
               </label>
@@ -205,6 +209,9 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           )}
         </div>
       </div>
+      {draft.kind === 'sound' && (
+        <SoundPicker label={draft.label} sound={draft.sound} credit={draft.soundCredit} api={sounds} onChange={(sound, soundCredit) => setDraft((d) => ({ ...d, sound, soundCredit }))} />
+      )}
       {/* Los pictogramas siguen a lo escrito en «Texto» */}
       <div className="picto-search">
         <strong className="picto-results-title">Pictograma</strong>
@@ -253,13 +260,16 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
               setCreating(true)
               await onCreateFolder(normalizeText(draft.label), picked, draft.picto, draft.folderColor)
               setCreating(false)
-            } else onSave({ ...draft, label: normalizeText(draft.label) })
+            } else {
+              const { sound, soundCredit, ...rest } = draft
+              onSave({ ...rest, ...(draft.kind === 'sound' && sound ? { sound, soundCredit } : {}), label: normalizeText(draft.label) })
+            }
           }}
         >
           {creating ? 'Creando carpeta…' : newFolder ? (isNew ? 'Crear carpeta' : 'Convertir en carpeta') : 'Guardar'}
         </button>
       </footer>
-      <p className="credit">Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA</p>
+      <p className="credit">Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA{draft.kind === 'sound' ? ' · Sonidos: Freesound (dominio público, CC0)' : ''}</p>
       {cropping && <PhotoCropper file={cropping} onDone={(jpeg) => void pickPhoto(jpeg)} onCancel={() => setCropping(null)} />}
     </Modal>
   )

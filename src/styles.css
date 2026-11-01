@@ -1802,3 +1802,51 @@ button.small {
   text-align: center;
   max-width: 340px;
 }
+
+/* Fichas «Sonido»: icono en la ficha y elegir el sonido en el editor */
+.cell-sound-icon {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: clamp(0.7rem, 12cqi, 1.3rem);
+  line-height: 1;
+}
+.cell-sound-icon.missing {
+  opacity: 0.35;
+}
+.sound-picker {
+  margin: 10px 0;
+}
+.sound-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.sound-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 6px;
+}
+.sound-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+.sound-option.playing {
+  border-color: var(--accent);
+}
+.sound-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

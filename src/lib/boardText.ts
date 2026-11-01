@@ -42,7 +42,7 @@ interface TCellOpts {
   picto?: string
   textOnly?: boolean
   hidden?: boolean
-  kind?: 'word' | 'phrase'
+  kind?: 'word' | 'phrase' | 'sound'
   category?: Category
   color?: FolderColor
   row?: number
@@ -161,6 +161,7 @@ function parseCellOptions(options: string[], err: (m: string) => void): TCellOpt
     else if (f === 'oculta' || f === 'oculto') o.hidden = true
     else if (f === 'frase') o.kind = 'phrase'
     else if (f === 'palabra') o.kind = 'word'
+    else if (f === 'sonido') o.kind = 'sound'
     else if (m && m[1] === 'picto') o.picto = raw.replace(/^\s*picto\s*:?\s*/i, '').trim()
     else if (m && m[1] === 'categoria') {
       const c = parseCategory(m[2])
@@ -350,8 +351,8 @@ export function boardToTextWithLines(lib: Library): { text: string; lines: Map<s
       if (c.folderColor && c.folderColor !== groupColor) opts.push(`color: ${colorName(c.folderColor)}`)
       if (c.expansion) opts.push('ampliación', rangeText('fila', c.expansion.r0, c.expansion.r1), rangeText('columna', c.expansion.c0, c.expansion.c1))
     } else {
-      const kind = c.kind === 'phrase' ? 'phrase' : 'word'
-      if (kind !== defaultKind(c.label)) opts.push(kind === 'phrase' ? 'frase' : 'palabra')
+      const kind = c.kind === 'phrase' || c.kind === 'sound' ? c.kind : 'word'
+      if (kind !== defaultKind(c.label)) opts.push(kind === 'phrase' ? 'frase' : kind === 'sound' ? 'sonido' : 'palabra')
       if (c.category !== defaultCategory(c.label, kind)) opts.push(`categoría: ${categoryName(c.category)}`)
       if (c.textOnly) opts.push('solo texto')
     }
@@ -616,6 +617,7 @@ export function planBoardText(lib: Library, doc: TDoc): TextPlan {
         delete cell.target
         delete cell.folderColor
         delete cell.expansion
+        if (kind !== 'sound') (delete cell.sound, delete cell.soundCredit)
         if (it.opts.textOnly) cell.textOnly = true
         else delete cell.textOnly
         if (fresh || it.opts.picto)

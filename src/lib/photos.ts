@@ -12,24 +12,28 @@ const LIFETIME = 60 * 60 // segundos
 const cache = new Map<string, { url: string; until: number }>()
 const pending = new Map<string, Promise<string | null>>()
 
-/** Enlace temporal para ver la foto (null si no se puede: sin sesión, sin permiso o sin conexión) */
-export function photoUrl(sb: SupabaseClient, path: string): Promise<string | null> {
-  const hit = cache.get(path)
+/** Enlace temporal a un archivo privado (null si no se puede: sin sesión, sin permiso o sin conexión) */
+export function signedUrl(sb: SupabaseClient, bucket: string, path: string): Promise<string | null> {
+  const key = `${bucket}/${path}`
+  const hit = cache.get(key)
   if (hit && hit.until > Date.now()) return Promise.resolve(hit.url)
-  const inFlight = pending.get(path)
+  const inFlight = pending.get(key)
   if (inFlight) return inFlight
   const p = sb.storage
-    .from(PHOTO_BUCKET)
+    .from(bucket)
     .createSignedUrl(path, LIFETIME)
     .then(({ data }) => {
-      if (data?.signedUrl) cache.set(path, { url: data.signedUrl, until: Date.now() + (LIFETIME - 120) * 1000 })
+      if (data?.signedUrl) cache.set(key, { url: data.signedUrl, until: Date.now() + (LIFETIME - 120) * 1000 })
       return data?.signedUrl ?? null
     })
     .catch(() => null)
-    .finally(() => pending.delete(path))
-  pending.set(path, p)
+    .finally(() => pending.delete(key))
+  pending.set(key, p)
   return p
 }
+
+/** Enlace temporal para ver la foto */
+export const photoUrl = (sb: SupabaseClient, path: string) => signedUrl(sb, PHOTO_BUCKET, path)
 
 /** Sube una foto (ya reducida) al tablero `libraryId` y devuelve su ruta, que se guarda en la ficha */
 export async function uploadPhoto(sb: SupabaseClient, libraryId: string, data: Blob | ArrayBuffer, contentType = 'image/jpeg'): Promise<string> {

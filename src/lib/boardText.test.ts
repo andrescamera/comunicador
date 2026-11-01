@@ -140,6 +140,21 @@ describe('tablero escrito: cambios', () => {
     expect(p.changes[0].changed).toEqual(['hola'])
   })
 
+  it('fichas «Sonido»: se escriben con [sonido], conservan su sonido y lo pierden al dejar de serlo', () => {
+    const lib = sample()
+    const comida = lib.boards['b-comida']
+    lib.boards['b-comida'] = { ...comida, cells: comida.cells.map((c) => (c.label === 'agua' ? { ...c, kind: 'sound', sound: 'lib/s.mp3', soundCredit: 'x' } : c)) }
+    const text = boardToText(lib)
+    expect(text).toContain('\tagua [sonido]\n')
+    expect(plan(lib, text).changes).toEqual([])
+    const same = plan(lib, text.replace('\tleche\n', '\tleche [sonido]\n')).lib!.boards['b-comida'].cells
+    expect(same.find((c) => c.label === 'agua')).toMatchObject({ kind: 'sound', sound: 'lib/s.mp3' })
+    expect(same.find((c) => c.label === 'leche')).toMatchObject({ kind: 'sound' })
+    const word = plan(lib, text.replace('\tagua [sonido]\n', '\tagua\n')).lib!.boards['b-comida'].cells.find((c) => c.label === 'agua')!
+    expect(word.kind).toBe('word')
+    expect(word.sound).toBeUndefined()
+  })
+
   it('un grupo que ya existe se puede escribir sin rectángulo', () => {
     const lib = sample()
     const p = plan(lib, boardToText(lib).replace('@ Pronombre [filas 1-4, columna 1, color: pronombre]', '@ Pronombre'))

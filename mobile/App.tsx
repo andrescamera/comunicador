@@ -49,6 +49,8 @@ import {
   zoneOf,
   boardGroups,
   uploadPhoto,
+  searchSounds,
+  copySound,
   folderArea,
   groupAt,
   isExpansionFolder,
@@ -58,6 +60,7 @@ import {
   FOLDER_PREV,
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
+import { play, prefetchSounds } from './src/soundPlayer'
 import { appStore, supabase } from './src/cloud'
 import { Btn } from './src/components/Sheet'
 import { loadSettings, saveSettings } from './src/storage'
@@ -179,6 +182,16 @@ export default function App() {
     if (!ids.length) return
     ids.forEach((id) => prefetched.current.add(id))
     void Image.prefetch(ids.map((id) => pictoUrl(id)), 'memory-disk')
+  }, [lib])
+  // Y de los sonidos de las fichas «Sonido» (se guardan en el dispositivo)
+  const prefetchedSounds = useRef(new Set<string>())
+  useEffect(() => {
+    if (!lib) return
+    const paths = Object.values(lib.boards)
+      .flatMap((b) => b.cells.map((c) => c.sound))
+      .filter((p): p is string => !!p && !prefetchedSounds.current.has(p))
+    paths.forEach((p) => prefetchedSounds.current.add(p))
+    if (paths.length) prefetchSounds(paths)
   }, [lib])
 
   // Reintento de pictogramas que faltaron (sin conexión, error de red...), una vez por sesión
@@ -316,6 +329,12 @@ export default function App() {
   const onCellTap = (cell: Cell) => {
     if (cell.id === FOLDER_NEXT || cell.id === FOLDER_PREV) {
       setFolderPage((p) => p + (cell.id === FOLDER_NEXT ? 1 : -1))
+      return
+    }
+    if (cell.kind === 'sound') {
+      // Solo suena: no entra en la frase ni se vuelve al principal (se pueden tocar varias seguidas)
+      if (cell.sound) void play({ path: cell.sound }).then((ok) => ok || setNotice('No se pudo cargar el sonido (la primera vez hace falta conexión).'))
+      scheduleIdleClear(sentence.length)
       return
     }
     if (cell.kind === 'folder') {
@@ -582,6 +601,11 @@ export default function App() {
           onDelete={editTarget.isNew ? undefined : () => deleteCell(editTarget.cell.id)}
           onUploadPhoto={
             cloud.email && cloud.active?.synced && cloud.activeId && !readOnly ? (jpeg) => uploadPhoto(supabase, cloud.activeId!, jpeg) : undefined
+          }
+          sounds={
+            cloud.email && cloud.active?.synced && cloud.activeId && !readOnly
+              ? { search: (q) => searchSounds(supabase, q), pick: (r) => copySound(supabase, cloud.activeId!, r) }
+              : undefined
           }
           onStartMove={editTarget.isNew ? undefined : () => (setMoving({ id: editTarget.cell.id, from: board.id }), setEditTarget(null))}
           onClose={() => setEditTarget(null)}

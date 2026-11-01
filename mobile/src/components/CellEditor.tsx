@@ -5,6 +5,7 @@ import { colors } from '../theme'
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import { Picto } from './Picto'
+import { SoundPicker, type SoundsApi } from './SoundPicker'
 import { Btn, Sheet } from './Sheet'
 
 interface Props {
@@ -24,9 +25,11 @@ interface Props {
   suggestions?: { category: string; words: string[] }
   /** Entrar en la carpeta para editar lo que tiene dentro */
   onOpenFolder?: () => void
+  /** Fichas «Sonido»: buscar y guardar sonidos. Sin ella (p. ej. sin sesión) no se pueden elegir */
+  sounds?: SoundsApi
 }
 
-export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, onUploadPhoto }: Props) {
+export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose, onCreateFolder, onOpenFolder, capacity, suggestions, onUploadPhoto, sounds }: Props) {
   const [draft, setDraft] = useState<Cell>(cell)
   const [template, setTemplate] = useState<string | undefined>(undefined)
   const [picked, setPicked] = useState<string[]>([]) // palabras elegidas para la carpeta
@@ -115,7 +118,10 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
                 setCreating(true)
                 await onCreateFolder(normalizeText(draft.label), options.filter((w) => picked.includes(w)), draft.picto, draft.folderColor)
                 setCreating(false)
-              } else onSave({ ...draft, label: normalizeText(draft.label) })
+              } else {
+                const { sound, soundCredit, ...rest } = draft
+                onSave({ ...rest, ...(draft.kind === 'sound' && sound ? { sound, soundCredit } : {}), label: normalizeText(draft.label) })
+              }
             }}
           />
         </>
@@ -175,12 +181,12 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
             <>
               <Text style={styles.label}>Tipo</Text>
               <View style={styles.chips}>
-                {(onCreateFolder ? (['word', 'phrase', 'folder'] as const) : (['word', 'phrase'] as const)).map((k) => (
+                {(onCreateFolder ? (['word', 'phrase', 'sound', 'folder'] as const) : (['word', 'phrase', 'sound'] as const)).map((k) => (
                   <Chip
                     key={k}
                     active={draft.kind === k}
                     onPress={() => setDraft({ ...draft, kind: k })}
-                    text={k === 'word' ? 'Palabra (se conjuga)' : k === 'phrase' ? 'Frase hecha' : 'Carpeta'}
+                    text={k === 'word' ? 'Palabra (se conjuga)' : k === 'phrase' ? 'Frase hecha' : k === 'sound' ? 'Sonido (solo suena)' : 'Carpeta'}
                   />
                 ))}
               </View>
@@ -264,6 +270,9 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           )}
         </View>
       </View>
+      {draft.kind === 'sound' && (
+        <SoundPicker label={draft.label} sound={draft.sound} credit={draft.soundCredit} api={sounds} onChange={(sound, soundCredit) => setDraft((d) => ({ ...d, sound, soundCredit }))} />
+      )}
       {/* Los pictogramas siguen a lo escrito en «Texto» */}
       <Text style={styles.label}>Pictograma</Text>
       <View style={[styles.chips, { alignItems: 'center' }]}>
@@ -288,7 +297,7 @@ export function CellEditor({ cell, isNew, onSave, onDelete, onStartMove, onClose
           </Pressable>
         ))}
       </View>
-      <Text style={styles.credit}>Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA</Text>
+      <Text style={styles.credit}>Pictogramas: Sergio Palao · ARASAAC (Gobierno de Aragón) · CC BY-NC-SA{draft.kind === 'sound' ? ' · Sonidos: Freesound (dominio público, CC0)' : ''}</Text>
     </Sheet>
   )
 }

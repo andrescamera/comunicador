@@ -29,6 +29,7 @@ export function CellView({ cell, editing, onTap, editProps, selected, displayLab
     <>
       {!cell.textOnly && <Picto id={cell.picto} photo={cell.photo} alt={cell.label} />}
       <span className="cell-label">{displayLabel ?? cell.label}</span>
+      {cell.kind === 'sound' && <span className={`cell-sound-icon${cell.sound ? '' : ' missing'}`} aria-hidden>🔊</span>}
       {editing && cell.hidden && <span className="cell-badge">oculta</span>}
     </>
   )
