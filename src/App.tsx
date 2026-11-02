@@ -621,12 +621,12 @@ export default function App() {
           <div className={`edit-hint ${moving ? 'moving' : ''}`}>
             {moving ? (
               <>
-                Elige la casilla de destino (si está ocupada, se intercambian).
+                Elige dónde dejar «{lib.boards[moving.from]?.cells.find((c) => c.id === moving.id)?.label}» (si la casilla está ocupada, se intercambian).
                 <MoveDestination lib={lib} moving={moving} current={board.id} onGo={setHistory} />
                 <button type="button" onClick={() => setMoving(null)}>Cancelar</button>
               </>
             ) : (
-              'Pulsa una celda para editarla, una casilla vacía para añadir, o arrastra para cambiar de sitio. Las celdas nunca se mueven solas.'
+              'Pulsa una celda para editarla, una casilla vacía para añadir, o arrastra para cambiar de sitio (encima de una carpeta, para meterla dentro). Las celdas nunca se mueven solas.'
             )}
           </div>
         )}
@@ -673,6 +673,12 @@ export default function App() {
             }
             movingId={moving?.id}
             onMoveTo={moveTo}
+            onDropInto={(id, folder) => {
+              // Soltar encima de una carpeta: se abre con la ficha «en la mano» para elegir dónde dejarla
+              if (!folder.target || !lib.boards[folder.target]) return
+              setMoving({ id, from: board.id })
+              setHistory((h) => [...h, folder.target!])
+            }}
             onRenameZone={(zone, name) =>
               updateBoard(board.id, (b) => {
                 const zoneLabels = { ...b.zoneLabels }

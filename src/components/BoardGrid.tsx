@@ -16,6 +16,8 @@ interface Props {
   /** Edición: celda seleccionada para moverla con clic en el destino */
   movingId?: string | null
   onMoveTo?: (id: string, row: number, col: number) => void
+  /** Edición: soltar una ficha arrastrada encima de una carpeta (para meterla dentro) */
+  onDropInto?: (id: string, folder: Cell) => void
   /** Edición: cambiar el nombre de un grupo de columnas (null = volver al nombre por defecto) */
   onRenameZone?: (zone: Zone, name: string | null) => void
   /** Texto que se ve en una celda, si no es su etiqueta (verbos conjugados) */
@@ -34,20 +36,22 @@ function zoneAt(board: Board, col: number): Zone | undefined {
   return ZONE_ORDER.find((z) => board.zones[z][0] <= col && col <= board.zones[z][1])
 }
 
-export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onRenameZone, labelFor, dimFor, activeArea, groups = [], openId }: Props) {
+export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onDropInto, onRenameZone, labelFor, dimFor, activeArea, groups = [], openId }: Props) {
   const gridStyle = {
     gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
   }
 
-  const dropProps = (row: number, col: number) =>
+  const dropProps = (row: number, col: number, onto?: Cell) =>
     onMoveTo
       ? {
           onDragOver: (e: DragEvent) => e.preventDefault(),
           onDrop: (e: DragEvent) => {
             e.preventDefault()
             const id = e.dataTransfer.getData('text/plain')
-            if (id) onMoveTo(id, row, col)
+            if (!id) return
+            if (onto?.kind === 'folder' && onto.id !== id && onDropInto) onDropInto(id, onto)
+            else onMoveTo(id, row, col)
           },
         }
       : {}
@@ -106,7 +110,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
               onClick: () => (movingId && onMoveTo ? onMoveTo(movingId, cell.row, cell.col) : onEdit(cell)),
               draggable: !!onMoveTo,
               onDragStart: (e) => e.dataTransfer.setData('text/plain', cell.id),
-              ...dropProps(cell.row, cell.col),
+              ...dropProps(cell.row, cell.col, cell),
             }}
           />
         ))}
