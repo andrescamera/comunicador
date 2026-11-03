@@ -19,12 +19,14 @@ interface Props {
   groupColor?: Category
   /** Carpeta abierta ahora mismo (se resalta) */
   open?: boolean
+  /** La ficha que se acaba de buscar (se resalta un momento) */
+  found?: boolean
 }
 
-export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed, groupColor, open }: Props) {
+export function CellView({ cell, editing, onTap, editProps, selected, displayLabel, dimmed, groupColor, open, found }: Props) {
   const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor, groupColor)
   const style: CSSProperties = { background: bg, borderColor: border, gridRow: cell.row + 1, gridColumn: cell.col + 1 }
-  const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}${open ? ' cell-open' : ''}`
+  const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}${open ? ' cell-open' : ''}${found ? ' cell-found' : ''}`
   const body = (
     <>
       {!cell.textOnly && <Picto id={cell.picto} photo={cell.photo} alt={cell.label} />}

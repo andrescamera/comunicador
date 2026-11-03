@@ -30,13 +30,15 @@ interface Props {
   groups?: Group[]
   /** La carpeta abierta (p. ej. el «más» que se está ampliando): se resalta */
   openId?: string
+  /** La ficha que se acaba de buscar: se resalta un momento */
+  foundId?: string | null
 }
 
 function zoneAt(board: Board, col: number): Zone | undefined {
   return ZONE_ORDER.find((z) => board.zones[z][0] <= col && col <= board.zones[z][1])
 }
 
-export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onDropInto, onRenameZone, labelFor, dimFor, activeArea, groups = [], openId }: Props) {
+export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, onMoveTo, onDropInto, onRenameZone, labelFor, dimFor, activeArea, groups = [], openId, foundId }: Props) {
   const gridStyle = {
     gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
@@ -102,6 +104,7 @@ export function BoardGrid({ board, editing, onTap, onEdit, onAddAt, movingId, on
             editing={editing}
             selected={movingId === cell.id}
             open={cell.id === openId}
+            found={cell.id === foundId}
             displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}
             dimmed={!editing && !!dimFor?.(cell)}
             groupColor={groupAt(groups, cell.row, cell.col)?.color}

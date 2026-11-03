@@ -1850,3 +1850,70 @@ button.small {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 🔍 Buscar una ficha */
+.search-input {
+  font-size: 1.15rem;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  width: 100%;
+}
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.search-results button {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+}
+.search-results .picto {
+  grid-row: 1 / 3;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.search-label {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.search-trail {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+/* La ficha que se acaba de buscar */
+.cell-found {
+  z-index: 2;
+  animation: found 0.8s ease-in-out 5;
+}
+@keyframes found {
+  50% {
+    outline: 6px solid #f59e0b;
+    outline-offset: 2px;
+    transform: scale(1.06);
+  }
+}
+.search-row {
+  display: flex;
+  gap: 8px;
+}
+.search-mic {
+  flex: none;
+  font-size: 1.3rem;
+  padding: 0 14px;
+}
+.search-mic.listening {
+  background: #fee2e2;
+  border-color: #dc2626;
+  animation: pulse 1.2s ease-in-out infinite;
+}

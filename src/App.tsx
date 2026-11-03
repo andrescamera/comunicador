@@ -11,6 +11,8 @@ import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TapLog } from './components/TapLog'
 import { LibrariesPage } from './components/LibrariesPage'
+import { CellSearch } from './components/CellSearch'
+import { type CellHit, pageOfCell } from './lib/search'
 import { buildFolder, buildQuickChat, sortCells, starterLibrary } from './lib/generator'
 import { boardGroups, FOLDER_NEXT, FOLDER_PREV, folderArea, groupAt, isExpansionFolder, inlineFolder, boardsInside, moveCellToBoard, moveTargets, normalizeLibrary, relayoutBoard, resizeLibrary } from './lib/layout'
 import { classify, realize, sentenceText, verbFormFor } from './lib/grammar'
@@ -78,6 +80,14 @@ export default function App() {
   const [preview, setPreview] = useState<Cell[] | null>(null)
   const [showDynConfig, setShowDynConfig] = useState(false)
   const [folderPage, setFolderPage] = useState(0) // carpeta abierta en su zona: página
+  const nextFolderPage = useRef(0) // al ir a una ficha buscada: la página de la carpeta en la que sale
+  const [showSearch, setShowSearch] = useState(false)
+  const [found, setFound] = useState<string | null>(null) // ficha buscada: se resalta unos segundos
+  useEffect(() => {
+    if (!found) return
+    const t = window.setTimeout(() => setFound(null), 4000)
+    return () => window.clearTimeout(t)
+  }, [found])
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0) // > 0: cuenta atrás de borrado en curso (cambia para reiniciar la animación)
   const clearTimer = useRef<number | undefined>(undefined)
@@ -125,7 +135,10 @@ export default function App() {
   settingsRef.current = settings
 
   useEffect(() => saveSettings(settings), [settings])
-  useEffect(() => setFolderPage(0), [history])
+  useEffect(() => {
+    setFolderPage(nextFolderPage.current)
+    nextFolderPage.current = 0
+  }, [history])
   // Modo predictivo: tras cada palabra, si todo lo que encaja está en una carpeta, se abre sola
   const predKey = predictionKey(sentence)
   useEffect(() => {
@@ -425,6 +438,16 @@ export default function App() {
     setNotice('Tablero reordenado por categorías.')
   }
 
+  // 🔍 Ir a una ficha buscada: se abren las carpetas que haga falta y se resalta
+  const goToHit = (hit: CellHit) => {
+    setShowSearch(false)
+    const folderCell = hit.path.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === hit.path[0]) : undefined
+    const area = root && folderCell ? folderArea(root, folderCell.id) : null
+    nextFolderPage.current = area && root ? pageOfCell(root, hit.board, area, hit.cell.id) : 0
+    setHistory(hit.path)
+    setFound(hit.cell.id)
+  }
+
   const replaceLibrary = (next: Library) => {
     setLib(next)
     setHistory([])
@@ -572,6 +595,11 @@ export default function App() {
           )}
           <div className="topbar-tools">
             {!editing && (
+              <button type="button" onClick={() => setShowSearch(true)} title="Buscar una ficha en todos los tableros" aria-label="Buscar una ficha">
+                🔍
+              </button>
+            )}
+            {!editing && (
               <button type="button" onClick={() => setShowLibraries(true)} title="Mis tableros: cambiar, crear, compartir">
                 📚<span className="btn-text"> Mis tableros</span>
               </button>
@@ -666,6 +694,7 @@ export default function App() {
             activeArea={editArea}
             groups={shownGroups}
             openId={inline ? openFolderCell?.id : undefined}
+            foundId={editing ? null : found}
             labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
             onEdit={(cell) => setEditTarget({ cell, isNew: false })}
             onAddAt={(row, col) =>
@@ -735,6 +764,7 @@ export default function App() {
           }
         />
       )}
+      {showSearch && <CellSearch lib={lib} onPick={goToHit} onClose={() => setShowSearch(false)} />}
       {showCreator && (
         <Creator
           onCreate={replaceLibrary}
