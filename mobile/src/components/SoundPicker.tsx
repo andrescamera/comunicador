@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { soundCredit, soundName, soundQuery, type SoundResult } from '../shared'
+import { RECORDED_CREDIT, soundCredit, soundName, soundQuery, type SoundResult } from '../shared'
 import { play, stop } from '../soundPlayer'
 import { colors } from '../theme'
+import { SoundRecorder } from './SoundRecorder'
 
 export interface SoundsApi {
   search: (query: string) => Promise<SoundResult[]>
   /** Copia el sonido elegido al tablero y devuelve su ruta */
   pick: (s: SoundResult) => Promise<string>
+  /** Sube un sonido grabado con el micrófono (`uri`: el .m4a en la tablet) y devuelve su ruta */
+  record: (uri: string) => Promise<string>
 }
 
 interface Props {
@@ -26,6 +29,7 @@ export function SoundPicker({ label, sound, credit, onChange, api }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState<number | null>(null)
+  const [recording, setRecording] = useState(false)
 
   useEffect(() => {
     if (!custom) setQuery(soundQuery(label))
@@ -78,9 +82,21 @@ export function SoundPicker({ label, sound, credit, onChange, api }: Props) {
             <Text style={[styles.muted, { flex: 1 }]} numberOfLines={1}>{credit}</Text>
           </>
         ) : (
-          <Text style={styles.muted}>Aún no tiene: elige uno de la lista.</Text>
+          <Text style={[styles.muted, { flex: 1 }]}>Aún no tiene: elige uno de la lista o grábalo.</Text>
+        )}
+        {!recording && (
+          <Small
+            text="🎙 Grabar"
+            onPress={() => {
+              stop()
+              setRecording(true)
+            }}
+          />
         )}
       </View>
+      {recording && (
+        <SoundRecorder onSave={async (uri) => onChange(await api.record(uri), RECORDED_CREDIT)} onClose={() => setRecording(false)} />
+      )}
       <View style={styles.row}>
         <TextInput
           style={[styles.input, { flex: 1 }]}

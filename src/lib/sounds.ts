@@ -62,6 +62,29 @@ export async function searchSounds(sb: SupabaseClient, query: string): Promise<S
 /** Crédito que se guarda con la ficha (CC0 no lo exige, pero se agradece) */
 export const soundCredit = (s: SoundResult) => `«${soundName(s.name)}» de ${s.user} · Freesound #${s.id} (CC0)`
 
+/** Lo más que dura una grabación con el micrófono (segundos); así cabe de sobra en el límite de 1 MB */
+export const MAX_RECORDING = 10
+
+/** Crédito de un sonido grabado con el micrófono */
+export const RECORDED_CREDIT = 'Grabación propia'
+
+/** Tipo de audio admitido por el almacenamiento a partir del que da el grabador (sin «;codecs=…») */
+export function recordingType(mime: string): { contentType: string; ext: string } {
+  const base = mime.split(';')[0].trim().toLowerCase()
+  if (base === 'audio/webm' || base === 'video/webm') return { contentType: 'audio/webm', ext: 'webm' }
+  if (base === 'audio/mpeg') return { contentType: 'audio/mpeg', ext: 'mp3' }
+  return { contentType: 'audio/mp4', ext: 'm4a' } // AAC: m4a, mp4, aac, x-m4a…
+}
+
+/** Sube un sonido grabado al tablero `libraryId` y devuelve su ruta, que se guarda en la ficha */
+export async function uploadSound(sb: SupabaseClient, libraryId: string, data: Blob | ArrayBuffer, mime: string): Promise<string> {
+  const { contentType, ext } = recordingType(mime)
+  const path = `${libraryId}/${uid('sonido')}.${ext}`
+  const { error } = await sb.storage.from(SOUND_BUCKET).upload(path, data, { contentType, upsert: false })
+  if (error) throw new Error(`No se pudo guardar la grabación: ${error.message}`)
+  return path
+}
+
 /** Copia el sonido elegido al tablero `libraryId` y devuelve su ruta, que se guarda en la ficha */
 export async function copySound(sb: SupabaseClient, libraryId: string, s: SoundResult): Promise<string> {
   const r = await fetch(s.preview)

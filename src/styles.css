@@ -1850,6 +1850,32 @@ button.small {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.sound-recorder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin: 6px 0;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.sound-recorder .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.recording-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d32f2f;
+  animation: recording-blink 1s infinite;
+}
+@keyframes recording-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
 
 /* 🔍 Buscar una ficha */
 .search-input {

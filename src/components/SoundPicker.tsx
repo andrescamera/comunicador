@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { soundCredit, soundName, soundQuery, type SoundResult } from '../lib/sounds'
+import { RECORDED_CREDIT, soundCredit, soundName, soundQuery, type SoundResult } from '../lib/sounds'
+import { SoundRecorder } from './SoundRecorder'
 
 export interface SoundsApi {
   search: (query: string) => Promise<SoundResult[]>
   /** Copia el sonido elegido al tablero y devuelve su ruta */
   pick: (s: SoundResult) => Promise<string>
+  /** Sube un sonido grabado con el micrófono al tablero y devuelve su ruta */
+  record: (audio: Blob, mime: string) => Promise<string>
   /** Reproducir un sonido ya guardado */
   play: (path: string) => void
 }
@@ -26,6 +29,7 @@ export function SoundPicker({ label, sound, credit, onChange, api }: Props) {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState<number | null>(null)
   const [playing, setPlaying] = useState<number | null>(null)
+  const [recording, setRecording] = useState(false)
   const audio = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -89,9 +93,25 @@ export function SoundPicker({ label, sound, credit, onChange, api }: Props) {
             <span className="muted">{credit}</span>
           </>
         ) : (
-          <span className="muted">Aún no tiene: elige uno de la lista.</span>
+          <span className="muted">Aún no tiene: elige uno de la lista o grábalo.</span>
+        )}
+        {!recording && (
+          <button
+            type="button"
+            className="small"
+            onClick={() => {
+              audio.current?.pause()
+              setPlaying(null)
+              setRecording(true)
+            }}
+          >
+            🎙 Grabar
+          </button>
         )}
       </div>
+      {recording && (
+        <SoundRecorder onSave={async (blob, mime) => onChange(await api.record(blob, mime), RECORDED_CREDIT)} onClose={() => setRecording(false)} />
+      )}
       <div className="picto-search">
         <input
           value={custom ? query : ''}

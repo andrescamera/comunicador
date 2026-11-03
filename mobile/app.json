@@ -31,7 +31,7 @@
         {
           "photosPermission": "Para usar tus fotos en las fichas y crear tableros a partir de la foto de otro tablero.",
           "cameraPermission": "Para hacer una foto y usarla en una ficha (en lugar del pictograma).",
-          "microphonePermission": false
+          "microphonePermission": "Para grabar el sonido de una ficha «Sonido» (por ejemplo, la voz de alguien de casa)."
         }
       ],
       [
@@ -43,8 +43,8 @@
       [
         "expo-audio",
         {
-          "microphonePermission": false,
-          "recordAudioAndroid": false,
+          "microphonePermission": "Para grabar el sonido de una ficha «Sonido» (por ejemplo, la voz de alguien de casa).",
+          "recordAudioAndroid": true,
           "enableBackgroundPlayback": false
         }
       ],

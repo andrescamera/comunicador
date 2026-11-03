@@ -27,6 +27,22 @@ export async function localSound(path: string): Promise<string | null> {
   }
 }
 
+/**
+ * Sube un sonido grabado en la tablet (`uri`: su .m4a) con `upload` y lo deja ya en la caché local con
+ * su ruta definitiva, para que suene sin volver a descargarlo.
+ */
+export async function saveRecording(uri: string, upload: (data: ArrayBuffer) => Promise<string>): Promise<string> {
+  const recorded = new File(uri)
+  const path = await upload(await recorded.arrayBuffer())
+  try {
+    if (!dir.exists) dir.create({ intermediates: true, idempotent: true })
+    recorded.copy(localFile(path))
+  } catch {
+    /* ya se descargará la primera vez que suene */
+  }
+  return path
+}
+
 /** Guardar ya en el dispositivo los sonidos de un tablero (para que suenen aunque luego no haya red) */
 export function prefetchSounds(paths: string[]) {
   for (const p of paths) void localSound(p)

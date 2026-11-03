@@ -51,6 +51,7 @@ import {
   uploadPhoto,
   searchSounds,
   copySound,
+  uploadSound,
   folderArea,
   groupAt,
   isExpansionFolder,
@@ -60,7 +61,7 @@ import {
   FOLDER_PREV,
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
-import { play, prefetchSounds } from './src/soundPlayer'
+import { play, prefetchSounds, saveRecording } from './src/soundPlayer'
 import { appStore, supabase } from './src/cloud'
 import { Btn } from './src/components/Sheet'
 import { loadSettings, saveSettings } from './src/storage'
@@ -604,7 +605,11 @@ export default function App() {
           }
           sounds={
             cloud.email && cloud.active?.synced && cloud.activeId && !readOnly
-              ? { search: (q) => searchSounds(supabase, q), pick: (r) => copySound(supabase, cloud.activeId!, r) }
+              ? {
+                  search: (q) => searchSounds(supabase, q),
+                  pick: (r) => copySound(supabase, cloud.activeId!, r),
+                  record: (uri) => saveRecording(uri, (data) => uploadSound(supabase, cloud.activeId!, data, 'audio/mp4')),
+                }
               : undefined
           }
           onStartMove={editTarget.isNew ? undefined : () => (setMoving({ id: editTarget.cell.id, from: board.id }), setEditTarget(null))}

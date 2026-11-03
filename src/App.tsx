@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { BoardTextPage } from './components/BoardTextPage'
 import { FolderZoneEditor } from './components/FolderZoneEditor'
 import { uploadPhoto } from './lib/photos'
-import { copySound, searchSounds, soundUrl } from './lib/sounds'
+import { copySound, recordingType, searchSounds, soundUrl, uploadSound } from './lib/sounds'
 import { PhotoImport } from './components/PhotoImport'
 import { BoardGrid } from './components/BoardGrid'
 import { CellEditor } from './components/CellEditor'
+import type { SoundsApi } from './components/SoundPicker'
 import { Creator } from './components/Creator'
 import { SentenceBar } from './components/SentenceBar'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -32,6 +33,28 @@ import { uid } from './lib/types'
 type EditTarget = { cell: Cell; isNew: boolean } | null
 
 /** Dentro de una carpeta: palabras de su categoría del catálogo que aún no están */
+/**
+ * Solo en desarrollo con «?local» (sin cuenta): las grabaciones se quedan en la memoria del navegador
+ * (se pierden al recargar) para poder probar «🎙 Grabar» sin tocar ninguna cuenta real.
+ */
+const devSounds = new Map<string, string>()
+function devSoundsApi(play: (path: string) => void): SoundsApi {
+  return {
+    search: async () => {
+      throw new Error('Sin cuenta («?local») no se busca en Freesound; prueba a grabar.')
+    },
+    pick: async () => {
+      throw new Error('Sin cuenta no se pueden guardar sonidos de Freesound.')
+    },
+    record: async (audio, mime) => {
+      const path = `local/${uid('sonido')}.${recordingType(mime).ext}`
+      devSounds.set(path, URL.createObjectURL(audio))
+      return path
+    },
+    play,
+  }
+}
+
 function folderSuggestions(board: Board, lib: Library): { category: string; words: string[] } | undefined {
   if (board.id === lib.rootId) return undefined
   const labels = board.cells.map((c) => c.label)
@@ -361,7 +384,7 @@ export default function App() {
   }
 
   const playSound = async (path: string) => {
-    const url = await soundUrl(supabase, path)
+    const url = devSounds.get(path) ?? (await soundUrl(supabase, path))
     if (!url) return setNotice('No se pudo cargar el sonido (hace falta conexión y sesión iniciada).')
     player.current?.pause()
     player.current = new Audio(url)
@@ -745,8 +768,15 @@ export default function App() {
           }
           sounds={
             cloud.email && cloud.active?.synced && cloud.activeId && !readOnly
-              ? { search: (q) => searchSounds(supabase, q), pick: (r) => copySound(supabase, cloud.activeId!, r), play: (path) => void playSound(path) }
-              : undefined
+              ? {
+                  search: (q) => searchSounds(supabase, q),
+                  pick: (r) => copySound(supabase, cloud.activeId!, r),
+                  record: (audio, mime) => uploadSound(supabase, cloud.activeId!, audio, mime),
+                  play: (path) => void playSound(path),
+                }
+              : devBypass && !cloud.email
+                ? devSoundsApi((path) => void playSound(path))
+                : undefined
           }
           expansionBoard={
             !editTarget.isNew && editTarget.cell.kind === 'folder' && board.id === lib.rootId
