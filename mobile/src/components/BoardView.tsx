@@ -27,9 +27,11 @@ interface Props {
   groups?: Group[]
   /** La carpeta abierta (p. ej. el «más» que se está ampliando): se resalta */
   openId?: string
+  /** La ficha que se acaba de buscar (🔍): parpadea un momento */
+  foundId?: string | null
 }
 
-export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor, dimFor, activeArea, groups = [], openId }: Props) {
+export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRenameZone, gap = 8, labelFor, dimFor, activeArea, groups = [], openId, foundId }: Props) {
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const [pressedKey, setPressedKey] = useState<string | null>(null)
   const [firedKey, setFiredKey] = useState<string | null>(null)
@@ -129,6 +131,7 @@ export function BoardView({ board, editing, onTapCell, onTapSlot, movingId, onRe
                   height={ch}
                   pressed={pressedKey === key}
                   fired={firedKey === key}
+                  found={!!foundId && cell.id === foundId}
                   editing={editing}
                   selected={movingId === cell.id || cell.id === openId}
                   displayLabel={editing ? undefined : (labelFor?.(cell) ?? undefined)}

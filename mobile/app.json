@@ -48,7 +48,14 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Para grabar el sonido de una ficha «Sonido» y para buscar una ficha diciéndola.",
+          "speechRecognitionPermission": "Para buscar una ficha diciendo su nombre."
+        }
+      ]
     ],
     "backgroundColor": "#eef1f5"
   }

@@ -1,5 +1,5 @@
-import { memo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { memo, useEffect, useRef } from 'react'
+import { Animated, StyleSheet, Text, View } from 'react-native'
 import { type Category, type Cell, cellColors } from '../shared'
 import { colors } from '../theme'
 import { Picto } from './Picto'
@@ -20,9 +20,11 @@ interface Props {
   dimmed?: boolean
   /** Color del grupo en el que está (las carpetas lo toman si no tienen uno propio) */
   groupColor?: Category
+  /** La ficha que se acaba de buscar (🔍): parpadea un momento */
+  found?: boolean
 }
 
-function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel, dimmed, groupColor }: Props) {
+function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel, dimmed, groupColor, found }: Props) {
   const label = displayLabel ?? cell.label
   const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor, groupColor)
   const fontSize = Math.max(10, Math.min(22, width * 0.15, height * 0.16))
@@ -60,8 +62,25 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
       )}
       {cell.kind === 'sound' && <Text style={[styles.soundIcon, { fontSize: Math.max(12, Math.min(22, width * 0.14)) }, !cell.sound && { opacity: 0.35 }]}>🔊</Text>}
       {editing && cell.hidden && <Text style={styles.badge}>oculta</Text>}
+      {found && <FoundRing />}
     </View>
   )
+}
+
+/** Marco que parpadea sobre la ficha buscada */
+function FoundRing() {
+  const opacity = useRef(new Animated.Value(1)).current
+  useEffect(() => {
+    const blink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.15, duration: 350, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      ]),
+    )
+    blink.start()
+    return () => blink.stop()
+  }, [opacity])
+  return <Animated.View pointerEvents="none" style={[styles.found, { opacity }]} />
 }
 
 export const CellView = memo(CellViewBase)
@@ -90,6 +109,7 @@ const styles = StyleSheet.create({
   label: { fontWeight: '700', color: colors.text, marginTop: 2, textAlign: 'center' },
   bigText: { flex: 1, marginTop: 0, fontWeight: '600', textAlignVertical: 'center', includeFontPadding: false },
   soundIcon: { position: 'absolute', top: 3, left: 5 },
+  found: { ...StyleSheet.absoluteFill, borderWidth: 7, borderColor: '#ff8f00', borderRadius: 11 },
   badge: {
     position: 'absolute',
     top: 4,

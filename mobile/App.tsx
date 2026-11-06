@@ -53,6 +53,8 @@ import {
   copySound,
   uploadSound,
   folderArea,
+  pageOfCell,
+  type CellHit,
   groupAt,
   isExpansionFolder,
   insideArea,
@@ -62,6 +64,7 @@ import {
 } from './src/shared'
 import { speak, warmUpSpeech } from './src/speech'
 import { play, prefetchSounds, saveRecording } from './src/soundPlayer'
+import { CellSearch } from './src/components/CellSearch'
 import { appStore, supabase } from './src/cloud'
 import { Btn } from './src/components/Sheet'
 import { loadSettings, saveSettings } from './src/storage'
@@ -95,6 +98,9 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [moving, setMoving] = useState<{ id: string; from: string } | null>(null) // celda que se está moviendo y su tablero
   const [folderPage, setFolderPage] = useState(0) // carpeta abierta en su zona: página
+  const nextFolderPage = useRef(0) // al ir a una ficha buscada: la página de la carpeta en la que sale
+  const [showSearch, setShowSearch] = useState(false)
+  const [found, setFound] = useState<string | null>(null) // ficha buscada (🔍): parpadea unos segundos
   const [notice, setNotice] = useState('')
   const [clearing, setClearing] = useState(0)
   const [area, setArea] = useState({ w: 0, h: 0 }) // espacio útil (sin márgenes) para barra + tablero
@@ -158,7 +164,15 @@ export default function App() {
     if (n !== lib) setLib(n, { record: false }) // ajuste automático: no se deshace
   }, [lib])
   // Modo predictivo: tras cada palabra, si todo lo que encaja está en una carpeta, se abre sola
-  useEffect(() => setFolderPage(0), [history])
+  useEffect(() => {
+    setFolderPage(nextFolderPage.current)
+    nextFolderPage.current = 0
+  }, [history])
+  useEffect(() => {
+    if (!found) return
+    const t = setTimeout(() => setFound(null), 4000)
+    return () => clearTimeout(t)
+  }, [found])
   const predKey = predictionKey(sentence)
   useEffect(() => {
     if (!lib || editing || !sentence.length) return
@@ -302,6 +316,20 @@ export default function App() {
   const zoneArea = root && openFolderCell ? folderArea(root, openFolderCell.id) : null
   const folderZone = !editing ? zoneArea : null
   const shown = folderZone && root ? inlineFolder(root, board, folderZone, folderPage).board : board
+
+  // 🔍 Ir a una ficha buscada: se abren las carpetas que haga falta (en la página en la que sale) y parpadea
+  const goToHit = (hit: CellHit) => {
+    setShowSearch(false)
+    const folderCell = hit.path.length && root ? root.cells.find((c) => c.kind === 'folder' && c.target === hit.path[0]) : undefined
+    const hitArea = root && folderCell ? folderArea(root, folderCell.id) : null
+    const page = hitArea && root ? pageOfCell(root, hit.board, hitArea, hit.cell.id) : 0
+    if (hit.path.join('/') === history.join('/')) setFolderPage(page) // ya estaba abierto: solo la página
+    else {
+      nextFolderPage.current = page
+      setHistory(hit.path)
+    }
+    setFound(hit.cell.id)
+  }
   // Grupos para el color de las carpetas: los de la carpeta y, si se ve dentro del principal, los de este
   // Un «más» abierto: amplía su grupo en la zona de ampliación (no se cierra al elegir una ficha)
   const openIsExpansion = !!(root && openFolderCell && zoneArea && isExpansionFolder(root, openFolderCell))
@@ -490,6 +518,7 @@ export default function App() {
                   onQuickChat={root?.quickChat || !readOnly ? () => void openQuickChat() : undefined}
                 />
                 <View style={[styles.tools, { width: cellW, gap }]}>
+                  <ToolBtn text="🔍" onPress={() => setShowSearch(true)} small />
                   {!readOnly && <ToolBtn text="✎" onPress={() => (setEditing(true), cancelAutoClear())} small />}
                   <ToolBtn text="⚙︎" onPress={() => setShowSettings(true)} small />
                 </View>
@@ -574,6 +603,7 @@ export default function App() {
               activeArea={editArea}
               groups={shownGroups}
               openId={folderZone ? openFolderCell?.id : undefined}
+              foundId={editing ? null : found}
               editing={editing}
               gap={gap}
               labelFor={settings.conjugateLabels ? (c) => verbFormFor(sentence, c) : undefined}
@@ -593,6 +623,8 @@ export default function App() {
           </View>
         </View>
       </View>
+
+      {showSearch && !editing && <CellSearch lib={lib} onPick={goToHit} onClose={() => setShowSearch(false)} />}
 
       {editTarget && (
         <CellEditor
