@@ -41,6 +41,19 @@ export function searchCells(lib: Library, query: string, limit = 40): CellHit[] 
     .map(({ rank: _, ...h }) => h)
 }
 
+/**
+ * De lo que ha entendido el reconocimiento de voz, qué buscar: la alternativa que es justo una ficha;
+ * si no hay, la primera que encuentra algo; si tampoco, la más probable (la primera).
+ */
+export function bestSpoken(lib: Library, alternatives: string[]): string {
+  return (
+    alternatives.find((a) => searchCells(lib, a).some((h) => foldText(h.cell.label) === foldText(a))) ??
+    alternatives.find((a) => searchCells(lib, a).length) ??
+    alternatives[0] ??
+    ''
+  )
+}
+
 /** Carpeta que se ve en la zona del principal: en qué página sale una de sus fichas */
 export function pageOfCell(root: Board, folder: Board, area: Area, cellId: string): number {
   for (let page = 0; page < 50; page++) {

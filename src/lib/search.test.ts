@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pageOfCell, searchCells } from './search'
+import { bestSpoken, pageOfCell, searchCells } from './search'
 import type { Board, Cell, Library } from './types'
 
 const zones = { A: [0, 0], B: [1, 1], C: [2, 2], D: [3, 3], E: [4, 4] } as Board['zones']
@@ -44,5 +44,18 @@ describe('pageOfCell', () => {
     const area = { r0: 0, c0: 0, r1: 1, c1: 1 } // 4 casillas: 2 fichas por página + flechas
     expect(pageOfCell(root, many, area, 'm0')).toBe(0)
     expect(pageOfCell(root, many, area, 'm8')).toBe(4)
+  })
+})
+
+describe('bestSpoken', () => {
+  it('prefiere la alternativa que es justo una ficha, aunque no sea la primera', () => {
+    expect(bestSpoken(lib, ['pa', 'Pan'])).toBe('Pan')
+  })
+  it('si ninguna es exacta, la primera que encuentra algo', () => {
+    expect(bestSpoken(lib, ['xyz', 'pat'])).toBe('pat')
+  })
+  it('si nada encuentra, la más probable', () => {
+    expect(bestSpoken(lib, ['xyz', 'qqq'])).toBe('xyz')
+    expect(bestSpoken(lib, [])).toBe('')
   })
 })

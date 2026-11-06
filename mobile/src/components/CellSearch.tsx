@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition'
-import { type CellHit, foldText, type Library, searchCells } from '../shared'
+import { bestSpoken, type CellHit, type Library, searchCells } from '../shared'
 import { colors } from '../theme'
 import { Picto } from './Picto'
 import { Sheet } from './Sheet'
@@ -19,8 +19,8 @@ const ERRORS: Record<string, string> = {
 }
 
 /**
- * 🔍 Buscar una ficha en todos los tableros y llevar a ella. Al abrirse ya escucha: si lo dicho coincide
- * con una ficha, va directamente a ella; si no, queda la lista para elegir (o se escribe).
+ * 🔍 Buscar una ficha en todos los tableros y llevar a ella. Al abrirse ya escucha y lo dicho rellena la
+ * búsqueda; la hoja solo se cierra al tocar un resultado (la voz no: oye también lo que se habla alrededor).
  */
 export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hit: CellHit) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
@@ -28,24 +28,19 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
   const [micError, setMicError] = useState('')
   const hits = useMemo(() => searchCells(lib, query), [lib, query])
   // Los avisos del reconocimiento llegan fuera de React: siempre con lo último
-  const latest = useRef({ lib, onPick })
+  const latest = useRef(lib)
   useEffect(() => {
-    latest.current = { lib, onPick }
+    latest.current = lib
   })
+  const typed = useRef(false) // si se escribe, manda lo escrito: lo que llegue de la voz ya no cuenta
 
   useSpeechRecognitionEvent('start', () => setListening(true))
   useSpeechRecognitionEvent('end', () => setListening(false))
   useSpeechRecognitionEvent('result', (e) => {
+    if (typed.current) return
     const alternatives = e.results.map((r) => clean(r.transcript)).filter(Boolean)
     if (!alternatives.length) return
-    if (!e.isFinal) return setQuery(alternatives[0])
-    const { lib: l, onPick: pick } = latest.current
-    // Si lo dicho coincide con una ficha (en cualquiera de las alternativas), se va directamente a ella
-    for (const said of alternatives) {
-      const exact = searchCells(l, said).find((h) => foldText(h.cell.label) === foldText(said))
-      if (exact) return pick(exact)
-    }
-    setQuery(alternatives.find((a) => searchCells(l, a).length) ?? alternatives[0])
+    setQuery(e.isFinal ? bestSpoken(latest.current, alternatives) : alternatives[0])
   })
   useSpeechRecognitionEvent('nomatch', () => setMicError('No se ha entendido. Pulsa 🎤 y di la palabra otra vez.'))
   useSpeechRecognitionEvent('error', (e) => {
@@ -56,6 +51,7 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
   const listen = async () => {
     if (listening) return ExpoSpeechRecognitionModule.abort()
     setMicError('')
+    typed.current = false
     try {
       const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
       if (!granted) return setMicError(ERRORS['not-allowed'])
@@ -84,7 +80,8 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
           style={styles.input}
           value={query}
           onChangeText={(t) => {
-            if (listening) ExpoSpeechRecognitionModule.abort() // si se escribe, deja de escuchar
+            typed.current = true
+            ExpoSpeechRecognitionModule.abort() // si se escribe, deja de escuchar
             setQuery(t)
           }}
           placeholder={listening ? 'Escuchando… di la palabra' : 'Escribe o di una palabra: agua, mamá, parque…'}
