@@ -23,8 +23,8 @@ export function searchCells(lib: Library, query: string, limit = 40): CellHit[] 
   if (!q) return []
   const hits: (CellHit & { rank: number })[] = []
   for (const board of Object.values(lib.boards)) {
-    const path = pathToBoard(lib, board.id)
-    if (!path) continue // tablero suelto, al que no se llega desde el principal
+    const path = pathToBoard(lib, board.id) ?? pathInQuickChat(lib, board.id)
+    if (!path) continue // tablero suelto, al que no se llega ni desde el principal ni desde «Charla rápida»
     const trail = path.map((id) => lib.boards[id]?.name ?? '')
     for (const cell of board.cells) {
       if (cell.hidden) continue // en uso no se ven
@@ -39,6 +39,17 @@ export function searchCells(lib: Library, query: string, limit = 40): CellHit[] 
     .sort((a, b) => a.rank - b.rank || a.path.length - b.path.length || a.cell.label.localeCompare(b.cell.label, 'es'))
     .slice(0, limit)
     .map(({ rank: _, ...h }) => h)
+}
+
+/**
+ * «Charla rápida» no cuelga de ninguna carpeta: se abre con su botón fijo (historial = [su id]).
+ * Camino a un tablero que está en ella o dentro de sus carpetas; null si no está ahí.
+ */
+function pathInQuickChat(lib: Library, id: string): string[] | null {
+  const quick = lib.boards[lib.rootId]?.quickChat
+  if (!quick || !lib.boards[quick]) return null
+  const inside = pathToBoard({ ...lib, rootId: quick }, id)
+  return inside ? [quick, ...inside] : null
 }
 
 /**

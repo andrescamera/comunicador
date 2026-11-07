@@ -35,6 +35,24 @@ describe('searchCells', () => {
     expect(searchCells(lib, '  ')).toEqual([])
     expect(searchCells(lib, 'pera')).toEqual([]) // oculta: en uso no se ve
   })
+
+  it('finds the «Charla rápida» phrases, opened from its fixed button', () => {
+    const withChat: Library = {
+      ...lib,
+      boards: {
+        ...lib.boards,
+        root: { ...lib.boards.root, quickChat: 'chat' },
+        chat: board('chat', 'Charla rápida', [cell('sed', 'tengo sed'), cell('fm', 'Más', 0, 4, { kind: 'folder', target: 'mas' })]),
+        mas: board('mas', 'Más', [cell('cu', '¡feliz cumpleaños!')]),
+      },
+    }
+    const [hit] = searchCells(withChat, 'sed')
+    expect(hit.cell.id).toBe('sed')
+    expect(hit.path).toEqual(['chat'])
+    expect(hit.trail).toEqual(['Charla rápida'])
+    expect(searchCells(withChat, 'cumple')[0].path).toEqual(['chat', 'mas'])
+    expect(searchCells(lib, 'sed')).toEqual([]) // sin «Charla rápida» no hay nada que encontrar
+  })
 })
 
 describe('pageOfCell', () => {
