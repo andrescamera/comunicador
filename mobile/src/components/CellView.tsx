@@ -4,6 +4,10 @@ import { type Category, type Cell, cellColors } from '../shared'
 import { colors } from '../theme'
 import { Picto } from './Picto'
 
+const BORDER = 3
+const FOLDER_TOP = 10
+const PADDING = 2
+
 interface Props {
   cell: Cell
   left: number
@@ -27,7 +31,13 @@ interface Props {
 function CellViewBase({ cell, left, top, width, height, pressed, fired, editing, selected, displayLabel, dimmed, groupColor, found }: Props) {
   const label = displayLabel ?? cell.label
   const { bg, border } = cellColors(cell.category, cell.kind, cell.folderColor, groupColor)
-  const fontSize = Math.max(10, Math.min(22, width * 0.15, height * 0.16))
+  const fontSize = Math.max(10, Math.min(22, width * 0.14, height * 0.15))
+  const labelHeight = Math.ceil(fontSize * 1.2)
+  // El hueco del picto: lo que queda tras el borde, el relleno y la etiqueta
+  const pictoBox = {
+    width: width - 2 * (BORDER + PADDING),
+    height: height - (cell.kind === 'folder' ? FOLDER_TOP : BORDER) - BORDER - 2 * PADDING - labelHeight,
+  }
   return (
     <View
       style={[
@@ -54,8 +64,8 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
         </Text>
       ) : (
         <>
-          <Picto id={cell.picto} photo={cell.photo} />
-          <Text style={[styles.label, { fontSize }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          <Picto id={cell.picto} photo={cell.photo} trimTo={pictoBox} />
+          <Text style={[styles.label, styles.smallText, { fontSize, height: labelHeight, lineHeight: labelHeight }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {label}
           </Text>
         </>
@@ -90,24 +100,25 @@ const styles = StyleSheet.create({
   // restablece solo un estilo que se quita (p. ej. el borde punteado de la edición)
   cell: {
     position: 'absolute',
-    borderWidth: 3,
+    borderWidth: BORDER,
     borderStyle: 'solid',
     opacity: 1,
     transform: [{ scale: 1 }],
     borderRadius: 14,
-    padding: 5,
+    padding: PADDING,
     alignItems: 'center',
     overflow: 'hidden',
   },
-  folder: { borderTopWidth: 10 },
+  folder: { borderTopWidth: FOLDER_TOP },
   editing: { borderStyle: 'dashed' },
   hidden: { opacity: 0.35 },
   dimmed: { opacity: 0.22 },
   pressed: { borderColor: colors.accent, borderWidth: 4, transform: [{ scale: 0.95 }] },
   fired: { borderColor: colors.ok, borderWidth: 5 },
   selected: { borderColor: colors.accent, borderWidth: 5 },
-  label: { fontWeight: '700', color: colors.text, marginTop: 2, textAlign: 'center' },
-  bigText: { flex: 1, marginTop: 0, fontWeight: '600', textAlignVertical: 'center', includeFontPadding: false },
+  label: { fontWeight: '700', color: colors.text, textAlign: 'center' },
+  smallText: { includeFontPadding: false },
+  bigText: { flex: 1, fontWeight: '600', textAlignVertical: 'center', includeFontPadding: false },
   soundIcon: { position: 'absolute', top: 3, left: 5 },
   found: { ...StyleSheet.absoluteFill, borderWidth: 7, borderColor: '#ff8f00', borderRadius: 11 },
   badge: {

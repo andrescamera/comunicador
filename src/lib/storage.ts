@@ -1,3 +1,4 @@
+import { restorePictoBounds } from './pictoBounds'
 import type { Settings } from './types'
 import { DEFAULT_SETTINGS } from './types'
 
@@ -28,3 +29,22 @@ export const loadSettings = (): Settings => {
   return { ...DEFAULT_SETTINGS, ...(old ?? {}), autoClear: false }
 }
 export const saveSettings = (s: Settings) => write(SETTINGS_KEY, s)
+
+const PICTO_BOUNDS_KEY = 'comunicador:picto-bounds:v1'
+
+/** Las cajas de los pictos ya medidos: se guardan para no volver a descargarlos */
+export function connectPictoBounds() {
+  let raw: string | null = null
+  try {
+    raw = localStorage.getItem(PICTO_BOUNDS_KEY)
+  } catch {
+    // almacenamiento bloqueado: se miden en cada visita
+  }
+  restorePictoBounds(raw, (next) => {
+    try {
+      localStorage.setItem(PICTO_BOUNDS_KEY, next)
+    } catch {
+      // almacenamiento lleno o bloqueado: seguimos en memoria
+    }
+  })
+}

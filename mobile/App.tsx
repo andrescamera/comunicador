@@ -29,6 +29,7 @@ import {
   type NewCell,
   parseText,
   pictoUrl,
+  requestPictoBounds,
   placeCell,
   realize,
   relayoutBoard,
@@ -67,7 +68,7 @@ import { play, prefetchSounds, saveRecording } from './src/soundPlayer'
 import { CellSearch } from './src/components/CellSearch'
 import { appStore, supabase } from './src/cloud'
 import { Btn } from './src/components/Sheet'
-import { loadSettings, saveSettings } from './src/storage'
+import { connectPictoBounds, loadSettings, saveSettings } from './src/storage'
 import { tapGuard } from './src/tap'
 import { colors, radius } from './src/theme'
 
@@ -147,7 +148,7 @@ export default function App() {
   // Arranque: ajustes + motor de voz listo (los tableros los carga useLibraries)
   useEffect(() => {
     void (async () => {
-      const savedSettings = await loadSettings()
+      const [savedSettings] = await Promise.all([loadSettings(), connectPictoBounds()])
       setSettings(savedSettings)
       setLoaded(true)
       void warmUpSpeech(savedSettings)
@@ -197,6 +198,7 @@ export default function App() {
     if (!ids.length) return
     ids.forEach((id) => prefetched.current.add(id))
     void Image.prefetch(ids.map((id) => pictoUrl(id)), 'memory-disk')
+    ids.forEach(requestPictoBounds)
   }, [lib])
   // Y de los sonidos de las fichas «Sonido» (se guardan en el dispositivo)
   const prefetchedSounds = useRef(new Set<string>())

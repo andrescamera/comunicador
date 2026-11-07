@@ -471,7 +471,7 @@ label.inline {
   justify-content: center;
   min-width: 0;
   min-height: 0;
-  padding: 6px;
+  padding: 3px;
   border: 3px solid;
   border-radius: var(--radius);
   overflow: hidden;
@@ -514,10 +514,9 @@ label.inline {
   border-radius: 8px;
 }
 .cell-label {
-  margin-top: 4px;
   font-weight: 700;
   /* El texto se adapta al ancho de la celda (cqi = % del ancho de la celda) */
-  font-size: clamp(0.62rem, 15cqi, 1.35rem);
+  font-size: clamp(0.62rem, 14cqi, 1.3rem);
   line-height: 1.1;
   text-align: center;
   overflow: hidden;
@@ -946,7 +945,7 @@ label.check {
     --min-cell-h: 66px;
   }
   .cell {
-    padding: 3px;
+    padding: 2px;
     border-width: 2px;
     border-radius: 10px;
   }

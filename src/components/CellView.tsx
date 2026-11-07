@@ -29,7 +29,7 @@ export function CellView({ cell, editing, onTap, editProps, selected, displayLab
   const className = `cell cell-${cell.kind}${dimmed ? ' cell-dimmed' : ''}${cell.textOnly ? ' cell-text' : ''}${cell.hidden ? ' cell-hidden' : ''}${selected ? ' cell-selected' : ''}${open ? ' cell-open' : ''}${found ? ' cell-found' : ''}`
   const body = (
     <>
-      {!cell.textOnly && <Picto id={cell.picto} photo={cell.photo} alt={cell.label} />}
+      {!cell.textOnly && <Picto id={cell.picto} photo={cell.photo} alt={cell.label} trim />}
       <span className="cell-label">{displayLabel ?? cell.label}</span>
       {cell.kind === 'sound' && <span className={`cell-sound-icon${cell.sound ? '' : ' missing'}`} aria-hidden>🔊</span>}
       {editing && cell.hidden && <span className="cell-badge">oculta</span>}

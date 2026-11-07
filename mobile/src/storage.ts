@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { DEFAULT_SETTINGS, type Settings } from './shared'
+import { DEFAULT_SETTINGS, restorePictoBounds, type Settings } from './shared'
 
 const SETTINGS_KEY = 'comunicador:settings:v2'
 const OLD_SETTINGS_KEY = 'comunicador:settings:v1' // v2: el borrado automático pasa a estar desactivado por defecto
@@ -24,3 +24,13 @@ export const loadSettings = async (): Promise<Settings> => {
   return { ...DEFAULT_SETTINGS, ...(previous ?? {}), autoClear: false }
 }
 export const saveSettings = (s: Settings) => write(SETTINGS_KEY, s)
+
+const PICTO_BOUNDS_KEY = 'comunicador:picto-bounds:v1'
+
+/** Las cajas de los pictos ya medidos: se guardan para no volver a descargarlos (y para el modo sin conexión) */
+export async function connectPictoBounds() {
+  const raw = await AsyncStorage.getItem(PICTO_BOUNDS_KEY).catch(() => null)
+  restorePictoBounds(raw, (next) => {
+    AsyncStorage.setItem(PICTO_BOUNDS_KEY, next).catch(() => {})
+  })
+}
