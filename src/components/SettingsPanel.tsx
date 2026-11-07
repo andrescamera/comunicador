@@ -136,6 +136,9 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
         {CREDITS.map((c) => (
           <p key={c} className="muted credit">{c}</p>
         ))}
+
+        <h3>Versión</h3>
+        <p className="muted credit">{__APP_VERSION__}</p>
       </section>
     </Modal>
   )

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native'
+import { nativeApplicationVersion } from 'expo-application'
 import type { Voice } from 'expo-speech'
 import { type CloudSync, CREDITS, DEFAULT_SETTINGS, type Settings } from '../shared'
 import { AccountSection } from './AccountSection'
@@ -103,6 +104,9 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
           {c}
         </Text>
       ))}
+
+      <Text style={styles.h}>Versión</Text>
+      <Text style={styles.help}>{nativeApplicationVersion ?? 'desconocida'}</Text>
     </Sheet>
   )
 }
