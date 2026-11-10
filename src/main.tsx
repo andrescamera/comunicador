@@ -4,6 +4,7 @@ import App from './App'
 import { QuestionnairePage } from './components/Questionnaire'
 import { tokenFromPath } from './lib/questionnaires'
 import { tapManager } from './lib/tap'
+import '@fontsource-variable/lexend'
 import './styles.css'
 
 // /cuestionario/<token>: el cuestionario de vocabulario para el tutor, sin cuenta y sin los tableros
