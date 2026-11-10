@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { type CellHit, foldText, searchCells } from '../lib/search'
+import { bestSpoken, type CellHit, searchCells } from '../lib/search'
 import type { Library } from '../lib/types'
 import { Modal } from './Modal'
 import { Picto } from './Picto'
@@ -21,7 +21,7 @@ const recognitionImpl = (): (new () => Recognition) | undefined =>
 
 const clean = (s: string) => s.replace(/[.,;:!?¿¡"]/g, '').trim()
 
-/** 🔍 Buscar una ficha en todos los tableros y llevar a ella (escribiendo o diciéndola con el micrófono) */
+/** 🔍 Buscar una ficha en todos los tableros y llevar a ella (escribiendo o diciéndola con el micrófono; se elige tocando un resultado) */
 export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hit: CellHit) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [listening, setListening] = useState(false)
@@ -43,13 +43,8 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
       const result = e.results[e.results.length - 1]
       const alternatives = Array.from(result, (a) => clean(a.transcript)).filter(Boolean)
       if (!alternatives.length) return
-      if (!result.isFinal) return setQuery(alternatives[0])
-      // Si lo dicho coincide con una ficha (en cualquiera de las alternativas), se va directamente a ella
-      for (const said of alternatives) {
-        const exact = searchCells(lib, said).find((h) => foldText(h.cell.label) === foldText(said))
-        if (exact) return onPick(exact)
-      }
-      setQuery(alternatives.find((a) => searchCells(lib, a).length) ?? alternatives[0])
+      // La voz solo rellena la búsqueda (oye también lo que se habla alrededor): se elige tocando un resultado
+      setQuery(result.isFinal ? bestSpoken(lib, alternatives) : alternatives[0])
     }
     r.onerror = (e) =>
       setMicError(
