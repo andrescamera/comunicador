@@ -19,10 +19,11 @@ const ERRORS: Record<string, string> = {
 }
 
 /**
- * 🔍 Buscar una ficha en todos los tableros y llevar a ella. Al abrirse ya escucha y lo dicho rellena la
- * búsqueda; la hoja solo se cierra al tocar un resultado (la voz no: oye también lo que se habla alrededor).
+ * 🔍 Buscar una ficha en todos los tableros y llevar a ella. Con `voice` (ajuste «Buscar con la voz») al
+ * abrirse ya escucha y lo dicho rellena la búsqueda; sin él, no hay micrófono. La hoja solo se cierra al
+ * tocar un resultado (la voz no: oye también lo que se habla alrededor).
  */
-export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hit: CellHit) => void; onClose: () => void }) {
+export function CellSearch({ lib, voice, onPick, onClose }: { lib: Library; voice: boolean; onPick: (hit: CellHit) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [listening, setListening] = useState(false)
   const [micError, setMicError] = useState('')
@@ -69,6 +70,7 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
   }
 
   useEffect(() => {
+    if (!voice) return
     void listen() // al abrir ya escucha
     return () => ExpoSpeechRecognitionModule.abort()
   }, [])
@@ -81,22 +83,24 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
           value={query}
           onChangeText={(t) => {
             typed.current = true
-            ExpoSpeechRecognitionModule.abort() // si se escribe, deja de escuchar
+            if (voice) ExpoSpeechRecognitionModule.abort() // si se escribe, deja de escuchar
             setQuery(t)
           }}
-          placeholder={listening ? 'Escuchando… di la palabra' : 'Escribe o di una palabra: agua, mamá, parque…'}
+          placeholder={listening ? 'Escuchando… di la palabra' : voice ? 'Escribe o di una palabra: agua, mamá, parque…' : 'Escribe una palabra: agua, mamá, parque…'}
           placeholderTextColor={listening ? colors.accent : colors.muted}
           autoCorrect={false}
           returnKeyType="go"
           onSubmitEditing={() => hits[0] && onPick(hits[0])}
         />
-        <Pressable
-          onPress={() => void listen()}
-          style={[styles.mic, listening && styles.micOn]}
-          accessibilityLabel={listening ? 'Dejar de escuchar' : 'Decir la palabra con el micrófono'}
-        >
-          <Text style={styles.micText}>🎤</Text>
-        </Pressable>
+        {voice && (
+          <Pressable
+            onPress={() => void listen()}
+            style={[styles.mic, listening && styles.micOn]}
+            accessibilityLabel={listening ? 'Dejar de escuchar' : 'Decir la palabra con el micrófono'}
+          >
+            <Text style={styles.micText}>🎤</Text>
+          </Pressable>
+        )}
       </View>
       {!!micError && <Text style={styles.muted}>{micError}</Text>}
       {!!query.trim() && !hits.length && !listening && <Text style={styles.muted}>Ninguna ficha se llama así.</Text>}

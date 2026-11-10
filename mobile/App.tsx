@@ -626,7 +626,7 @@ export default function App() {
         </View>
       </View>
 
-      {showSearch && !editing && <CellSearch lib={lib} onPick={goToHit} onClose={() => setShowSearch(false)} />}
+      {showSearch && !editing && <CellSearch lib={lib} voice={settings.voiceSearch} onPick={goToHit} onClose={() => setShowSearch(false)} />}
 
       {editTarget && (
         <CellEditor

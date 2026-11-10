@@ -79,6 +79,7 @@ export interface Settings {
   minHoldMs: number // duración mínima de la pulsación
   moveTolerancePx: number // si el puntero se mueve más que esto, se cancela
   speakOnTap: boolean
+  voiceSearch: boolean // 🔍 buscar con la voz: al abrir la búsqueda ya escucha (y se ve el micrófono)
   returnHome: boolean // tras elegir una ficha dentro de una carpeta, volver al tablero principal
   rate: number
   voiceURI: string
@@ -95,6 +96,7 @@ export const DEFAULT_SETTINGS: Settings = {
   minHoldMs: 0,
   moveTolerancePx: 14,
   speakOnTap: true,
+  voiceSearch: true,
   returnHome: true,
   rate: 1,
   voiceURI: '',

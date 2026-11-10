@@ -81,6 +81,11 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
 
       <Text style={styles.h}>Voz</Text>
       <Toggle label="Decir cada palabra al tocarla" value={settings.speakOnTap} onChange={(v) => set('speakOnTap', v)} />
+      <Toggle
+        label="Buscar con la voz: al abrir la búsqueda (🔍) ya escucha la palabra"
+        value={settings.voiceSearch}
+        onChange={(v) => set('voiceSearch', v)}
+      />
       <Stepper label="Velocidad" unit="" value={settings.rate} step={0.05} min={0.5} max={1.5} decimals={2} onChange={(v) => set('rate', v)} />
       <Text style={styles.label}>Voz</Text>
       <Choice

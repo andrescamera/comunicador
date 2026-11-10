@@ -97,6 +97,10 @@ export function SettingsPanel({ settings, onChange, onResetBoards, onClose, clou
           <input type="checkbox" checked={settings.speakOnTap} onChange={(e) => set('speakOnTap', e.target.checked)} />
           Decir cada palabra al tocarla
         </label>
+        <label className="check">
+          <input type="checkbox" checked={settings.voiceSearch} onChange={(e) => set('voiceSearch', e.target.checked)} />
+          Buscar con la voz: al abrir la búsqueda (🔍) ya escucha la palabra
+        </label>
         <label>
           Voz
           <select value={settings.voiceURI} onChange={(e) => set('voiceURI', e.target.value)}>

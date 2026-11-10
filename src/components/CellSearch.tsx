@@ -21,16 +21,26 @@ const recognitionImpl = (): (new () => Recognition) | undefined =>
 
 const clean = (s: string) => s.replace(/[.,;:!?¿¡"]/g, '').trim()
 
-/** 🔍 Buscar una ficha en todos los tableros y llevar a ella (escribiendo o diciéndola con el micrófono; se elige tocando un resultado) */
-export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hit: CellHit) => void; onClose: () => void }) {
+/**
+ * 🔍 Buscar una ficha en todos los tableros y llevar a ella, escribiendo o diciéndola (se elige tocando un
+ * resultado). Con `voice` (ajuste «Buscar con la voz») al abrirse ya escucha; sin él, no hay micrófono.
+ */
+export function CellSearch({ lib, voice, onPick, onClose }: { lib: Library; voice: boolean; onPick: (hit: CellHit) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [listening, setListening] = useState(false)
   const [micError, setMicError] = useState('')
   const rec = useRef<Recognition | null>(null)
-  const [Impl] = useState(recognitionImpl)
+  const [Impl] = useState(() => (voice ? recognitionImpl() : undefined))
   const hits = useMemo(() => searchCells(lib, query), [lib, query])
 
-  useEffect(() => () => rec.current?.abort(), [])
+  useEffect(() => {
+    listen() // al abrir ya escucha (si está el ajuste de voz)
+    return () => {
+      const r = rec.current
+      rec.current = null
+      r?.abort()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const listen = () => {
     if (!Impl) return
@@ -56,7 +66,9 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
               ? ''
               : 'No se ha podido reconocer la voz (hace falta conexión a internet).',
       )
-    r.onend = () => setListening(false)
+    r.onend = () => {
+      if (rec.current === r) setListening(false) // uno anterior que termina tarde no cuenta
+    }
     rec.current = r
     setMicError('')
     setListening(true)
@@ -71,8 +83,11 @@ export function CellSearch({ lib, onPick, onClose }: { lib: Library; onPick: (hi
           type="search"
           autoFocus
           value={query}
-          placeholder={listening ? 'Escuchando… di la palabra' : 'Escribe o di una palabra: agua, mamá, parque…'}
-          onChange={(e) => setQuery(e.target.value)}
+          placeholder={listening ? 'Escuchando… di la palabra' : Impl ? 'Escribe o di una palabra: agua, mamá, parque…' : 'Escribe una palabra: agua, mamá, parque…'}
+          onChange={(e) => {
+            rec.current?.abort() // si se escribe, deja de escuchar
+            setQuery(e.target.value)
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && hits[0]) onPick(hits[0])
             if (e.key === 'Escape') onClose()
