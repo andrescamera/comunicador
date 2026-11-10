@@ -7,6 +7,7 @@ import type { LibraryInfo, LibraryVersion, Role } from '../lib/libraries'
 import type { Board, Library } from '../lib/types'
 import { type CloudSync, STARTER_NAME } from '../lib/useCloudSync'
 import { Modal } from './Modal'
+import { QuestionnairesSection } from './QuestionnairesSection'
 import { Picto } from './Picto'
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
   onBack: () => void
   /** Crear un tablero nuevo desde texto o foto (se abre el creador sobre un tablero vacío) */
   onCreateFromText: () => void
+  /** Crear un tablero con las respuestas de un cuestionario (se abre el creador con ese texto) */
+  onCreateFromQuestionnaire: (text: string) => void
 }
 
 const ROLE_TEXT: Record<Exclude<Role, 'owner'>, string> = { editor: 'puede editar', viewer: 'solo usar' }
@@ -23,7 +26,7 @@ const ROLE_TEXT: Record<Exclude<Role, 'owner'>, string> = { editor: 'puede edita
  * Página «Mis tableros»: los propios y los compartidos conmigo, cada uno con una vista previa de
  * su tablero principal. Abrir, crear, renombrar, duplicar, compartir, borrar.
  */
-export function LibrariesPage({ cloud, onBack, onCreateFromText }: Props) {
+export function LibrariesPage({ cloud, onBack, onCreateFromText, onCreateFromQuestionnaire }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [sharing, setSharing] = useState<LibraryInfo | null>(null)
@@ -139,6 +142,7 @@ export function LibrariesPage({ cloud, onBack, onCreateFromText }: Props) {
           </>
         )}
         {!cloud.email && <p className="muted">Sin sesión iniciada: los tableros solo están en este dispositivo.</p>}
+        {cloud.email && <QuestionnairesSection onCreateBoard={(name, text) => create(emptyLibrary, name, () => onCreateFromQuestionnaire(text))} />}
       </main>
       {sharing && <SharePanel cloud={cloud} info={sharing} onClose={() => setSharing(null)} />}
       {versionsOf && <VersionsPanel cloud={cloud} info={versionsOf} onClose={() => setVersionsOf(null)} onRestored={onBack} />}

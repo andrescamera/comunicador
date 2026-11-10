@@ -19,10 +19,12 @@ const EXAMPLES: { name: string; text: string }[] = [
 interface Props {
   onCreate: (lib: Library) => void
   onClose: () => void
+  /** Texto ya escrito (p. ej. el que sale del cuestionario de vocabulario) */
+  initialText?: string
 }
 
-export function Creator({ onCreate, onClose }: Props) {
-  const [text, setText] = useState('')
+export function Creator({ onCreate, onClose, initialText = '' }: Props) {
+  const [text, setText] = useState(initialText)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [preview, setPreview] = useState<Library | null>(null)
   const [tab, setTab] = useState<string>('')

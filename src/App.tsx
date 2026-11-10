@@ -71,6 +71,7 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [showCreator, setShowCreator] = useState(false)
+  const [creatorText, setCreatorText] = useState('') // texto con el que se abre el creador (el de un cuestionario)
   const [openMenu, setOpenMenu] = useState<'size' | 'dyn' | null>(null) // desplegables de la barra de edición
   const [showPhoto, setShowPhoto] = useState(false)
   // Los desplegables se cierran al pulsar fuera
@@ -249,6 +250,13 @@ export default function App() {
         onCreateFromText={() => {
           setShowLibraries(false)
           setEditing(true)
+          setCreatorText('')
+          setShowCreator(true)
+        }}
+        onCreateFromQuestionnaire={(text) => {
+          setShowLibraries(false)
+          setEditing(true)
+          setCreatorText(text)
           setShowCreator(true)
         }}
       />
@@ -797,6 +805,7 @@ export default function App() {
       {showSearch && <CellSearch lib={lib} onPick={goToHit} onClose={() => setShowSearch(false)} />}
       {showCreator && (
         <Creator
+          initialText={creatorText}
           onCreate={replaceLibrary}
           onClose={() => setShowCreator(false)}
         />
