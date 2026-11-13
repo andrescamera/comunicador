@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native'
 import { nativeApplicationVersion } from 'expo-application'
+import { isAppPinned, isPinSupported, pinApp, unpinApp } from '../../modules/kiosk'
 import type { Voice } from 'expo-speech'
 import { type CloudSync, CREDITS, DEFAULT_SETTINGS, type Settings } from '../shared'
 import { AccountSection } from './AccountSection'
@@ -23,6 +24,13 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
     void spanishVoices().then(setVoices)
   }, [])
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => onChange({ ...settings, [k]: v })
+  // Fijada en la pantalla: se consulta cada segundo (se puede desfijar con el gesto del sistema)
+  const [pinned, setPinned] = useState(isAppPinned)
+  useEffect(() => {
+    if (!isPinSupported) return
+    const t = setInterval(() => setPinned(isAppPinned()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   return (
     <Sheet title="Ajustes" onClose={onClose}>
@@ -39,6 +47,28 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
           onClose()
         }}
       />
+
+      {isPinSupported && (
+        <>
+          <Text style={styles.h}>Fijar en la pantalla</Text>
+          <Text style={styles.help}>
+            {pinned
+              ? 'El Comunicador está fijado: no se puede salir a otras apps ni ver las notificaciones.'
+              : 'Deja la tablet solo en el Comunicador: sin barra, sin notificaciones y sin poder cambiar de app. Android pide confirmación. Para salir, «Desfijar» aquí o mantener pulsados Atrás y Recientes.'}
+          </Text>
+          {pinned ? (
+            <Btn title="Desfijar" onPress={() => (unpinApp(), setTimeout(() => setPinned(isAppPinned()), 300))} />
+          ) : (
+            <Btn
+              title="📌 Fijar el Comunicador"
+              onPress={() => {
+                pinApp()
+                onClose() // el aviso de Android sale sobre el tablero
+              }}
+            />
+          )}
+        </>
+      )}
 
       <Text style={styles.h}>Cuenta y sincronización</Text>
       <AccountSection cloud={cloud} />
