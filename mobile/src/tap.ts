@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import type { GestureResponderEvent, GestureResponderHandlers } from 'react-native'
-import type { Settings } from './shared'
+import { pausePictoBounds, type Settings } from './shared'
 
 /**
  * Pulsación robusta (misma lógica que la versión web):
@@ -99,6 +99,7 @@ export function useTapSurface<K>(opts: Options<K>): GestureResponderHandlers {
     onMoveShouldSetResponder: () => false,
     onResponderTerminationRequest: () => false,
     onResponderGrant: (e: GestureResponderEvent) => {
+      pausePictoBounds() // que el recorte de pictos pendientes no retrase este toque
       const { locationX, locationY, pageX, pageY, touches } = e.nativeEvent
       const key = ref.current.hitTest(locationX, locationY)
       g.current = { key, x: pageX, y: pageY, t: Date.now(), valid: key !== null, done: false }

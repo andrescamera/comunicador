@@ -111,10 +111,35 @@ function learn(id: number, bounds: PictoBounds | null) {
   }
 }
 
+// Calcular una caja ocupa el hilo de la app (~50 ms por picto en una tablet modesta): se hacen de una en
+// una, con una pausa entre medias, y se esperan mientras se está tocando la pantalla, para que nunca
+// retrasen un toque (tras iniciar sesión hay cientos pendientes).
+const DECODE_GAP_MS = 40
+const QUIET_AFTER_TOUCH_MS = 1000
+let quietUntil = 0
+let decoding: Promise<unknown> = Promise.resolve()
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+/** Se está tocando la pantalla: los cálculos pendientes esperan un momento. */
+export function pausePictoBounds(ms = QUIET_AFTER_TOUCH_MS) {
+  quietUntil = Math.max(quietUntil, Date.now() + ms)
+}
+
+function decodeWhenIdle(png: Uint8Array): Promise<PictoBounds | null> {
+  const run = decoding.then(async () => {
+    for (let left = quietUntil - Date.now(); left > 0; left = quietUntil - Date.now()) await wait(left)
+    const b = pngBounds(png)
+    await wait(DECODE_GAP_MS)
+    return b
+  })
+  decoding = run.catch(() => undefined)
+  return run
+}
+
 async function download(id: number) {
   try {
     const res = await fetch(pictoUrl(id))
-    if (res.ok) learn(id, pngBounds(new Uint8Array(await res.arrayBuffer())))
+    if (res.ok) learn(id, await decodeWhenIdle(new Uint8Array(await res.arrayBuffer())))
     // Sin conexión o error del servidor: se ve entero y se reintenta la próxima vez
   } catch {
     // Un PNG dañado tampoco debe romper la ficha

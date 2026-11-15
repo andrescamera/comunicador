@@ -55,17 +55,15 @@ function CellViewBase({ cell, left, top, width, height, pressed, fired, editing,
       {cell.textOnly ? (
         // Solo la palabra, ocupando la casilla
         <Text
-          style={[styles.label, styles.bigText, { fontSize: Math.min(width * 0.36, height * 0.55) }]}
+          style={[styles.label, styles.bigText, { fontSize: fitFontSize(label, Math.min(width * 0.36, height * 0.55), pictoBox.width, 0.3) }]}
           numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.3}
         >
           {label}
         </Text>
       ) : (
         <>
           <Picto id={cell.picto} photo={cell.photo} trimTo={pictoBox} />
-          <Text style={[styles.label, styles.smallText, { fontSize, height: labelHeight, lineHeight: labelHeight }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          <Text style={[styles.label, styles.smallText, { fontSize: fitFontSize(label, fontSize, pictoBox.width, 0.6), height: labelHeight, lineHeight: labelHeight }]} numberOfLines={1}>
             {label}
           </Text>
         </>
@@ -94,6 +92,24 @@ function FoundRing() {
 }
 
 export const CellView = memo(CellViewBase)
+
+/**
+ * Tamaño de letra para que la palabra quepa en una línea. Se calcula aquí, a ojo por el ancho de cada
+ * letra, en vez de con `adjustsFontSizeToFit`: en Android ese prueba varios tamaños por ficha y abrir
+ * una carpeta grande tardaba el doble. Si alguna se queda corta, sale con «…».
+ */
+export function fitFontSize(text: string, size: number, maxWidth: number, minScale: number): number {
+  let em = 0
+  for (const ch of text) {
+    if (/[iljtfr.,;:'!| ]/.test(ch)) em += 0.32
+    else if (/[mwMW]/.test(ch)) em += 0.86
+    else if (/\p{Lu}/u.test(ch)) em += 0.7
+    else if (ch.codePointAt(0)! > 0x2000) em += 1.1 // emojis y símbolos
+    else em += 0.58
+  }
+  if (!em || maxWidth <= 0) return size
+  return Math.max(size * minScale, Math.min(size, maxWidth / em))
+}
 
 const styles = StyleSheet.create({
   // Valores explícitos (borde continuo, opacidad 1, escala 1): Android reutiliza la vista y no
