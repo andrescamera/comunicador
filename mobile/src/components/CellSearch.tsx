@@ -12,16 +12,18 @@ const ERRORS: Record<string, string> = {
   'not-allowed': 'Sin permiso para el micrófono. Actívalo en los ajustes de la tablet (Aplicaciones › Comunicador › Permisos).',
   'service-not-allowed': 'El reconocimiento de voz de Google no está disponible en esta tablet. Escribe la palabra.',
   'language-not-supported': 'El reconocimiento de voz no tiene el español instalado. Escribe la palabra.',
-  'no-speech': 'No se ha oído nada. Pulsa 🎤 y di la palabra.',
-  'speech-timeout': 'No se ha oído nada. Pulsa 🎤 y di la palabra.',
-  network: 'Sin conexión no se reconoce la voz (salvo que la tablet tenga el español descargado). Escribe la palabra.',
   busy: 'El micrófono está ocupado. Prueba otra vez en un momento.',
 }
 
+// Fallos que no se arreglan volviendo a escuchar: se para y se avisa (el resto, se vuelve a escuchar)
+const FATAL = new Set(['not-allowed', 'service-not-allowed', 'language-not-supported', 'network', 'audio-capture'])
+const RESTART_MS = 300
+
 /**
- * 🔍 Buscar una ficha en todos los tableros y llevar a ella. Con `voice` (ajuste «Buscar con la voz») al
- * abrirse ya escucha y lo dicho rellena la búsqueda; sin él, no hay micrófono. La hoja solo se cierra al
- * tocar un resultado (la voz no: oye también lo que se habla alrededor).
+ * 🔍 Buscar una ficha en todos los tableros y llevar a ella. Con `voice` (ajuste «Buscar con la voz») escucha
+ * todo el rato mientras está abierta (al acabar cada frase o tras un silencio vuelve a escuchar) y lo dicho
+ * rellena la búsqueda; sin él, no hay micrófono. Deja de escuchar si se escribe o se pulsa 🎤 (otra vez 🎤
+ * vuelve a escuchar). La hoja solo se cierra al tocar un resultado (la voz oye también lo que se habla alrededor).
  */
 export function CellSearch({ lib, voice, onPick, onClose }: { lib: Library; voice: boolean; onPick: (hit: CellHit) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
@@ -33,29 +35,13 @@ export function CellSearch({ lib, voice, onPick, onClose }: { lib: Library; voic
   useEffect(() => {
     latest.current = lib
   })
-  const typed = useRef(false) // si se escribe, manda lo escrito: lo que llegue de la voz ya no cuenta
+  // Por qué no hay que volver a escuchar: se escribió, se paró con 🎤, un fallo sin arreglo o ya se cerró
+  const stopped = useRef<'typed' | 'paused' | 'fatal' | 'closed' | null>(null)
+  const restartTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  useSpeechRecognitionEvent('start', () => setListening(true))
-  useSpeechRecognitionEvent('end', () => setListening(false))
-  useSpeechRecognitionEvent('result', (e) => {
-    if (typed.current) return
-    const alternatives = e.results.map((r) => clean(r.transcript)).filter(Boolean)
-    if (!alternatives.length) return
-    setQuery(e.isFinal ? bestSpoken(latest.current, alternatives) : alternatives[0])
-  })
-  useSpeechRecognitionEvent('nomatch', () => setMicError('No se ha entendido. Pulsa 🎤 y di la palabra otra vez.'))
-  useSpeechRecognitionEvent('error', (e) => {
-    if (e.error === 'aborted') return
-    setMicError(ERRORS[e.error] ?? 'No se ha podido reconocer la voz. Escribe la palabra.')
-  })
-
-  const listen = async () => {
-    if (listening) return ExpoSpeechRecognitionModule.abort()
-    setMicError('')
-    typed.current = false
+  const start = () => {
+    if (stopped.current) return
     try {
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
-      if (!granted) return setMicError(ERRORS['not-allowed'])
       ExpoSpeechRecognitionModule.start({
         lang: 'es-ES',
         interimResults: true,
@@ -65,15 +51,66 @@ export function CellSearch({ lib, voice, onPick, onClose }: { lib: Library; voic
         androidIntentOptions: { EXTRA_LANGUAGE_MODEL: 'web_search' },
       })
     } catch {
+      stopped.current = 'fatal'
+      setMicError('No se ha podido usar el reconocimiento de voz. Escribe la palabra.')
+    }
+  }
+
+  useSpeechRecognitionEvent('start', () => setListening(true))
+  useSpeechRecognitionEvent('end', () => {
+    setListening(false)
+    // Mientras la lupa esté abierta, vuelve a escuchar
+    clearTimeout(restartTimer.current)
+    if (!stopped.current) restartTimer.current = setTimeout(start, RESTART_MS)
+  })
+  useSpeechRecognitionEvent('result', (e) => {
+    if (stopped.current === 'typed') return
+    const alternatives = e.results.map((r) => clean(r.transcript)).filter(Boolean)
+    if (!alternatives.length) return
+    setMicError('')
+    setQuery(e.isFinal ? bestSpoken(latest.current, alternatives) : alternatives[0])
+  })
+  useSpeechRecognitionEvent('error', (e) => {
+    // Silencio, no se entendió, ocupado...: se vuelve a escuchar sin avisar
+    if (!FATAL.has(e.error)) {
+      clearTimeout(restartTimer.current)
+      if (!stopped.current) restartTimer.current = setTimeout(start, RESTART_MS * 3) // por si no llega «end»
+      return
+    }
+    stopped.current = 'fatal'
+    setMicError(ERRORS[e.error] ?? 'No se ha podido reconocer la voz. Escribe la palabra.')
+  })
+
+  // 🎤: para o vuelve a escuchar
+  const toggle = async () => {
+    clearTimeout(restartTimer.current)
+    if (listening) {
+      stopped.current = 'paused'
+      return ExpoSpeechRecognitionModule.abort()
+    }
+    setMicError('')
+    stopped.current = null
+    try {
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
+      if (!granted) {
+        stopped.current = 'fatal'
+        return setMicError(ERRORS['not-allowed'])
+      }
+      start()
+    } catch {
+      stopped.current = 'fatal'
       setMicError('No se ha podido usar el reconocimiento de voz. Escribe la palabra.')
     }
   }
 
   useEffect(() => {
-    if (!voice) return
-    void listen() // al abrir ya escucha
-    return () => ExpoSpeechRecognitionModule.abort()
-  }, [])
+    if (voice) void toggle() // al abrir ya escucha
+    return () => {
+      stopped.current = 'closed'
+      clearTimeout(restartTimer.current)
+      ExpoSpeechRecognitionModule.abort()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Sheet title="Buscar una ficha" onClose={onClose} wide>
@@ -82,8 +119,11 @@ export function CellSearch({ lib, voice, onPick, onClose }: { lib: Library; voic
           style={styles.input}
           value={query}
           onChangeText={(t) => {
-            typed.current = true
-            if (voice) ExpoSpeechRecognitionModule.abort() // si se escribe, deja de escuchar
+            if (voice && stopped.current !== 'closed') {
+              stopped.current = 'typed' // si se escribe, deja de escuchar (🎤 vuelve a escuchar)
+              clearTimeout(restartTimer.current)
+              ExpoSpeechRecognitionModule.abort()
+            }
             setQuery(t)
           }}
           placeholder={listening ? 'Escuchando… di la palabra' : voice ? 'Escribe o di una palabra: agua, mamá, parque…' : 'Escribe una palabra: agua, mamá, parque…'}
@@ -94,9 +134,9 @@ export function CellSearch({ lib, voice, onPick, onClose }: { lib: Library; voic
         />
         {voice && (
           <Pressable
-            onPress={() => void listen()}
+            onPress={() => void toggle()}
             style={[styles.mic, listening && styles.micOn]}
-            accessibilityLabel={listening ? 'Dejar de escuchar' : 'Decir la palabra con el micrófono'}
+            accessibilityLabel={listening ? 'Dejar de escuchar' : 'Volver a escuchar'}
           >
             <Text style={styles.micText}>🎤</Text>
           </Pressable>
