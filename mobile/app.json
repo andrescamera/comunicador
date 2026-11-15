@@ -49,6 +49,7 @@
         }
       ],
       "expo-asset",
+      "./plugins/withLandscapeOnly",
       [
         "expo-speech-recognition",
         {
