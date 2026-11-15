@@ -5,7 +5,7 @@ import { isAppPinned, isPinSupported, pinApp, unpinApp } from '../../modules/kio
 import type { Voice } from 'expo-speech'
 import { type CloudSync, CREDITS, DEFAULT_SETTINGS, type Settings } from '../shared'
 import { AccountSection } from './AccountSection'
-import { spanishVoices, speak } from '../speech'
+import { spanishVoices, speak, voiceLabel } from '../speech'
 import { colors } from '../theme'
 import { Btn, Sheet } from './Sheet'
 import { TapLog } from './TapLog'
@@ -119,7 +119,7 @@ export function SettingsSheet({ settings, onChange, onResetBoards, onClose, clou
       <Stepper label="Velocidad" unit="" value={settings.rate} step={0.05} min={0.5} max={1.5} decimals={2} onChange={(v) => set('rate', v)} />
       <Text style={styles.label}>Voz</Text>
       <Choice
-        options={[['', 'Automática'], ...voices.map((v) => [v.identifier, `${v.name} (${v.language})`] as [string, string])]}
+        options={[['', 'Automática (España)'], ...voices.map((v) => [v.identifier, voiceLabel(v, voices)] as [string, string])]}
         value={settings.voiceURI}
         onChange={(v) => set('voiceURI', v)}
       />

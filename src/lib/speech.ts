@@ -9,13 +9,13 @@ const NOVELTY = /^(eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley|albert|bad 
 // Voces de buena calidad conocidas (Mac, Chrome, Edge/Windows, iOS)
 const GOOD = /(m[oó]nica|marisol|jorge|luc[ií]a|google espa[nñ]ol|elvira|[aá]lvaro|helena|laura|pablo|siri)/i
 
-/** La mejor voz en español: la elegida en Ajustes o, en automático, una buena de España */
+/** La mejor voz en español: la elegida en Ajustes o, en automático, una de España (la mejor de ellas) */
 function pickVoice(voiceURI: string): SpeechSynthesisVoice | undefined {
   const voices = spanishVoices()
   const chosen = voices.find((v) => v.voiceURI === voiceURI)
   if (chosen) return chosen
   const score = (v: SpeechSynthesisVoice) =>
-    (NOVELTY.test(v.name) ? -100 : 0) + (GOOD.test(v.name) ? 20 : 0) + (v.lang === 'es-ES' ? 10 : 0) + (v.localService ? 1 : 0)
+    (NOVELTY.test(v.name) ? -100 : 0) + (GOOD.test(v.name) ? 20 : 0) + (/^es[-_]es$/i.test(v.lang) ? 50 : 0) + (v.localService ? 1 : 0)
   return [...voices].sort((a, b) => score(b) - score(a))[0]
 }
 
